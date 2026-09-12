@@ -343,9 +343,12 @@ class Startup extends Model
      * InformationSheetController::update()'s two abort_if calls): either
      * it's Approved for good, or today happens to be the scheduled
      * evaluation day. Anything else that writes into the same underlying
-     * records (StartupProfileController's Business Description sync and
-     * Core Team CRUD) needs to respect this exact same window, or it
-     * becomes a back door around the lock.
+     * records (StartupProfileController's Business Description sync, Core
+     * Team CRUD, and InformationSheetController::update()'s own one-way
+     * push of business_description/mobile_no/residential_address into the
+     * Profile's business_description/contact_phone/location) needs to
+     * respect this exact same window, or it becomes a back door around the
+     * lock.
      */
     public function isInformationSheetLocked(): bool
     {

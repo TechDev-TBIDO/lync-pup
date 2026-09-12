@@ -118,7 +118,7 @@
                                     LYNC PUP
                                 </p>
                                 <p class="text-[11px] text-white/60 leading-tight tracking-wide">
-                                    FOUNDER PORTAL
+                                    STARTUP PROFILE
                                 </p>
                             </div>
 
@@ -206,7 +206,7 @@
                             </div>
 
                             <div class="min-w-0">
-                                <p class="text-sm font-semibold truncate">{{ auth()->user()->name }}</p>
+                                <p class="text-sm font-semibold truncate">{{ $navStartup?->company_name ?? auth()->user()->name }}</p>
                                 <p class="text-xs text-white/60 truncate">{{ auth()->user()->email }}</p>
                             </div>
                         </div>
@@ -295,7 +295,7 @@
 
                         <div class="min-w-0">
                             <p class="font-bold text-sm leading-tight tracking-wide">LYNC PUP</p>
-                            <p class="text-[11px] text-white/60 leading-tight tracking-wide">FOUNDER PORTAL</p>
+                            <p class="text-[11px] text-white/60 leading-tight tracking-wide">STARTUP PROFILE</p>
                         </div>
 
                     </div>

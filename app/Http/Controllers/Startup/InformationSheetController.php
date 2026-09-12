@@ -87,6 +87,25 @@ class InformationSheetController extends Controller
 
         $sheet->update($data);
 
+        // One-way sync into the Startup Profile (Info Sheet -> Profile only,
+        // never the reverse — the Profile's own edit page never reads from
+        // the sheet). Every real save here overwrites the Profile's copy of
+        // these 3 fields, not just a one-time seed like the blank-only
+        // business_description backfill in StartupProfileController::update().
+        // Same locked window as everything else that writes into these
+        // shared records (see Startup::isInformationSheetLocked()'s
+        // docblock): once the sheet is Approved or today is the scheduled
+        // evaluation day, the Profile stops being touched by it entirely.
+        // Address shapes: the Profile has one general "Address" field, so it
+        // takes the sheet's Residential Address rather than the Permanent one.
+        if (! $startup->isInformationSheetLocked()) {
+            $startup->update([
+                'business_description' => $data['business_description'] ?? $startup->business_description,
+                'contact_phone' => $data['mobile_no'] ?? $startup->contact_phone,
+                'location' => $data['residential_address'] ?? $startup->location,
+            ]);
+        }
+
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Information Sheet saved and submitted for review.');
     }
 

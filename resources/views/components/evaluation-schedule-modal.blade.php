@@ -28,8 +28,24 @@ default => 'Schedule',
 // x-show note below — so that stale "draft" would then just sit there).
 // $rowKey below identifies which modal the flashed input actually belongs
 // to; old() is only trusted when it matches this row's own key.
+//
+// $errors->any() is required too, not just the key match: old() input can
+// still be sitting in the session on a page load that has nothing to do
+// with a failed submission for this row (e.g. a startup whose evaluation
+// was just deleted goes back to "Awaiting Schedule" and reopens fresh in
+// mode="add" — with no error to redisplay, there is no reason to trust a
+// leftover old('start_time')/old('evaluation_date') at all). Without this,
+// a stale old() match could quietly hand the "add" modal a non-null
+// initialStartTime — normally always null in add mode — and if the admin
+// then picked that exact same date/time again, isDirty() below would read
+// false (nothing looks "changed" from that stale initial snapshot) and Save
+// stayed disabled with no visible explanation. Requiring actual errors here
+// keeps this guard in lockstep with scheduleOpen/editOpen's own
+// auto-reopen condition below, which already only fires on real errors.
 $rowKey = $schedule?->evaluation_schedule_id ?? $startup?->startup_id ?? 'new';
-$oldMatchesThisRow = old('schedule_row_key') !== null && (string) old('schedule_row_key') === (string) $rowKey;
+$oldMatchesThisRow = $errors->any()
+    && old('schedule_row_key') !== null
+    && (string) old('schedule_row_key') === (string) $rowKey;
 
 $initialDate = $oldMatchesThisRow
     ? old('evaluation_date')
