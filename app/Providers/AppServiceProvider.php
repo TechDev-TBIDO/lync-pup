@@ -2,12 +2,15 @@
 
 namespace App\Providers;
 
+use App\Listeners\AssignLatestCohortOnVerification;
 use App\Models\Cohort;
 use App\Notifications\NewRoadblockSubmitted;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +26,15 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define('admin-only', fn ($user) => $user->role === 'Admin');
         Gate::define('startup-only', fn ($user) => $user->role === 'Startup');
+
+        // The moment a founder verifies their email (see VerifyEmailController,
+        // which fires this same Verified event), their startup is placed into
+        // whatever cohort was most recently added — cohort placement no
+        // longer waits until Information Sheet evaluation. See
+        // AssignLatestCohortOnVerification for the "why" (Macy's resolution:
+        // no startup should ever sit "unassigned" — the Unassigned cohort
+        // filter has been removed app-wide).
+        Event::listen(Verified::class, AssignLatestCohortOnVerification::class);
 
         // Branded verification email for the self-service Founder
         // registration flow, replacing Laravel's default plain-text one.

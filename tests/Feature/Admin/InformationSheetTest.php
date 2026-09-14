@@ -116,16 +116,25 @@ class InformationSheetTest extends TestCase
 
         $response->assertRedirect(route('admin.assessment-hub.index', ['tab' => 'approved']));
         $this->assertEquals('Approved', $startup->informationSheet->fresh()->approval_status);
-        // Accepting is also the moment a startup becomes an official
-        // incubatee, so it's the moment cohort placement happens now too —
-        // see Admin\InformationSheetController::approve().
+        // The startup was already placed into a cohort at email verification
+        // (see AssignLatestCohortOnVerification) — picking a cohort here is
+        // an optional OVERRIDE that moves it to a different one.
         $this->assertEquals($cohort->cohort_id, $startup->fresh()->cohort_id);
     }
 
-    public function test_admin_cannot_approve_without_picking_a_cohort(): void
+    /**
+     * Cohort placement no longer happens at this step — it happened earlier,
+     * at email verification (see AssignLatestCohortOnVerification) — so the
+     * "Assign to Cohort" picker on the Accept confirmation is optional now.
+     * Leaving it blank must still let the approval go through, and must
+     * leave whatever cohort the startup already had untouched.
+     */
+    public function test_admin_can_approve_without_picking_a_cohort_leaving_existing_placement_untouched(): void
     {
         $admin = $this->adminUser();
         $startup = $this->makeStartup();
+        $existingCohort = $this->makeCohort();
+        $startup->update(['cohort_id' => $existingCohort->cohort_id]);
         EvaluationSchedule::create([
             'startup_id' => $startup->startup_id,
             'evaluation_date' => now(),
@@ -136,8 +145,9 @@ class InformationSheetTest extends TestCase
 
         $response = $this->actingAs($admin)->patch(route('admin.information-sheet.approve', $startup));
 
-        $response->assertSessionHasErrors(['cohort_id']);
-        $this->assertEquals('Pending', $startup->informationSheet->fresh()->approval_status);
+        $response->assertRedirect(route('admin.assessment-hub.index', ['tab' => 'approved']));
+        $this->assertEquals('Approved', $startup->informationSheet->fresh()->approval_status);
+        $this->assertEquals($existingCohort->cohort_id, $startup->fresh()->cohort_id);
     }
 
     public function test_admin_cannot_reject_a_startup_with_no_scheduled_evaluation(): void

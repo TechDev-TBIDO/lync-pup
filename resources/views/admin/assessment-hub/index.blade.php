@@ -1,6 +1,10 @@
 <x-layouts.admin title="Assessment Hub">
     @php
         $initialMainTab = in_array(request('main'), ['information-sheet', 'assessment']) ? request('main') : 'information-sheet';
+        // $selectedStage is already passed into this view by
+        // AssessmentHubController::index() — same value _assessment.blade.php
+        // uses to decide between its Documents/Meetings nav.
+        $onMeetings = $selectedStage === 'Meetings';
     @endphp
     <div x-data="{ mainTab: @js($initialMainTab) }"
         x-init="$watch('mainTab', value => setQueryParam('main', value))">
@@ -19,7 +23,7 @@
                      around is exactly the kind of thing that's easy to forget
                      about, so it gets the same Stay/Leave confirmation as
                      actually navigating away. --}}
-                <button type="button" x-show="mainTab === 'assessment'" x-cloak
+                <button type="button" x-show="mainTab === 'assessment' && {{ $onMeetings ? 'false' : 'true' }}" x-cloak
                     @click="
                         if ($store.navigation.hasUnsavedChanges) {
                             $store.navigation.pendingAction = 'export';
@@ -31,6 +35,28 @@
                     class="inline-flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 sm:gap-2 sm:px-3.5 sm:py-2 lg:px-5 lg:py-2.5 lg:text-sm">
                     <x-icon name="exportdoc.svg" class="h-3.5 w-3.5 shrink-0 lg:h-4 lg:w-4" />
                     <span>Export Document</span>
+                </button>
+
+                {{-- On the Meetings nav there's nothing to export — the
+                     equivalent primary action there is scheduling a meeting,
+                     which lives inside _meetings.blade.php's own Alpine
+                     scope. Dispatching a window event (same pattern as
+                     open-export-modal above and open-delete-version-{id} in
+                     version-history-panel.blade.php) reaches across that
+                     scope boundary without hoisting settingMeeting state up
+                     here. --}}
+                <button type="button" x-show="mainTab === 'assessment' && {{ $onMeetings ? 'true' : 'false' }}" x-cloak
+                    @click="
+                        if ($store.navigation.hasUnsavedChanges) {
+                            $store.navigation.pendingAction = 'set-meeting';
+                            $store.navigation.showLeaveModal = true;
+                        } else {
+                            $dispatch('open-set-meeting-modal');
+                        }
+                    "
+                    class="inline-flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 sm:gap-2 sm:px-3.5 sm:py-2 lg:px-5 lg:py-2.5 lg:text-sm">
+                    <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-3.5 w-3.5 shrink-0 brightness-0 invert lg:h-4 lg:w-4" aria-hidden="true">
+                    <span>Set a Meeting</span>
                 </button>
             </div>
         </div>

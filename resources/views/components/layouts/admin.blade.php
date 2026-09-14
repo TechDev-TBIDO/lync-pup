@@ -423,14 +423,16 @@
 
                     {{-- Reused for two guards: leaving the page outright (a
                          real navigation, nextUrl) and staying on the page but
-                         proceeding into something like Export Document while
-                         a draft is unsaved (pendingAction, no navigation) —
-                         the copy and the action button need to say the
-                         right thing for whichever one is pending. --}}
+                         proceeding into something like Export Document or Set
+                         a Meeting while a draft is unsaved (pendingAction, no
+                         navigation) — the copy and the action button need to
+                         say the right thing for whichever one is pending. --}}
                     <p class="mt-2 text-center text-sm text-gray-600"
                         x-text="$store.navigation.pendingAction === 'export'
                             ? 'You have an unsaved assessment draft. You can still open Export Document, but your draft won\'t be saved until you come back and hit Save.'
-                            : 'You have unsaved changes. If you leave this page, your edits will be lost.'">
+                            : ($store.navigation.pendingAction === 'set-meeting'
+                                ? 'You have an unsaved assessment draft. You can still set a meeting, but your draft won\'t be saved until you come back and hit Save.'
+                                : 'You have unsaved changes. If you leave this page, your edits will be lost.')">
                     </p>
 
                     <div class="mt-6 flex gap-3">
@@ -448,13 +450,16 @@
                                 if ($store.navigation.pendingAction === 'export') {
                                     $store.navigation.pendingAction = null;
                                     $dispatch('open-export-modal');
+                                } else if ($store.navigation.pendingAction === 'set-meeting') {
+                                    $store.navigation.pendingAction = null;
+                                    $dispatch('open-set-meeting-modal');
                                 } else {
                                     $store.navigation.hasUnsavedChanges = false;
                                     window.location = $store.navigation.nextUrl;
                                 }
                             "
                             class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white"
-                            x-text="$store.navigation.pendingAction === 'export' ? 'Continue to Export' : 'Leave'">
+                            x-text="$store.navigation.pendingAction === 'export' ? 'Continue to Export' : ($store.navigation.pendingAction === 'set-meeting' ? 'Continue to Set Meeting' : 'Leave')">
                         </button>
                     </div>
                 </div>

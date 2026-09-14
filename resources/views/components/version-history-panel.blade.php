@@ -39,8 +39,8 @@
         </svg>
     </button>
 
-    <div x-show="open" x-cloak x-transition.origin.top-right
-        class="absolute right-0 top-full z-40 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-2xl"
+    <div x-show="open" x-cloak x-transition.origin.top-left
+        class="absolute left-0 top-full z-40 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-2xl"
         style="display:none;">
         <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-3">
             <p class="text-sm font-bold text-white">Version History</p>

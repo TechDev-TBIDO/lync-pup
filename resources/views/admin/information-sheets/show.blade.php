@@ -1784,8 +1784,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     </div>
 
                     {{-- Accept confirmation. Locking is irreversible from the founder's side,
-                         so it doesn't fire on a single click. This is also the moment the
-                         startup becomes an official incubatee, so a cohort must be picked. --}}
+                         so it doesn't fire on a single click. The startup was already placed
+                         into a cohort when its founder verified their email (see
+                         AssignLatestCohortOnVerification) — this picker is only an optional
+                         override, left on "Keep current cohort" by default. --}}
                     @if ($approveUrl && ! $isRejectedView)
                     <div x-show="confirmingApprove" x-cloak class="border border-gray-200 rounded-lg p-4">
                         <p class="text-sm text-gray-700">
@@ -1798,9 +1800,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             @csrf
                             @method('PATCH')
 
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Assign to Cohort <span class="text-red-600">*</span></label>
-                            <select name="cohort_id" required class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
-                                <option value="">Select cohort</option>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Cohort
+                                <span class="font-normal text-gray-500">
+                                    (currently {{ $startup->cohort?->display_label ?? 'unset' }} — change only to override)
+                                </span>
+                            </label>
+                            <select name="cohort_id" class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
+                                <option value="">Keep current cohort</option>
                                 @foreach ($cohorts ?? [] as $cohort)
                                     <option value="{{ $cohort->cohort_id }}" @selected($startup->cohort_id === $cohort->cohort_id)>{{ $cohort->display_label }}</option>
                                 @endforeach

@@ -23,14 +23,16 @@ class StartupProfileController extends Controller
         // page always showing every cohort's startups mixed together.
         $cohortId = session('selected_cohort_id');
 
+        $applyCohort = function ($q) use ($cohortId) {
+            return $q->when($cohortId, fn ($q2) => $q2->where('cohort_id', $cohortId));
+        };
+
         // "Startup Profile" tracks progress AFTER a founder's application has
         // been approved (Founder Application handles the Pending/Rejected
         // vetting stage) — so every tab, every stat, and the "Total Startup"
         // count here are scoped to applicationApproved() and never include
         // still-pending or rejected applicants.
-        $query = Startup::query()
-            ->applicationApproved()
-            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+        $query = $applyCohort(Startup::query()->applicationApproved())
             ->with(['informationSheet', 'activeCoordinatorAssignment.coordinator', 'evaluationSchedules']);
 
         $query = match ($request->query('tab', 'all')) {
@@ -43,7 +45,7 @@ class StartupProfileController extends Controller
 
         $startups = $query->latest()->paginate(12)->withQueryString();
 
-        $scopedTotal = fn () => Startup::applicationApproved()->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId));
+        $scopedTotal = fn () => $applyCohort(Startup::applicationApproved());
 
         $totalStartups = $scopedTotal()->count();
         $activeStartups = $scopedTotal()->active()->count();
@@ -71,10 +73,8 @@ class StartupProfileController extends Controller
             // specific cohort is selected, this only ever includes that one
             // cohort's row — it used to always list every cohort at once
             // regardless of what's actually selected on this page.
-            'cohortBreakdown' => Startup::query()
-                ->applicationApproved()
+            'cohortBreakdown' => $applyCohort(Startup::query()->applicationApproved())
                 ->whereNotNull('cohort_number')
-                ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
                 ->selectRaw('cohort_number, count(*) as total')
                 ->groupBy('cohort_number')
                 ->orderBy('cohort_number')

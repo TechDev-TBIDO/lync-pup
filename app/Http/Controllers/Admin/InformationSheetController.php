@@ -60,8 +60,10 @@ class InformationSheetController extends Controller
                 'mobile_no' => (string) $startup->contact_phone,
                 'founder_email' => (string) $startup->user?->email,
             ],
-            // Feeds the Accept confirmation's "Assign to Cohort" picker — this
-            // is also the moment cohort placement happens now (see approve()).
+            // Feeds the Accept confirmation's "Assign to Cohort" picker — an
+            // optional override only; the startup was already placed into a
+            // cohort at email verification (see AssignLatestCohortOnVerification
+            // and approve()).
             'cohorts' => Cohort::where('status', 'Active')->orderBy('number')->get(),
         ]);
     }
@@ -74,14 +76,17 @@ class InformationSheetController extends Controller
             'This startup\'s evaluation must be scheduled and its date reached before their Information Sheet can be approved.'
         );
 
-        // This is also the moment a startup becomes an official incubatee, so
-        // it's the moment cohort placement happens now too — there's no
-        // earlier "Founder Application approval" step anymore (see
-        // Admin\FounderApplicationController; that page is read-only now).
+        // Cohort placement no longer waits for this moment — every startup is
+        // already placed into whatever cohort was latest when its founder
+        // verified their email (see AssignLatestCohortOnVerification). The
+        // "Assign to Cohort" picker on the Accept confirmation is kept only
+        // as an optional admin override: pick a different cohort here and
+        // this startup moves to it; leave it blank and the cohort assigned
+        // at verification stands untouched.
         $data = $request->validate([
-            'cohort_id' => ['required', 'exists:cohorts,cohort_id'],
+            'cohort_id' => ['nullable', 'exists:cohorts,cohort_id'],
         ]);
-        $cohort = Cohort::findOrFail($data['cohort_id']);
+        $cohort = ! empty($data['cohort_id']) ? Cohort::findOrFail($data['cohort_id']) : null;
 
         // Captured before the update so re-approving an already-approved sheet
         // (the admin can revisit this action) doesn't re-notify the founder.
@@ -102,12 +107,14 @@ class InformationSheetController extends Controller
         ]);
 
         $startup->update([
-            'cohort_id' => $cohort->cohort_id,
-            // Kept in sync so every existing "Cohort {{ $startup->cohort_number }}"
-            // display elsewhere in the app (dashboard, profile, roadblocks, etc.)
-            // continues to work without changes.
-            'cohort_number' => $cohort->number,
             'application_decided_at' => now(),
+            ...($cohort ? [
+                'cohort_id' => $cohort->cohort_id,
+                // Kept in sync so every existing "Cohort {{ $startup->cohort_number }}"
+                // display elsewhere in the app (dashboard, profile, roadblocks, etc.)
+                // continues to work without changes.
+                'cohort_number' => $cohort->number,
+            ] : []),
         ]);
 
         if (! $wasApproved) {
