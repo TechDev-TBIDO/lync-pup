@@ -43,11 +43,18 @@ class ActiveAssessmentForms
 
     public const DOCUMENT_7_PERFORMANCE_METRICS = ['Revenue', 'No. of Customers', 'Team Members', 'Funding Secured'];
 
+    // The 'dates' array key is kept as-is (not renamed to 'remarks') so
+    // already-saved Performance Matrix data isn't orphaned - only the
+    // printed/on-screen label changes here, from "Dates" to "Remarks", to
+    // match what the exported .docx and PDF fallback already call this
+    // column (see WordDocumentExporter::renderDocument7()). The Assessment
+    // Hub form's input for this column was changed from a date picker to a
+    // plain text field to match.
     public const DOCUMENT_7_PERFORMANCE_COLUMNS = [
         'baseline' => 'Baseline',
         'target' => 'Target',
         'current' => 'Current',
-        'dates' => 'Dates',
+        'dates' => 'Remarks',
     ];
 
     /**

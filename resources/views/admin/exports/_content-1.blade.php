@@ -2,6 +2,16 @@
     $sheet = $startup->informationSheet;
     $v = fn ($val) => $val !== null && $val !== '' ? e($val) : '&nbsp;';
     $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '&nbsp;';
+    // Items 23, 32 and 34 are all the Information Sheet's "packed row" widgets
+    // (see startup/information-sheet/edit.blade.php) — the founder adds any
+    // number of rows there and they're joined into one newline-separated
+    // column. Blank/whitespace-only lines are stripped here so the export
+    // only ever prints as many rows as were actually entered, never a
+    // trailing empty one.
+    $packedLines = fn (?string $text) => collect(preg_split('/\r\n|\r|\n/', (string) $text))
+        ->map(fn ($line) => trim($line))
+        ->filter(fn ($line) => $line !== '')
+        ->values();
 @endphp
 @include('admin.exports._letterhead', [
     'formNo' => 'PUP-TBIDO FORM No. 001',
@@ -76,7 +86,13 @@
 </table>
 
 <div class="item-heading">23. SCHOLARSHIP/ ACADEMIC HONORS RECEIVED</div>
-<div style="border: 1px solid #000; padding: 6px; min-height: 20px;">{!! nl2br($v($sheet?->scholarships_academic_honors)) !!}</div>
+<table class="bordered" style="margin-top: 4px;">
+    @forelse ($packedLines($sheet?->scholarships_academic_honors) as $line)
+    <tr><td>{{ $line }}</td></tr>
+    @empty
+    <tr><td>&nbsp;</td></tr>
+    @endforelse
+</table>
 
 @include('admin.exports._section-bar', ['image' => 'section-ii-core-team-formation.jpg', 'text' => 'II. CORE TEAM FORMATION'])
 <table class="bordered" style="margin-top: 4px;">
@@ -169,15 +185,21 @@
         <td width="50%" style="vertical-align: top; padding-right: 6px;">
             <table class="bordered">
                 <tr><th>32. Non-Academic Distinctions / Recognition / Eligibilities</th></tr>
-                <tr><td>{!! $v($sheet?->non_academic_distinctions) !!}</td></tr>
+                @forelse ($packedLines($sheet?->non_academic_distinctions) as $line)
+                <tr><td>{{ $line }}</td></tr>
+                @empty
                 <tr><td>&nbsp;</td></tr>
+                @endforelse
             </table>
         </td>
         <td width="50%" style="vertical-align: top; padding-left: 6px;">
             <table class="bordered">
                 <tr><th>34. Membership in Association/Organization</th></tr>
-                <tr><td>{!! $v($sheet?->membership_associations) !!}</td></tr>
+                @forelse ($packedLines($sheet?->membership_associations) as $line)
+                <tr><td>{{ $line }}</td></tr>
+                @empty
                 <tr><td>&nbsp;</td></tr>
+                @endforelse
             </table>
         </td>
     </tr>

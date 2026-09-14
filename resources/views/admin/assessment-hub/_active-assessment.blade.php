@@ -501,13 +501,14 @@
                             @foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_METRICS as $metric)
                                 <tr>
                                     <td class="border px-3 py-2 font-semibold">{{ $metric }}</td>
+                                    {{-- Every column here is free text, including the 'dates' key -
+                                         it's now labelled "Remarks" (see DOCUMENT_7_PERFORMANCE_COLUMNS),
+                                         not a real date, so no date picker for it. Not to be confused
+                                         with the Check-ins table's own 'dates' column above, which is a
+                                         genuine date and keeps its calendar input. --}}
                                     @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_COLUMNS) as $col)
                                         <td class="border p-1">
-                                            @if ($col === 'dates')
-                                            <input type="date" x-model="doc7.performance_matrix['{{ $metric }}'].{{ $col }}" class="{{ $tableInput }}">
-                                            @else
                                             <input type="text" x-model="doc7.performance_matrix['{{ $metric }}'].{{ $col }}" class="{{ $tableInput }}">
-                                            @endif
                                         </td>
                                     @endforeach
                                 </tr>

@@ -972,12 +972,17 @@ class WordDocumentExporter
             'Funding Secured' => 'pm_funding',
         ];
         foreach ($metricPrefixes as $metric => $prefix) {
-            $processor->setValue("{$prefix}_baseline", $v(data_get($data, "performance_matrix.$metric.baseline")));
-            $processor->setValue("{$prefix}_target", $v(data_get($data, "performance_matrix.$metric.target")));
-            $processor->setValue("{$prefix}_current", $v(data_get($data, "performance_matrix.$metric.current")));
+            // Array form of the key, not a "performance_matrix.$metric.col"
+            // dot-string: "No. of Customers" itself contains a period, which
+            // data_get's dot-notation parser would otherwise split into the
+            // wrong segments and always miss - this metric's row silently
+            // came out blank in the exported .docx even when fully filled in.
+            $processor->setValue("{$prefix}_baseline", $v(data_get($data, ['performance_matrix', $metric, 'baseline'])));
+            $processor->setValue("{$prefix}_target", $v(data_get($data, ['performance_matrix', $metric, 'target'])));
+            $processor->setValue("{$prefix}_current", $v(data_get($data, ['performance_matrix', $metric, 'current'])));
             // template's 4th column placeholder is named "remarks" but
             // holds the "dates" data field - see method docblock.
-            $processor->setValue("{$prefix}_remarks", $v(data_get($data, "performance_matrix.$metric.dates")));
+            $processor->setValue("{$prefix}_remarks", $v(data_get($data, ['performance_matrix', $metric, 'dates'])));
         }
 
         $processor->setValue('prepared_by_name', $v(data_get($data, 'prepared_by_name')));
