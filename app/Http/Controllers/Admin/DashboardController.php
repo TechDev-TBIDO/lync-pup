@@ -77,7 +77,8 @@ class DashboardController extends Controller
             ->get();
         $selectedCohort = $cohortId ? $cohorts->firstWhere('cohort_id', (int) $cohortId) : null;
 
-        $startupsQuery = Startup::query()->when($selectedCohort, fn ($q) => $q->where('cohort_id', $selectedCohort->cohort_id));
+        $startupsQuery = Startup::query()
+            ->when($selectedCohort, fn ($q) => $q->where('cohort_id', $selectedCohort->cohort_id));
         $startupIds = (clone $startupsQuery)->pluck('startup_id');
         $totalStartups = $startupIds->count();
 

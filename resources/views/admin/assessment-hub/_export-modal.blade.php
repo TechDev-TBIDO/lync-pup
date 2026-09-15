@@ -533,14 +533,17 @@ $exportDocuments = [
                                              button that just steps back to the view state above — the
                                              name is already live-saved via @input as it's typed. --}}
                                         <template x-if="editingFile === file.file_path">
-                                            <div class="flex items-center gap-1.5">
+                                            {{-- One bordered box holds all three pieces (name input,
+                                                 extension, checkmark) so the red outline wraps the whole
+                                                 group, not just the text input. --}}
+                                            <div class="flex items-center gap-1.5 rounded border border-rose-300 bg-white py-0.5 pl-1.5 pr-1 focus-within:ring-1 focus-within:ring-rose-200">
                                                 <input type="text"
                                                     :value="fileBaseName(file)"
                                                     @input="renameFile(file, $event.target.value)"
                                                     @keydown.enter.prevent="editingFile = null"
                                                     x-init="$el.focus(); $el.select()"
                                                     aria-label="Rename file"
-                                                    class="w-full min-w-0 rounded border border-rose-300 bg-white px-1.5 py-0.5 font-semibold text-gray-800 focus:outline-none focus:ring-1 focus:ring-rose-200">
+                                                    class="w-full min-w-0 border-0 bg-transparent p-0 font-semibold text-gray-800 focus:outline-none focus:ring-0">
                                                 <span class="shrink-0 text-gray-500" x-text="fileExtension(file)"></span>
                                                 <button type="button" @click="editingFile = null"
                                                     aria-label="Done renaming"

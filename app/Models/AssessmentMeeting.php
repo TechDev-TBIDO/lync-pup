@@ -107,4 +107,17 @@ class AssessmentMeeting extends Model
     {
         return $this->meeting_date->isPast() && ! $this->meeting_date->isToday();
     }
+
+    /**
+     * "Location" (see App\Support\MeetingPlatform::OPTIONS) is the one
+     * modality that's physically in-person — every other option (Google
+     * Meet, Zoom, Microsoft Teams, Custom Link) is a link joined online.
+     * Drives the Meetings table's Start/Join Meet button: a Location
+     * meeting still needs "Start" (into the assessment document for this
+     * meeting's stage), everything else jumps straight to $link instead.
+     */
+    public function isOnline(): bool
+    {
+        return $this->modality !== 'Location';
+    }
 }

@@ -37,7 +37,11 @@
     <tr>
         <td>{{ $metric }}</td>
         @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_COLUMNS) as $col)
-        <td>{!! $v(data_get($data, "performance_matrix.$metric.$col")) !!}</td>
+        {{-- Array form of the key, not the "performance_matrix.$metric.$col"
+             dot-string: "No. of Customers" itself contains a period, which
+             data_get's dot-notation parser would otherwise split into the
+             wrong segments and always miss. --}}
+        <td>{!! $v(data_get($data, ['performance_matrix', $metric, $col])) !!}</td>
         @endforeach
     </tr>
     @endforeach

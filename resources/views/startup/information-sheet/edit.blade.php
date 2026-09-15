@@ -709,8 +709,15 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (['secondary' => 'SECONDARY', 'vocational' => 'VOCATIONAL/TRADE COURSE', 'college' => 'COLLEGE', 'graduate' => 'GRADUATE STUDIES'] as $key => $label)
+                            @foreach ([
+                                'secondary' => ['label' => 'SECONDARY', 'school' => 'e.g., Juan Dela Cruz National High School', 'degree_course' => 'e.g., Senior High School', 'highest_level_unit' => 'e.g., Grade 12', 'year_graduated' => 'e.g., 2023'],
+                                'vocational' => ['label' => 'VOCATIONAL/TRADE COURSE', 'school' => 'e.g., TESDA Training Center', 'degree_course' => 'e.g., Computer Systems Servicing NC II', 'highest_level_unit' => 'e.g., NC II', 'year_graduated' => 'e.g., 2023'],
+                                'college' => ['label' => 'COLLEGE', 'school' => 'e.g., Polytechnic University of the Philippines', 'degree_course' => 'e.g., BS Information Technology', 'highest_level_unit' => 'e.g., 4th Year', 'year_graduated' => 'e.g., 2027'],
+                                'graduate' => ['label' => 'GRADUATE STUDIES', 'school' => 'e.g., University of the Philippines', 'degree_course' => 'e.g., Master of Information Technology', 'highest_level_unit' => 'e.g., 1st Year', 'year_graduated' => 'e.g., 2029'],
+                            ] as $key => $row)
                             @php
+                                $label = $row['label'];
+
                                 // Efficiency shortcut: once "Name of School" for a row
                                 // is literally "N/A", the rest of that row can only
                                 // ever be "N/A" too - so auto-fill and lock them
@@ -733,10 +740,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     }
                                 ">
                                 <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}</td>
-                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="e.g. Polytechnic University of the Philippines" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="e.g. BS Computer Science" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="e.g. 4th Year" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="e.g. 2018" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
+                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="{{ $row['degree_course'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="{{ $row['highest_level_unit'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -1588,25 +1595,25 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 @method('PATCH')
                                 <div class="border-r border-gray-200">
                                     <input type="text" name="name" value="{{ $reference->name }}"
-                                        placeholder="Name" :readonly="!editing"
+                                        placeholder="Juan Dela Cruz" :readonly="!editing"
                                         class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
                                         @input="dirty = true">
                                 </div>
                                 <div class="border-r border-gray-200">
                                     <input type="text" name="contact" value="{{ $reference->contact }}"
-                                        placeholder="Contact" :readonly="!editing"
+                                        placeholder="09xxxxxxxxx" :readonly="!editing"
                                         class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
                                         @input="dirty = true">
                                 </div>
                                 <div class="border-r border-gray-200">
                                     <input type="email" name="email" value="{{ $reference->email }}"
-                                        placeholder="Email" :readonly="!editing"
+                                        placeholder="name@email.com" :readonly="!editing"
                                         class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
                                         @input="dirty = true">
                                 </div>
                                 <div>
                                     <input type="text" name="address" value="{{ $reference->address }}"
-                                        placeholder="Address" :readonly="!editing"
+                                        placeholder="123 Rizal St. Bulacan" :readonly="!editing"
                                         class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
                                         @input="dirty = true">
                                 </div>
@@ -1643,19 +1650,19 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     class="js-subform js-addform grid grid-cols-4 flex-1 text-sm">
                                     @csrf
                                     <div class="border-r border-gray-200">
-                                        <textarea name="name" placeholder="Name"
+                                        <textarea name="name" placeholder="Juan Dela Cruz"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                     <div class="border-r border-gray-200">
-                                        <textarea name="contact" placeholder="Contact"
+                                        <textarea name="contact" placeholder="09xxxxxxxxx"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                     <div class="border-r border-gray-200">
-                                        <input type="email" name="email" placeholder="Email"
+                                        <input type="email" name="email" placeholder="name@email.com"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50" @input="dirty = true">
                                     </div>
                                     <div>
-                                        <textarea name="address" placeholder="Address"
+                                        <textarea name="address" placeholder="123 Rizal St. Bulacan"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                 </form>
@@ -1732,10 +1739,21 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             dt: new DataTransfer(),
                             dragOver: false,
                             fileError: '',
+                            // Files already saved on this sheet — the 5-file cap is a
+                            // running total, not a per-visit allowance, so a founder who
+                            // already has some saved can only add up to what's left. A
+                            // file marked for removal (see the 'Saved rows' list above)
+                            // frees up its slot immediately, matching the Restore button
+                            // right next to it.
+                            existingCount: {{ ($sheet?->files ?? collect())->count() }},
                             limits: {
                                 maxFiles: 5,
                                 maxBytes: 5 * 1024 * 1024,
                                 accept: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv'],
+                            },
+                            remainingSlots() {
+                                const stillSaved = this.existingCount - this.removalCount('doc-');
+                                return Math.max(0, this.limits.maxFiles - stillSaved - this.dt.files.length);
                             },
                             addFiles(fileList) {
                                 this.fileError = '';
@@ -1744,14 +1762,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 Array.from(fileList).forEach(file => {
                                     const ext = file.name.split('.').pop().toLowerCase();
 
-                                    if (this.dt.files.length >= this.limits.maxFiles) {
-                                        this.fileError = 'Maximum file limit reached.'; return;
+                                    if (this.remainingSlots() <= 0) {
+                                        this.fileError = `Only ${this.limits.maxFiles} supporting documents can be attached in total.`; return;
                                     }
                                     if (!this.limits.accept.includes(ext)) {
                                         this.fileError = `${file.name} isn't a supported file type.`; return;
                                     }
                                     if (file.size > this.limits.maxBytes) {
-                                        this.fileError = `${file.name} is larger than 5MB.`; return;
+                                        this.fileError = `${file.name} exceeded the size limit (max 5MB).`; return;
                                     }
                                     if (existing.includes(file.name + file.size)) {
                                         this.fileError = `${file.name} is already attached.`; return;
@@ -1788,6 +1806,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 </div>
 
                                 <div
+                                    data-packed-box="files"
                                     @dragover.prevent="dragOver = true"
                                     @dragleave.prevent="dragOver = false"
                                     @drop.prevent="dragOver = false; addFiles($event.dataTransfer.files)"
@@ -1803,16 +1822,16 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     <p class="mb-2.5 text-xs text-gray-600">Drag-and-drop</p>
 
                                     <button type="button" @click="$refs.fileInput.click()"
-                                        :disabled="files.length >= limits.maxFiles"
-                                        :class="files.length >= limits.maxFiles
+                                        :disabled="remainingSlots() <= 0"
+                                        :class="remainingSlots() <= 0
                                             ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                                             : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-95'"
                                         class="rounded px-4 py-1.5 text-xs font-medium transition">
-                                        <span x-text="files.length >= limits.maxFiles ? 'Limit Reached' : 'Browse Files'"></span>
+                                        <span x-text="remainingSlots() <= 0 ? 'Limit Reached' : 'Browse Files'"></span>
                                     </button>
 
                                     <input type="file" name="files[]" x-ref="fileInput" multiple class="hidden"
-                                        :disabled="files.length >= limits.maxFiles"
+                                        :disabled="remainingSlots() <= 0"
                                         accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv"
                                         @change="addFiles($event.target.files); dirty = true">
                                 </div>
@@ -1820,11 +1839,17 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
 
                             <p x-show="fileError" x-cloak class="mt-2 max-w-md text-xs text-red-600" x-text="fileError"></p>
 
+                            {{-- Server-side (Save/dry-run) errors for this section land here —
+                                 same data-packed-error/data-packed-box pattern as Sections 23/32/34,
+                                 since there's no single named form control "files" for
+                                 showInfoSheetFieldErrors() to find and flag on its own. --}}
+                            <p data-packed-error="files" class="mt-2 hidden max-w-md text-xs text-red-600"></p>
+
                             @error('files') <p class="mt-2 max-w-md text-xs text-red-600">{{ $message }}</p> @enderror
                             @error('files.*') <p class="mt-2 max-w-md text-xs text-red-600">{{ $message }}</p> @enderror
 
                             <p class="mt-2 max-w-md text-xs text-gray-500"
-                                x-text="`Up to ${limits.maxFiles} files, 5MB each. Images, PDF, Word, or Excel.`"></p>
+                                x-text="`Only ${limits.maxFiles} supporting documents total, 5MB each. Images, PDF, Word, or Excel. ${remainingSlots()} slot(s) left.`"></p>
 
                             <template x-if="files.length > 0">
                                 <ul class="mt-4 w-full max-w-md space-y-2">
@@ -2011,10 +2036,21 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             };
 
             Object.values(errors || {}).forEach((entry) => {
-                const field = entry.field;
+                let field = entry.field;
                 const messages = entry.messages;
                 const sourceForm = entry.form;
                 const text = Array.isArray(messages) ? messages[0] : messages;
+
+                // The Supporting Documents uploader posts every file through one
+                // shared "files[]" input - Laravel reports a per-file problem as
+                // "files.0", "files.1", etc, but there's only the one drop-zone
+                // box on the page to flag, not one per index. Collapse every
+                // "files"/"files.N" key onto the same "files" packed-error slot
+                // so any of these lands on that box instead of finding no
+                // matching control at all below.
+                if (field === 'files' || /^files\.\d+$/.test(field)) {
+                    field = 'files';
+                }
 
                 // Row tables (23, 32, 34) keep their message under the table.
                 const slot = document.querySelector('[data-packed-error="' + field + '"]');

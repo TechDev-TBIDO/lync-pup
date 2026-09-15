@@ -197,7 +197,11 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
 // gap where LoginRequest's approval check could otherwise be bypassed by
 // navigating straight here while the post-registration session is still
 // active. Safe for existing accounts: account_status defaults to "Active".
-Route::middleware(['auth', 'role:Startup', 'approved'])->prefix('startup')->name('startup.')->group(function () {
+//
+// MarksVisitedNotificationsRead clears a dashboard notification card as soon
+// as its destination tab is actually reached — not only when the card's own
+// action button is clicked. See that class for why.
+Route::middleware(['auth', 'role:Startup', 'approved', \App\Http\Middleware\MarksVisitedNotificationsRead::class])->prefix('startup')->name('startup.')->group(function () {
     Route::get('dashboard', [StartupDashboardController::class, 'index'])->name('dashboard');
 
     Route::get('profile', [FounderProfileController::class, 'edit'])->name('profile.edit');

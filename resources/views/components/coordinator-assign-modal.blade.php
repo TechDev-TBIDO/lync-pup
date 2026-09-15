@@ -176,10 +176,10 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
             </div>
             @else
-            {{-- w-full, not w-md: Tailwind's md size exists only on max-w-*, so w-md compiles to
-         nothing and the button collapses to its text width. --}}
+            {{-- w-1/4, not w-full: shrunk to ~1/4 of its original w-5/6/h-10 size per
+                 request — text/padding scaled down too so the label still fits cleanly. --}}
             <button type="button" @click="show()"
-                class="mt-3 h-10 w-5/6 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 text-sm font-bold text-white transition hover:opacity-95">
+                class="mt-3 h-9 w-1/4 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-2 text-xs font-bold text-white transition hover:opacity-95">
                 Assign Coordinator
             </button>
             @endif

@@ -18,6 +18,15 @@ use Symfony\Component\HttpFoundation\Response;
  * other request (e.g. a plain sidebar link) leaves whatever was last stored
  * untouched, which is what makes the selection "stick" across navigation.
  * Controllers read the effective value back via session('selected_cohort_id').
+ *
+ * session('selected_cohort_id') is one of two shapes:
+ *   - null → "All Cohort" (no filter)
+ *   - int  → a real cohorts.cohort_id
+ *
+ * There is no more "Unassigned" filter: every startup is placed into
+ * whatever cohort is currently the latest one added the moment its founder
+ * verifies their email (see AssignLatestCohortOnVerification), so a startup
+ * sitting with cohort_id IS NULL is no longer an expected, browsable state.
  */
 class ResolveSelectedCohort
 {
@@ -26,7 +35,7 @@ class ResolveSelectedCohort
         if ($request->has('cohort')) {
             $value = $request->query('cohort');
 
-            session(['selected_cohort_id' => $value !== null && $value !== '' ? (int) $value : null]);
+            session(['selected_cohort_id' => ($value === null || $value === '') ? null : (int) $value]);
         }
 
         return $next($request);

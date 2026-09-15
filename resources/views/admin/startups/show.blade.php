@@ -164,10 +164,25 @@ $cohortReturnUrl = request('from') === 'assessment-hub'
                         <div class="grid grid-cols-2 gap-3">
                             {{-- The registered founder (the account itself) isn't one of the
                                  Information Sheet's own Core Team rows below — without this,
-                                 nothing on this card actually said who the founder was. --}}
-                            @if ($startup->user?->name)
+                                 nothing on this card actually said who the founder was.
+                                 users.name is stored as one composed "First Middle Last"
+                                 string (see StartupProfileController::update()), so it's
+                                 split back apart here with the same helper the Information
+                                 Sheet uses to prefill its own name fields, then rejoined as
+                                 "Last, First, Middle" to match how every other Team roster
+                                 name on this card (StartupTeamMember/TeamMember full_name)
+                                 is typed in. --}}
+                            @php
+                                $founderNameParts = \App\Models\InformationSheet::splitFounderName($startup->user?->name);
+                                $founderDisplayName = collect([
+                                    $founderNameParts['surname'],
+                                    $founderNameParts['first_name'],
+                                    $founderNameParts['middle_name'],
+                                ])->filter(fn ($part) => filled($part))->implode(', ');
+                            @endphp
+                            @if ($founderDisplayName)
                             <div class="flex items-center justify-between gap-2 rounded-lg bg-rose-50 px-4 py-2 text-sm">
-                                <span class="font-medium text-gray-900">{{ $startup->user->name }}</span>
+                                <span class="font-medium text-gray-900">{{ $founderDisplayName }}</span>
                                 <span class="shrink-0 rounded-full bg-rose-900 px-2 py-0.5 text-[10px] font-semibold text-white">Founder</span>
                             </div>
                             @endif
@@ -177,7 +192,7 @@ $cohortReturnUrl = request('from') === 'assessment-hub'
                                 {{ $member->full_name }}
                             </div>
                             @empty
-                            @if (! $startup->user?->name)
+                            @if (! $founderDisplayName)
                             <p class="text-sm text-gray-500 col-span-2">No team members listed yet.</p>
                             @endif
                             @endforelse

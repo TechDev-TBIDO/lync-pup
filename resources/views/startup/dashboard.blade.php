@@ -5,13 +5,9 @@
         No startup profile is linked to this account yet.
     </div>
     @else
-    @php
-    $cohortSuffix = str_pad((string) $cohortSequence, 3, '0', STR_PAD_LEFT);
-    @endphp
 
     <div class="mb-5 sm:mb-6">
-        <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Welcome back, Founder!</h1>
-        <p class="mt-1 text-sm text-gray-500 sm:text-base">{{ $startup->company_name }} &middot; {{ $startup->batch_label }} - {{ $cohortSuffix }}</p>
+        <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Welcome back, {{ $startup->company_name }}!</h1>
     </div>
 
     {{-- Action Required --}}

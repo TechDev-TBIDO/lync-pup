@@ -16,11 +16,13 @@ for ($i = 0; $i < $count; $i++) {
     }
     }
 
-    // "Meetings" sits between Overview and the RL stages — scheduling a
-    // meeting is something an admin does before filling in any stage's
-    // forms, so it reads as a step ahead of them rather than a stage of its
-    // own (see AssessmentMeeting).
-    $allStages = array_merge(['Overview', 'Meetings'], $stages, ['Reports']);
+    // "Meetings" now lives under its own top-level "Meetings" nav item
+    // (see the Documents/Meetings toggle below) instead of sitting inside
+    // this stage pill row — scheduling a meeting isn't scoped to a single
+    // startup's assessment the way Overview/Pre-Assessment/etc. are (see
+    // AssessmentMeeting), so it reads better as a sibling of "Documents"
+    // rather than one more stage inside it.
+    $allStages = array_merge(['Overview'], $stages, ['Reports']);
 
     // TRL's "Section 1: Startup & Technology Overview" only appears on
     // Pre-Assessment — Post-Assessment reuses the exact same TRL/MRL/TMRL/SRL
@@ -138,6 +140,31 @@ for ($i = 0; $i < $count; $i++) {
         ];
         @endphp
 
+        @php
+            // "Meetings" used to be one more pill inside the stage row below
+            // — now it's a sibling of the whole Documents section instead,
+            // since it isn't scoped to a single startup's assessment the way
+            // Overview/Pre-Assessment/etc. are (see AssessmentMeeting).
+            $onMeetings = $selectedStage === 'Meetings';
+        @endphp
+
+        <div class="mb-6 flex w-full gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-gray-100 p-1 sm:inline-flex sm:w-auto">
+            <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $onMeetings ? 'Overview' : $selectedStage, 'assessment_startup' => $selectedStartup?->startup_id]) }}"
+                @click="if ({{ $onMeetings ? 'false' : 'true' }}) { $event.preventDefault(); } else if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
+                class="flex-1 whitespace-nowrap rounded-md px-4 py-1.5 text-center text-sm font-medium transition sm:flex-none {{ ! $onMeetings ? 'bg-white text-rose-900 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                Documents
+            </a>
+            <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => 'Meetings']) }}"
+                @click="if ({{ $onMeetings ? 'true' : 'false' }}) { $event.preventDefault(); } else if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
+                class="flex-1 whitespace-nowrap rounded-md px-4 py-1.5 text-center text-sm font-medium transition sm:flex-none {{ $onMeetings ? 'bg-white text-rose-900 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                Meetings
+            </a>
+        </div>
+
+        @if ($onMeetings)
+        @include('admin.assessment-hub._meetings')
+        @else
+
         <div class="mb-5 flex items-center gap-2">
             <span class="icon-mask h-8 w-8 text-rose-900"
                 style="--icon: url('{{ asset('images/icons/submit-roadblock.svg') }}')"></span>
@@ -195,9 +222,7 @@ for ($i = 0; $i < $count; $i++) {
             </div>
         </div>
 
-        @if ($selectedStage === 'Meetings')
-        @include('admin.assessment-hub._meetings')
-        @elseif ($selectedStage === 'Overview' || (! $selectedStartup && $selectedStage !== 'Reports'))
+        @if ($selectedStage === 'Overview' || (! $selectedStartup && $selectedStage !== 'Reports'))
         {{-- ============ Overview: every assessable startup's completion status ============ --}}
         @if ($assessableStartups->isEmpty())
         <div class="rounded-xl border border-dashed p-12 text-center text-gray-400">
@@ -1082,4 +1107,6 @@ for ($i = 0; $i < $count; $i++) {
                 </a>
             </div>
         </div>
+        @endif
+
         @endif
