@@ -71,19 +71,29 @@ class RegisteredUserController extends Controller
     public function cancel(Request $request): RedirectResponse
     {
         $user = $request->user();
+        $shouldDelete = $user && ! $user->hasVerifiedEmail();
+
+        // Logout must happen BEFORE the delete below, not after. Laravel's
+        // SessionGuard::logout() cycles the user's remember_token (since the
+        // factory/registration flow always sets one) by calling $user->save()
+        // on its way out — if $user has already been deleted at that point,
+        // Eloquent sees $exists === false and treats that save() as a fresh
+        // INSERT instead of an UPDATE, silently resurrecting the very row
+        // delete() just removed (same id, since the in-memory model still
+        // holds every attribute). Logging out first means that save() still
+        // legitimately happens while the row exists, so nothing comes back.
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         // Safety guard: only ever delete an unverified account. This route
         // is only ever reachable from the verify-email screen (which only
         // an unverified user can be on) anyway, but double-check here
         // since it's a destructive action.
-        if ($user && ! $user->hasVerifiedEmail()) {
+        if ($shouldDelete) {
             $user->startup?->delete();
             $user->delete();
         }
-
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
 
         return redirect()->route('register');
     }

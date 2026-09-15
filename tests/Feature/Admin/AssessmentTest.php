@@ -65,9 +65,14 @@ class AssessmentTest extends TestCase
         $admin = User::factory()->create(['role' => 'Admin']);
         $startup = $this->approvedStartup();
 
+        // Selecting a startup with no stage given lands on the Overview tab
+        // (see test_the_assessment_tab_defaults_to_the_all_startup_overview),
+        // which never renders "Technology Readiness Level" — the Pre-
+        // Assessment detail view needs its own stage explicitly.
         $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
             'main' => 'assessment',
             'assessment_startup' => $startup->startup_id,
+            'stage' => 'Pre-Assessment',
         ]));
 
         $response->assertOk();
@@ -436,11 +441,12 @@ class AssessmentTest extends TestCase
             'stage' => 'Pre-Assessment',
         ]));
         $pre->assertOk();
-        // Not HTML-escaped: the view prints this heading as raw text (no
-        // {{ }} interpolation), so the literal "&" is never turned into
-        // "&amp;" — assertSee's default escaping would otherwise search for
-        // a string that can never appear in the response.
-        $pre->assertSee('Section 1: Startup & Technology Overview', false);
+        // The heading is authored in the template with a literal "&amp;"
+        // entity (not a Blade {{ }} interpolation), so searching with
+        // escaping disabled (the `false` arg) for a bare "&" never matches
+        // the actual response. Use assertSee's default escaping instead,
+        // which turns the needle's "&" into "&amp;" before comparing.
+        $pre->assertSee('Section 1: Startup & Technology Overview');
 
         $post = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
             'main' => 'assessment',
@@ -448,7 +454,7 @@ class AssessmentTest extends TestCase
             'stage' => 'Post-Assessment',
         ]));
         $post->assertOk();
-        $post->assertDontSee('Section 1: Startup & Technology Overview', false);
+        $post->assertDontSee('Section 1: Startup & Technology Overview');
     }
 
     public function test_saving_pre_assessment_persists_the_trl_overview_section(): void

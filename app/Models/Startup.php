@@ -175,13 +175,35 @@ class Startup extends Model
      * gates on this one: a startup only sitting in the Upcoming list
      * shouldn't be decidable yet, since nobody has evaluated it.
      *
-     * Deliberately scoped to the LATEST schedule, and deliberately checks it
-     * against the sheet's own submission_date: after a Reject, the founder
-     * can edit and resubmit (which re-stamps submission_date), and that
-     * resubmission needs its own fresh evaluation before it can be
-     * Accepted/Rejected again — reusing the old, already-decided evaluation
-     * (whose date has necessarily already passed) would let an admin
-     * re-decide a resubmission nobody has actually re-evaluated.
+     * Deliberately scoped to the LATEST schedule, and deliberately checked
+     * against the sheet's own rejected_at: after a Reject, the founder can
+     * edit and resubmit, and that resubmission needs its own fresh
+     * evaluation before it can be Accepted/Rejected again — reusing the
+     * old, already-decided evaluation would let an admin re-decide a
+     * resubmission nobody has actually re-evaluated.
+     *
+     * This used to compare evaluation_date against submission_date instead —
+     * both DATE-only columns — so a same-day reject-then-resubmit (the
+     * founder revising and resubmitting within the same day, easily the most
+     * common real sequence) compared "today" against "today" and never
+     * caught the staleness at all.
+     *
+     * rejected_at is a real timestamp, so it's compared against the
+     * schedule's own updated_at (also a real timestamp) instead: a schedule
+     * that hasn't been touched since the rejection is the stale one.
+     * Rescheduling that same row (see Reschedule elsewhere in the app)
+     * naturally bumps its updated_at past rejected_at and makes it count
+     * again, same as approving clears rejected_at back to null.
+     *
+     * Gated on approval_status still being Pending, not merely on rejected_at
+     * being set: rejected_at itself is stamped by the SAME reject() call that
+     * makes this method's caller check it in the first place (see
+     * InformationSheetController::reject()'s abort_if), and it's never
+     * cleared just by resubmitting — only by a later Approve. Without the
+     * Pending guard, a straight reject() with no resubmission at all would
+     * immediately (and wrongly) invalidate the very evaluation that just
+     * decided it, since the schedule obviously predates a rejected_at
+     * stamped microseconds ago.
      */
     public function evaluationReached(): bool
     {
@@ -191,9 +213,9 @@ class Startup extends Model
             return false;
         }
 
-        $submissionDate = $this->informationSheet?->submission_date;
+        $sheet = $this->informationSheet;
 
-        if ($submissionDate && $latest->evaluation_date->lt($submissionDate->copy()->startOfDay())) {
+        if ($sheet?->approval_status === 'Pending' && $sheet->rejected_at && $latest->updated_at->lt($sheet->rejected_at)) {
             return false;
         }
 

@@ -83,7 +83,29 @@ class StartupProfileTest extends TestCase
     public function test_pending_tab_filters_correctly(): void
     {
         $admin = User::factory()->create(['role' => 'Admin']);
-        $this->makeStartup('Pending');
+
+        // The 'pending' tab is Startup::scopeAwaitingEvaluation() — the
+        // deliberate strict inverse of scopeOnboarding(): a fully-complete
+        // profile (photo included) AND a real, non-cancelled evaluation
+        // scheduled, not merely an unevaluated InformationSheet. A bare
+        // makeStartup('Pending') satisfies neither, so it would never
+        // actually appear here.
+        $pendingStartup = $this->makeStartup('Pending');
+        $pendingStartup->update([
+            'startup_photo_path' => 'startups/photo.jpg',
+        ]);
+        $pendingStartup->informationSheet->update([
+            'business_description' => 'A startup awaiting its evaluation.',
+            'submission_date' => now(),
+        ]);
+        \App\Models\EvaluationSchedule::create([
+            'startup_id' => $pendingStartup->startup_id,
+            'evaluation_date' => now()->addDays(3),
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'status' => 'Scheduled',
+        ]);
+
         $this->makeStartup('Approved');
 
         $response = $this->actingAs($admin)->get(route('admin.startups.index', ['tab' => 'pending']));

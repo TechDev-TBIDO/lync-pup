@@ -31,11 +31,87 @@ class InformationSheetTest extends TestCase
         return $startup;
     }
 
+    /**
+     * Every field on the Information Sheet's main form is required on every
+     * admin save too (UpdateInformationSheetRequest mirrors the founder's
+     * rule set 1:1 — see its own docblock), plus four admin-only Declaration
+     * &amp; Endorsement fields the founder never sees. This is a complete,
+     * valid payload for that form, so a test that only cares about one or
+     * two fields' behavior can override just those and still send a request
+     * the rest of the form accepts.
+     */
+    protected function validInformationSheetPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'startup_overview' => 'We build a mobile platform that connects local farmers directly with urban buyers, cutting out middlemen and improving farmer margins.',
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'middle_name' => 'N/A',
+            'name_extension' => 'N/A',
+            'height_input' => '170',
+            'height_unit' => 'cm',
+            'weight_input' => '60',
+            'weight_unit' => 'kg',
+            'blood_type' => 'O+',
+            'gsis_no' => '12345678901',
+            'pagibig_no' => '123456789012',
+            'philhealth_no' => '123456789012',
+            'sss_no' => '1234567890',
+            'tin' => '123456789000',
+            'residential_address' => '123 Rizal St., Brgy. San Antonio, Quezon City',
+            'permanent_address' => '456 Bonifacio Ave., Brgy. Poblacion, Makati City',
+            'sex' => 'FEMALE',
+            'civil_status' => 'SINGLE',
+            'citizenship_by_birth' => 'Filipino',
+            'citizenship_dual' => 'N/A',
+            'place_of_birth' => 'Quezon City, Philippines',
+            'date_of_birth' => '1995-05-15',
+            'mobile_no' => '09171234567',
+            'founder_email' => 'maria.santos@example.com',
+            'secondary_school' => 'Quezon City Science High School',
+            'secondary_degree_course' => 'General Academic Strand',
+            'secondary_highest_level_unit' => '4th Year',
+            'secondary_year_graduated' => '2013',
+            'vocational_school' => 'N/A',
+            'vocational_degree_course' => 'N/A',
+            'vocational_highest_level_unit' => 'N/A',
+            'vocational_year_graduated' => 'N/A',
+            'college_school' => 'Polytechnic University of the Philippines',
+            'college_degree_course' => 'BS Computer Science',
+            'college_highest_level_unit' => "Bachelor's Degree",
+            'college_year_graduated' => '2017',
+            'graduate_school' => 'N/A',
+            'graduate_degree_course' => 'N/A',
+            'graduate_highest_level_unit' => 'N/A',
+            'graduate_year_graduated' => 'N/A',
+            'scholarships_academic_honors' => "Dean's Lister, 2015-2017",
+            'sec_registration' => 'CS202412345',
+            'business_id_number' => '123456789',
+            'dti_registration_number' => '123456789012',
+            'business_tin' => '123-456-789-000',
+            'non_academic_distinctions' => 'N/A',
+            'membership_associations' => 'N/A',
+            // Declaration & Endorsement — admin-only, never shown to the founder.
+            'portfolio_manager' => 'Juan Dela Cruz',
+            'cohort_no' => 'Cohort 1',
+            'endorsed_by' => 'Maria Reyes',
+            'endorsement_date' => now()->toDateString(),
+        ], $overrides);
+    }
+
     protected function makeCohort(): Cohort
     {
+        // Number 1 collides with the migration's own seed data: cohorts
+        // 1-5 are inserted directly by create_cohorts_table's up() method
+        // (see CohortTest's docblock — there's no CohortFactory on purpose),
+        // so RefreshDatabase already has a "Cohort 1" row before this ever
+        // runs. Picking one past whatever already exists avoids the unique
+        // constraint on cohorts.number regardless of how many are seeded.
+        $number = (Cohort::max('number') ?? 0) + 1;
+
         return Cohort::create([
-            'number' => 1,
-            'label' => 'Cohort 1',
+            'number' => $number,
+            'label' => 'Cohort '.$number,
             'start_date' => now()->toDateString(),
             'end_date' => now()->addMonths(6)->toDateString(),
             'status' => 'Active',
@@ -76,14 +152,16 @@ class InformationSheetTest extends TestCase
             'status' => 'Scheduled',
         ]);
 
-        $response = $this->actingAs($admin)->patch(route('admin.information-sheet.update', $startup), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'mobile_no' => '09171234567',
-        ]);
+        $response = $this->actingAs($admin)->patch(
+            route('admin.information-sheet.update', $startup),
+            $this->validInformationSheetPayload(['surname' => 'Santos', 'first_name' => 'Maria'])
+        );
 
         $response->assertRedirect(route('admin.information-sheet.show', $startup));
-        $this->assertEquals('Santos', $startup->informationSheet->fresh()->surname);
+        // Uppercased on the way in — see UpdateInformationSheetRequest's own
+        // prepareForValidation() docblock: the form mirrors PUP-TBIDO Form
+        // No. 001, which is filled out in capital letters.
+        $this->assertEquals('SANTOS', $startup->informationSheet->fresh()->surname);
     }
 
     public function test_admin_cannot_approve_a_startup_with_no_scheduled_evaluation(): void
@@ -177,7 +255,10 @@ class InformationSheetTest extends TestCase
             'evaluator_remarks' => 'Please add a clearer problem statement.',
         ]);
 
-        $response->assertRedirect(route('admin.assessment-hub.index', ['tab' => 'evaluation']));
+        // Rejecting starts the 10-day resubmission countdown (see reject()'s
+        // own docblock) and now has a dedicated Rejected tab in Assessment
+        // Hub — it no longer stays under "evaluation" once decided.
+        $response->assertRedirect(route('admin.assessment-hub.index', ['tab' => 'rejected']));
         $sheet = $startup->informationSheet->fresh();
         $this->assertEquals('Rejected', $sheet->approval_status);
         $this->assertEquals('Please add a clearer problem statement.', $sheet->evaluator_remarks);
@@ -203,6 +284,16 @@ class InformationSheetTest extends TestCase
             'status' => 'Scheduled',
         ]);
 
+        // evaluationReached()'s staleness check compares the schedule's
+        // updated_at against the sheet's rejected_at, both stored with
+        // whole-second precision (Eloquent's default $dateFormat drops
+        // microseconds). Without a real gap, every timestamp in this test
+        // would land in the same second and tie, making a strict "before"
+        // comparison meaningless — so travel() is used throughout to give
+        // each step its own distinguishable second, exactly as it would in
+        // real usage (these actions never actually happen instantaneously).
+        $this->travel(1)->minute();
+
         $this->actingAs($admin)->patch(route('admin.information-sheet.reject', $startup));
         $this->assertTrue($startup->fresh()->evaluationReached());
 
@@ -221,6 +312,8 @@ class InformationSheetTest extends TestCase
         // Once the admin reschedules (moves the same row to a future date,
         // matching the app\'s existing Reschedule pattern) it correctly
         // reopens, then closes again once that new day is reached.
+        $this->travel(1)->minute();
+
         $schedule = $startup->fresh()->latestEvaluationSchedule;
         $schedule->update(['evaluation_date' => now()->addDays(2)]);
         $this->assertFalse($startup->fresh()->evaluationReached());

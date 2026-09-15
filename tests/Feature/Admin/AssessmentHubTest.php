@@ -18,7 +18,15 @@ class AssessmentHubTest extends TestCase
         return User::factory()->create(['role' => 'Admin']);
     }
 
-    public function test_approving_a_startup_removes_it_from_todays_evaluations(): void
+    /**
+     * Today is the day's schedule, not a "still undecided" list — a slot
+     * booked for today stays on it (as a DONE row) even once it's approved;
+     * only Approved-excluding widgets like scheduledToday actually drop it
+     * (see test_approving_a_startup_removes_it_from_the_scheduled_today_widget
+     * below). See AssessmentHubController::index()'s own comment on
+     * $todayEvaluations and EvaluationSchedule::outcome()/isToday().
+     */
+    public function test_approving_a_startup_marks_it_done_in_todays_evaluations_and_lists_it_as_approved(): void
     {
         $admin = $this->adminUser();
         $startup = Startup::factory()->create();
@@ -43,9 +51,9 @@ class AssessmentHubTest extends TestCase
         // Approve the information sheet.
         $this->actingAs($admin)->patch(route('admin.information-sheet.approve', $startup));
 
-        // Now it should be gone from Today and present under Approved.
+        // Still on Today (now reading as DONE) and also present under Approved.
         $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index'));
-        $this->assertFalse(
+        $this->assertTrue(
             $response->viewData('todayEvaluations')->contains('startup_id', $startup->startup_id)
         );
         $this->assertTrue(
@@ -61,7 +69,7 @@ class AssessmentHubTest extends TestCase
             'startup_id' => $startup->startup_id,
             'approval_status' => 'Pending',
         ]);
-        EvaluationSchedule::create([
+        $schedule = EvaluationSchedule::create([
             'startup_id' => $startup->startup_id,
             'evaluation_date' => now()->addDays(3),
             'start_time' => '09:00',
@@ -74,6 +82,13 @@ class AssessmentHubTest extends TestCase
         $this->assertTrue(
             $response->viewData('upcomingEvaluations')->contains('startup_id', $startup->startup_id)
         );
+
+        // A startup only sitting in Upcoming isn't decidable yet — see
+        // Startup::evaluationReached()'s own docblock: nobody has evaluated
+        // it until its day actually arrives. Simulate that day arriving
+        // (same as the admin's own Reschedule action moving it to today)
+        // before approving, same as InformationSheetTest's equivalent case.
+        $schedule->update(['evaluation_date' => now()]);
 
         // Approve from the show page reached via Upcoming > View.
         $approveResponse = $this->actingAs($admin)->patch(route('admin.information-sheet.approve', $startup));

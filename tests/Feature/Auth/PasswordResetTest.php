@@ -108,7 +108,7 @@ class PasswordResetTest extends TestCase
      * email before inserting the new one (password_reset_tokens.email is
      * the primary key), so this just confirms that behavior holds.
      *
-     * Password::reset() reports a super seded token the same way it reports
+     * Password::reset() reports a superseded token the same way it reports
      * a genuinely time-expired one (both are just Password::INVALID_TOKEN —
      * Laravel doesn't distinguish "deleted" from "past its expiry window" at
      * that layer), so submitting an old link now lands on the same friendly
@@ -129,6 +129,13 @@ class PasswordResetTest extends TestCase
 
             return true;
         });
+
+        // Requesting a second link immediately would just get throttled (see
+        // config('auth.passwords.users.throttle') — 60s) and never actually
+        // supersede the first token at all, defeating the point of this test.
+        // Travelling past the throttle window first is what makes the second
+        // request actually go through and replace the first token.
+        $this->travel(61)->seconds();
 
         // Request a second link — this should supersede the first.
         $this->post('/forgot-password', ['email' => $user->email]);

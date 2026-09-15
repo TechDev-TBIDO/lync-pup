@@ -178,7 +178,10 @@ class EmailVerificationTest extends TestCase
     {
         $user = User::factory()->unverified()->create();
         $user->forceFill(['email_verification_token' => 'test-token'])->save();
-        $otherUser = User::factory()->create();
+        // Must start unverified too, or assertFalse(hasVerifiedEmail())
+        // below fails regardless of what the controller does — the factory
+        // defaults every user to already-verified.
+        $otherUser = User::factory()->unverified()->create();
 
         $verificationUrl = URL::temporarySignedRoute(
             'verification.verify',

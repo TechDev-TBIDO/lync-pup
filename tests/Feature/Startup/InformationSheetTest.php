@@ -234,6 +234,11 @@ class InformationSheetTest extends TestCase
     public function test_founder_can_save_an_incomplete_sheet_as_a_draft(): void
     {
         [$user, $startup] = $this->makeFounder();
+        // InformationSheetFactory defaults submission_date to now() — null it
+        // out here so this test genuinely starts from a never-submitted
+        // baseline, instead of a Save merely leaving an already-non-null
+        // value untouched.
+        $startup->informationSheet->update(['submission_date' => null]);
 
         $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
             'intent' => 'save',
@@ -243,7 +248,10 @@ class InformationSheetTest extends TestCase
 
         $response->assertRedirect(route('startup.information-sheet.edit'));
         $sheet = $startup->informationSheet->fresh();
-        $this->assertEquals('Santos', $sheet->surname);
+        // Uppercased on the way in — see UpdateInformationSheetRequest's own
+        // prepareForValidation() docblock (PUP-TBIDO Form No. 001 is filled
+        // out in capital letters).
+        $this->assertEquals('SANTOS', $sheet->surname);
         $this->assertNull($sheet->submission_date);
     }
 
@@ -269,6 +277,10 @@ class InformationSheetTest extends TestCase
     public function test_submit_still_requires_every_field_even_after_a_draft_save(): void
     {
         [$user, $startup] = $this->makeFounder();
+        // See test_founder_can_save_an_incomplete_sheet_as_a_draft — the
+        // factory defaults submission_date to now(), which would make this
+        // assertion pass even if a failed Submit wrongly stamped it.
+        $startup->informationSheet->update(['submission_date' => null]);
 
         $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
             'intent' => 'save',
@@ -314,7 +326,8 @@ class InformationSheetTest extends TestCase
 
         $response->assertRedirect(route('startup.information-sheet.edit'));
         $sheet = $startup->informationSheet->fresh();
-        $this->assertEquals('Santos', $sheet->surname);
+        // Uppercased on the way in — see the draft-save test above.
+        $this->assertEquals('SANTOS', $sheet->surname);
         $this->assertEquals('Rejected', $sheet->approval_status);
     }
 

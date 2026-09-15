@@ -75,10 +75,13 @@ class RoadblockTest extends TestCase
      * button in the Edit modal, formerly "Delete Assignment"): testers
      * found the old "reset to Pending" behavior confusing — a deleted
      * mentorship reappearing in the Pending list looked like it hadn't
-     * actually been deleted. It now permanently deletes the roadblock
-     * itself instead.
+     * actually been deleted. It was briefly changed to a hard delete
+     * instead, but that erased it from the founder's own Archive with no
+     * trace — it now moves to a dedicated "Deleted by Admin" status, which
+     * keeps the row (visible/filterable in that Archive) without it
+     * reappearing anywhere else. See unassign()'s own doc comment.
      */
-    public function test_delete_assignment_permanently_deletes_the_roadblock(): void
+    public function test_delete_assignment_marks_the_roadblock_deleted_by_admin(): void
     {
         $admin = $this->adminUser();
         $roadblock = $this->pendingRoadblock();
@@ -97,8 +100,9 @@ class RoadblockTest extends TestCase
         $response = $this->actingAs($admin)->delete(route('admin.roadblocks.unassign', $roadblock));
 
         $response->assertRedirect();
-        $this->assertDatabaseMissing('roadblocks', [
+        $this->assertDatabaseHas('roadblocks', [
             'roadblock_id' => $roadblock->roadblock_id,
+            'status' => 'Deleted by Admin',
         ]);
     }
 
@@ -202,6 +206,12 @@ class RoadblockTest extends TestCase
         ]);
     }
 
+    /**
+     * destroy() was a hard delete — switched to the same "Deleted by Admin"
+     * status change as unassign() above, so the founder's own Archive still
+     * shows what happened to their submission instead of it just
+     * disappearing. See destroy()'s own doc comment.
+     */
     public function test_admin_can_delete_a_failed_roadblock(): void
     {
         $admin = $this->adminUser();
@@ -211,7 +221,10 @@ class RoadblockTest extends TestCase
         $response = $this->actingAs($admin)->delete(route('admin.roadblocks.destroy', $roadblock));
 
         $response->assertRedirect();
-        $this->assertDatabaseMissing('roadblocks', ['roadblock_id' => $roadblock->roadblock_id]);
+        $this->assertDatabaseHas('roadblocks', [
+            'roadblock_id' => $roadblock->roadblock_id,
+            'status' => 'Deleted by Admin',
+        ]);
     }
 
     public function test_founder_cannot_access_admin_roadblock_routes(): void
@@ -835,8 +848,8 @@ class RoadblockTest extends TestCase
         // the flag back off.
         $this->assertSame(2, substr_count($html, 'showFailedState = false'));
         // One data-original attribute per revertible field: assignee,
-        // meeting_date, start time, end time, platform, link.
-        $this->assertSame(6, substr_count($html, 'data-original='));
+        // meeting_date, start time, end time, platform, link, notes.
+        $this->assertSame(7, substr_count($html, 'data-original='));
     }
 
     /**

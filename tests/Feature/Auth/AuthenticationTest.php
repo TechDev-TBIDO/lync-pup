@@ -47,7 +47,10 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertGuest();
-        $response->assertSessionHasErrors('email');
+        // A recognized email with the wrong password surfaces under
+        // 'password' now, not 'email' — see LoginRequest::authenticate()'s
+        // own comment: the account was found, just the wrong password.
+        $response->assertSessionHasErrors('password');
         $response->assertSessionHasInput('role', 'Admin');
     }
 
