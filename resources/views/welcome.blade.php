@@ -11,39 +11,14 @@
 <body x-data="landingPage()" class="overflow-x-hidden antialiased bg-white">
 
     {{-- ==================== HERO ==================== --}}
-    {{-- landing.svg is the full hero graphic — gradient, decorative icons and
-         the 3-person photo baked into one image. It behaves like a real
-         background: absolutely positioned to fill the header and
-         object-cover'd so it always fills that space without distortion.
-         The 3 people sit in roughly the right 60% of the source image,
-         vertically centered-to-lower (checked by rendering the SVG
-         directly) — object-[70%_55%] keeps that group in frame as the crop
-         tightens on narrow screens, letting the empty gradient on the
-         image's left get cropped first instead of the people.
-
-         min-h-[...] below is a floor, not a fixed height: it guarantees the
-         header (and therefore the photo, which is sized to match it) never
-         renders smaller than this regardless of how tight the text spacing
-         inside gets. Without this floor, shrinking margins/line-height
-         shrinks the header itself, which visibly shrinks the photo too —
-         that's the bug this line prevents. If the stacked content ever
-         needs more room than the floor, the header simply grows past it as
-         normal; the floor only stops it going smaller. --}}
     <header class="relative min-h-[560px] overflow-hidden bg-[#2C0F35] text-white sm:min-h-[740px] lg:min-h-[800px]">
-        <img src="{{ asset('images/landing/landing.svg') }}" alt=""
+        <img src="{{ asset('images/landing/landing.png') }}" alt=""
             class="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[70%_55%]" aria-hidden="true">
 
         <div class="relative z-10 pb-16 pt-8">
                 {{-- ==================== NAVBAR ==================== --}}
-                {{-- Narrower max-w (4xl instead of 6xl) so the pill doesn't
-                     stretch edge-to-edge as wide as the hero content below it. --}}
                 <div class="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-                    {{-- x-data scoped to the nav so the mobile dropdown's open/closed
-                         state doesn't need to live on the page-wide landingPage()
-                         component. relative + the absolute dropdown below is what
-                         lets Home/Programs/Incubatees/Blogs stay reachable under
-                         lg (they used to just disappear with no way to get to them
-                         on tablet/mobile). --}}
+                
                     <nav x-data="{ mobileNavOpen: false }" @click.outside="mobileNavOpen = false"
                         class="relative flex flex-wrap items-center justify-between gap-2 rounded-full bg-white px-3 py-1.5 text-gray-800 shadow-lg sm:gap-4 sm:px-5 sm:py-2.5">
                         <a href="{{ route('welcome') }}" class="flex shrink-0 items-center gap-2">
@@ -54,9 +29,7 @@
                             </span>
                         </a>
 
-                        {{-- Home/Programs/Blogs point out to the public PUP-TBIDO site
-                             (puptbi.site) since those pages don't exist inside this
-                             app — Incubatees stays as an in-page section link. --}}
+
                         <div class="hidden items-center gap-6 text-sm font-semibold text-gray-700 lg:flex">
                             <a href="https://www.puptbi.site/" class="transition hover:text-[#6D0D23]">Home</a>
                             <a href="https://www.puptbi.site/programs" class="transition hover:text-[#6D0D23]">Programs</a>
@@ -192,7 +165,7 @@
          staying safe on mobile. --}}
     {{-- -mt-16 (64px) pulls this section's rounded top up to overlap the
          header, matched to the header's pb-16 bottom padding. --}}
-    <main class="relative isolate -mt-16 overflow-hidden rounded-t-[2.5rem] bg-white pb-16 pt-10 sm:rounded-t-[6rem] md:rounded-t-[12rem] lg:rounded-t-[20rem] xl:rounded-t-[30rem]">
+    <main class="relative isolate -mt-16 overflow-hidden rounded-t-[2.5rem] bg-white pb-16 pt-10 sm:rounded-t-[0.5rem] md:rounded-t-[2rem] lg:rounded-t-[3em] xl:rounded-t-[4rem]">
         <div id="cohorts" class="mx-auto max-w-6xl scroll-mt-8 px-4 sm:px-6 lg:px-8">
             <div class="text-center">
                 <h2 class="text-2xl font-extrabold text-gray-900 sm:text-3xl">
@@ -333,24 +306,17 @@
         <div class="mx-auto mt-16 max-w-6xl px-4 sm:px-6 lg:px-8">
             <div class="rounded-2xl bg-gradient-to-r from-[#6D0D23] to-[#11386A] p-5 text-white sm:p-8">
                 <h3 class="text-xl font-extrabold">About Lync PUP</h3>
-                <p class="mt-2 max-w-3xl text-sm text-white/80">
+                <p class="mt-2 max-w-5xl text-sm text-white/80">
                     A centralized management system that streamlines the incubation lifecycle through automated progress
                     monitoring, data-driven readiness assessments, and secure intellectual property governance.
                 </p>
 
-                {{-- Redesigned to match the reference: icon-LEFT, text-RIGHT
-                     horizontal cards (not icon-above-text), same height/width,
-                     evenly spaced in one row on desktop. 2-up grid holds from
-                     the smallest phone through tablet, then opens to 4-across
-                     at lg — icon size, gap and type all step down a notch on
-                     narrow screens so the horizontal layout stays readable
-                     without ever needing to wrap the icon above the text. --}}
                 <div class="mt-6 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
                     @foreach ([
                         ['icon' => 'check-box.svg', 'title' => 'Readiness', 'body' => 'Track TRL, MRL, TMRL & SRL signals across every venture.'],
                         ['icon' => 'riskMon.svg', 'title' => 'Progress Analytics', 'body' => 'Identify at-risk ventures through real-time monitoring.'],
                         ['icon' => '3person.svg', 'title' => 'Mentoring', 'body' => 'Connect with experts to clear roadblocks.'],
-                        ['icon' => 'coordProfile.svg', 'title' => 'Centralized', 'body' => 'Incubation lifecycle through a unified growth portal.'],
+                        ['icon' => '2connect.svg', 'title' => 'Centralized', 'body' => 'Incubation lifecycle through a unified growth portal.'],
                     ] as $feature)
                         <div class="flex items-center gap-2 rounded-xl bg-white p-2.5 text-gray-900 shadow-sm sm:gap-3 sm:p-4 lg:gap-4">
                             {{-- shrink-0 keeps the circle from being squeezed by the
