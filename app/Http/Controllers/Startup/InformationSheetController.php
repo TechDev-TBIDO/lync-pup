@@ -77,17 +77,27 @@ class InformationSheetController extends Controller
 
         $data = $request->validated();
 
+        // A draft Save just persists whatever's filled in — it never touches
+        // approval_status/submission_date, so it can't accidentally re-open
+        // an Approved/Rejected sheet or restart the evaluation countdown.
+        // Only an explicit Submit does that (see below).
+        if ($request->isDraftSave()) {
+            $sheet->update($data);
+
+            return redirect()->route('startup.information-sheet.edit')->with('status', 'Information Sheet saved. Submit it for review once it\'s complete.');
+        }
+
         $data['approval_status'] = 'Pending';
         $data['submission_date'] = now();
 
         // "Date accomplished" is the day the founder filled the form in, so it
-        // is stamped here rather than typed — every save re-dates the sheet,
+        // is stamped here rather than typed — every submit re-dates the sheet,
         // matching submission_date above.
         $data['date_accomplished'] = now();
 
         $sheet->update($data);
 
-        return redirect()->route('startup.information-sheet.edit')->with('status', 'Information Sheet saved and submitted for review.');
+        return redirect()->route('startup.information-sheet.edit')->with('status', 'Information Sheet submitted for review.');
     }
 
     /**

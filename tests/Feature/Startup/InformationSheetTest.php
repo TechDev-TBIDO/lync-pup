@@ -226,6 +226,97 @@ class InformationSheetTest extends TestCase
         $this->assertEquals('09209876543', $startup->informationSheet->fresh()->mobile_no);
     }
 
+    // --------------------------------------------------------------
+    // Save (draft) vs Submit — see UpdateInformationSheetRequest::isDraftSave()
+    // --------------------------------------------------------------
+
+    public function test_founder_can_save_an_incomplete_sheet_as_a_draft(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'intent' => 'save',
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+        ]);
+
+        $response->assertRedirect(route('startup.information-sheet.edit'));
+        $sheet = $startup->informationSheet->fresh();
+        $this->assertEquals('Santos', $sheet->surname);
+        $this->assertNull($sheet->submission_date);
+    }
+
+    public function test_draft_save_still_validates_the_format_of_fields_that_are_filled_in(): void
+    {
+        [$user] = $this->makeFounder();
+
+        // Blank fields sent as empty strings, not omitted — matches what the
+        // real form actually posts (every named input, some just empty),
+        // which Laravel's ConvertEmptyStringsToNull middleware turns into
+        // null before this reaches the request's own rules().
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'intent' => 'save',
+            'surname' => '',
+            'first_name' => '',
+            'founder_email' => 'not-an-email',
+        ]);
+
+        $response->assertSessionHasErrors(['founder_email']);
+        $response->assertSessionDoesntHaveErrors(['surname', 'first_name']);
+    }
+
+    public function test_submit_still_requires_every_field_even_after_a_draft_save(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+
+        $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'intent' => 'save',
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+        ]);
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'intent' => 'submit',
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+        ]);
+
+        $response->assertSessionHasErrors(['mobile_no', 'founder_email']);
+        $this->assertNull($startup->informationSheet->fresh()->submission_date);
+    }
+
+    public function test_submit_with_a_complete_payload_stamps_submission(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+
+        $response = $this->actingAs($user)->patch(
+            route('startup.information-sheet.update'),
+            array_merge($this->validInformationSheetPayload(), ['intent' => 'submit'])
+        );
+
+        $response->assertRedirect(route('startup.information-sheet.edit'));
+        $sheet = $startup->informationSheet->fresh();
+        $this->assertNotNull($sheet->submission_date);
+        $this->assertEquals('Pending', $sheet->approval_status);
+    }
+
+    public function test_a_draft_save_never_reopens_a_rejected_sheet(): void
+    {
+        [$user, $startup] = $this->makeFounder('Rejected');
+        $startup->informationSheet->update(['rejected_at' => now()->subDay()]);
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'intent' => 'save',
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+        ]);
+
+        $response->assertRedirect(route('startup.information-sheet.edit'));
+        $sheet = $startup->informationSheet->fresh();
+        $this->assertEquals('Santos', $sheet->surname);
+        $this->assertEquals('Rejected', $sheet->approval_status);
+    }
+
     public function test_founder_is_locked_out_once_the_evaluation_day_starts(): void
     {
         [$user, $startup] = $this->makeFounder();

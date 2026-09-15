@@ -122,15 +122,36 @@ class UpdateInformationSheetRequest extends FormRequest
             $raw = trim((string) $this->input($spec['input']));
             $factor = $spec['factors'][$this->input($spec['unit'])] ?? null;
 
-            // A blank, a non-number or an unknown unit is passed through
-            // untouched so the rules below produce the message, rather than
-            // silently storing a zero.
+            // A non-number or an unknown unit is passed through untouched so
+            // the rules below produce the message, rather than silently
+            // storing a zero. A genuinely blank input is merged as null
+            // (not '') specifically so a draft Save's 'nullable' rule (see
+            // rules() below) actually skips the between/numeric checks on
+            // this derived field — merging '' here would leave the field
+            // failing those checks even when nothing was typed.
             $this->merge([
-                $target => ($raw === '' || ! is_numeric($raw) || $factor === null)
-                    ? $raw
-                    : (string) round((float) $raw * $factor, 2),
+                $target => $raw === ''
+                    ? null
+                    : (! is_numeric($raw) || $factor === null
+                        ? $raw
+                        : (string) round((float) $raw * $factor, 2)),
             ]);
         }
+    }
+
+    /**
+     * 'save' persists whatever the founder has filled in so far without
+     * requiring the sheet to be complete — a founder can save progress and
+     * come back later. 'submit' is the final action: every field must pass
+     * its full rule (same as before this Save/Submit split existed), and is
+     * the only action that actually puts the sheet in front of an admin
+     * (see Startup\InformationSheetController::update()). Defaults to
+     * 'submit' so a request that somehow omits the field still gets the
+     * stricter behavior rather than silently accepting an incomplete sheet.
+     */
+    public function isDraftSave(): bool
+    {
+        return $this->input('intent') === 'save';
     }
 
     /**
@@ -230,14 +251,47 @@ class UpdateInformationSheetRequest extends FormRequest
     }
 
     /**
-     * Every field on the founder's Information Sheet is required — the PUP
-     * form itself says "Indicate N/A If Not Applicable", so blanks mean
-     * "unanswered", not "doesn't apply". Text and ID fields therefore accept
-     * the literal "N/A"; fields with a real type (email, phone, dates,
-     * height/weight, year graduated) still have to hold a valid value, since
-     * "N/A" in those columns would break exports and downstream parsing.
+     * On a final Submit, every field on the founder's Information Sheet is
+     * required — the PUP form itself says "Indicate N/A If Not Applicable",
+     * so blanks mean "unanswered", not "doesn't apply". Text and ID fields
+     * therefore accept the literal "N/A"; fields with a real type (email,
+     * phone, dates, height/weight, year graduated) still have to hold a
+     * valid value, since "N/A" in those columns would break exports and
+     * downstream parsing.
+     *
+     * A draft Save runs the exact same rules minus 'required' (see
+     * looseForDraft() below) — so a value that IS typed still has to look
+     * right, but a field can be left blank for now.
      */
     public function rules(): array
+    {
+        return $this->isDraftSave() ? $this->looseForDraft($this->strictRules()) : $this->strictRules();
+    }
+
+    /**
+     * Swaps every top-level 'required' for 'nullable', leaving every other
+     * rule (format regexes, closures, in:) untouched. Combined with
+     * ConvertEmptyStringsToNull (global middleware) turning a blank input
+     * into null before validation runs, this means: nothing typed → skipped
+     * entirely; something typed → still has to pass its normal rule.
+     */
+    private function looseForDraft(array $rules): array
+    {
+        foreach ($rules as $field => $fieldRules) {
+            $rules[$field] = array_map(
+                fn ($rule) => $rule === 'required' ? 'nullable' : $rule,
+                $fieldRules
+            );
+
+            if (! in_array('nullable', $rules[$field], true) && ! in_array('required', $rules[$field], true)) {
+                array_unshift($rules[$field], 'nullable');
+            }
+        }
+
+        return $rules;
+    }
+
+    private function strictRules(): array
     {
         $text = fn (int $max) => ['required', 'string', 'max:'.$max];
 

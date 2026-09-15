@@ -160,7 +160,7 @@ pendingRemoval: [],
         document.querySelectorAll('textarea[rows=\'1\']').forEach((el) => this.autoGrow(el));
     },
 
-    async saveAll() {
+    async saveAll(intent = 'submit') {
         // One clear, right here, at the very top - nothing below clears
         // again. Clearing separately inside validateInfoSheetForms() and
         // submitInfoSheetForms() used to mean the second one always wiped out
@@ -177,16 +177,27 @@ pendingRemoval: [],
         // server-caught - shows up on the very first click.
         window.clearInfoSheetFieldErrors();
 
-        // Instant, no round trip: blank required fields, and Core Team's
-        // at-least-one-row rule (nothing server-side can catch that one -
-        // Core Team rows are submitted as separate per-row requests, so a
-        // save with zero rows simply has nothing to submit for that section).
-        const clientProblems = window.validateInfoSheetForms(this.$root, {
-            team: this.remainingRows('team'),
-            inc: this.remainingRows('inc'),
-            ld: this.remainingRows('ld'),
-            ref: this.remainingRows('ref'),
-        });
+        // Tells the main sheet's own request (and UpdateInformationSheetRequest
+        // server-side) whether this is a draft Save or a final Submit. Only
+        // the main #info-sheet-form reads this — the row-table subforms
+        // (Core Team/Incubation/L&D/References) don't have a save/submit
+        // distinction of their own.
+        const intentInput = document.getElementById('info-sheet-intent-input');
+        if (intentInput) intentInput.value = intent;
+
+        // A draft Save has nothing that's actually required yet - only
+        // Submit enforces "every required field answered" and Core Team's
+        // at-least-one-row rule client-side. Save still round-trips through
+        // the server (see submitInfoSheetForms() below), so a value that IS
+        // typed but badly formatted is still caught and shown either way.
+        const clientProblems = intent === 'submit'
+            ? window.validateInfoSheetForms(this.$root, {
+                team: this.remainingRows('team'),
+                inc: this.remainingRows('inc'),
+                ld: this.remainingRows('ld'),
+                ref: this.remainingRows('ref'),
+            })
+            : 0;
 
         this.saving = true;
 
@@ -203,7 +214,7 @@ pendingRemoval: [],
             if (clientProblems > 0) {
                 this.saving = false;
                 Alpine.store('toast').error(
-                    'Save Failed',
+                    'Submit Failed',
                     clientProblems === 1
                         ? '1 field needs fixing - see the message on the form.'
                         : clientProblems + ' fields need fixing - see the messages on the form.'
@@ -215,31 +226,33 @@ pendingRemoval: [],
             // on a save the user just confirmed.
             this.dirty = false;
             this.$store.navigation.hasUnsavedChanges = false;
- 
+
             // New rows exist only in the database; removed rows still exist in
             // this DOM. Either way the page is out of date, so reload.
             if (result?.created > 0 || result?.removed > 0) {
-                sessionStorage.setItem('infoSheetSaved', '1');
+                sessionStorage.setItem('infoSheetSaved', intent === 'submit' ? 'submit' : 'save');
                 window.location.reload();
                 return;
             }
- 
+
             // Edits only: no reload, keeps scroll position.
             this.editing = false;
             this.saving = false;
             this.newRows = { team: [], inc: [], ld: [], ref: [] };
             this.pendingRemoval = [];
- 
+
             Alpine.store('toast').success(
-                'Information Sheet Saved',
-                'Your changes have been saved successfully.'
+                intent === 'submit' ? 'Information Sheet Submitted' : 'Information Sheet Saved',
+                intent === 'submit'
+                    ? 'Your Information Sheet has been submitted for review.'
+                    : 'Your changes have been saved. Nothing has been submitted yet - click Submit for Review when it\'s complete.'
             );
- 
+
         } catch (e) {
             this.saving = false;
- 
+
             console.error('Info sheet save failed:', e);
- 
+
             const shown = e?.validation && typeof e.validation === 'object'
                 ? window.showInfoSheetFieldErrors(e.validation)
                 : false;
@@ -252,7 +265,7 @@ pendingRemoval: [],
             const totalProblems = clientProblems + serverProblems;
 
             Alpine.store('toast').error(
-                'Save Failed',
+                intent === 'submit' ? 'Submit Failed' : 'Save Failed',
                 totalProblems > 1
                     ? totalProblems + ' fields need fixing - see the messages on the form.'
                     : shown
@@ -365,8 +378,9 @@ pendingRemoval: [],
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
                 <ul class="list-disc pl-4 space-y-0.5 italic marker:text-[#11386A]">
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are required.</span> Type <span class="font-bold">N/A</span> where one does not apply - except dates, email, phone, height and weight, which need a real value. Anything without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> can be left empty.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">You can save and come back anytime before your evaluation day.</span> Each save sends the latest version to TBIDO for review - nothing is final until they approve it.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are required before you can submit.</span> Type <span class="font-bold">N/A</span> where one does not apply - except dates, email, phone, height and weight, which need a real value. Anything without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> can be left empty.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Save keeps your progress without submitting anything.</span> Come back anytime before your evaluation day to fill in more - a saved-but-incomplete sheet is never sent to TBIDO.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Submit for Review sends it to TBIDO.</span> Every required field needs an answer first - nothing is final until they approve it, and you can keep editing and resubmitting until then.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Your name, mobile and email start from your Startup Profile.</span> Edit them here freely - your Profile will not change.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet locks on your evaluation day, then reopens the next day if the evaluation does not push through.</span> Once approved it stays locked - message your Coordinator for changes.</li>
                 </ul>
@@ -378,6 +392,10 @@ pendingRemoval: [],
             <form id="info-sheet-form" novalidate method="POST" action="{{ route('startup.information-sheet.update') }}" enctype="multipart/form-data">
                 @csrf
                 @method('PATCH')
+                {{-- Toggled to 'save' or 'submit' by saveAll() right before this
+                     form (and every row-table subform) gets submitted — see
+                     UpdateInformationSheetRequest::isDraftSave(). --}}
+                <input type="hidden" name="intent" id="info-sheet-intent-input" value="submit">
 
                 {{-- I. FOUNDER'S INFORMATION --}}
                 <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-semibold px-4 py-2 rounded-t-lg">I. FOUNDER'S INFORMATION</h3>
@@ -1906,16 +1924,36 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                         </button>
                     </template>
 
+                    {{-- Save persists whatever's filled in right now, without
+                         requiring the sheet to be complete - nothing here is
+                         sent to TBIDO. --}}
                     <button
                         type="button"
                         x-show="editing && !isLocked"
                         x-cloak
-                        @click="saveAll()"
+                        @click="saveAll('save')"
                         :disabled="saving || !dirty"
+                        class="flex-1 rounded-lg border border-[#6D0D23] py-2.5 text-sm font-semibold text-[#6D0D23]
+               bg-white hover:bg-rose-50 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                        <span x-text="saving ? 'Saving…' : 'Save'"></span>
+                    </button>
+
+                    {{-- Submit for Review is the final action - every
+                         required field has to be answered, and this is what
+                         actually puts the sheet in front of TBIDO. Not gated
+                         on `dirty`: a founder who already Saved everything
+                         and made no further edits should still be able to
+                         submit exactly what's saved. --}}
+                    <button
+                        type="button"
+                        x-show="editing && !isLocked"
+                        x-cloak
+                        @click="saveAll('submit')"
+                        :disabled="saving"
                         class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
                bg-gradient-to-r from-[#6D0D23] to-[#11386A]
                hover:opacity-95 transition disabled:opacity-60 disabled:cursor-not-allowed">
-                        <span x-text="saving ? 'Saving…' : 'Save'"></span>
+                        <span x-text="saving ? 'Submitting…' : 'Submit for Review'"></span>
                     </button>
 
                 </div>
@@ -2468,7 +2506,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
 
             const flushSavedToast = () => {
                 if (shown) return;
-                if (!sessionStorage.getItem('infoSheetSaved')) return;
+                const savedIntent = sessionStorage.getItem('infoSheetSaved');
+                if (!savedIntent) return;
 
                 const toast = window.Alpine && window.Alpine.store('toast');
                 if (!toast) return; // not ready yet — a later hook will retry
@@ -2477,8 +2516,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 shown = true;
 
                 toast.success(
-                    'Information Sheet Saved',
-                    'Your changes have been saved successfully.'
+                    savedIntent === 'submit' ? 'Information Sheet Submitted' : 'Information Sheet Saved',
+                    savedIntent === 'submit'
+                        ? 'Your Information Sheet has been submitted for review.'
+                        : 'Your changes have been saved. Nothing has been submitted yet.'
                 );
             };
 
