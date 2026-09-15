@@ -177,17 +177,19 @@ class ReadinessRubric
      * Result page and the admin Average Readiness Level card. No such
      * mapping exists elsewhere in the app — these bands are a new,
      * deliberately simple invention (not derived from any official
-     * PUP-TBIDO rubric document). The Ideation cutoff is set at 2 (rather
-     * than an even quarter-split at 2.25) so a 2.0 average — e.g. a mostly-
-     * unassessed cohort's "honest" whole-cohort average — reads as
-     * "Development" rather than "Ideation", per the admin dashboard's
-     * worked-example spec.
+     * PUP-TBIDO rubric document).
+     *
+     * Used to be 4 bands (Ideation / Development / Validation / Growth), with
+     * an "Ideation" band below 2 for a barely-assessed startup/cohort. Per
+     * direct feedback that distinction wasn't meaningful in practice — a low
+     * score (including a mostly-unassessed cohort's "honest" whole-cohort
+     * average) now just reads as "Development" too, same as anything else
+     * under 6.
      */
     public static function overallLabel(?float $score): string
     {
         return match (true) {
             $score === null => 'Not Assessed',
-            $score < 2 => 'Ideation',
             $score < 6 => 'Development',
             $score < 8 => 'Validation',
             default => 'Growth',

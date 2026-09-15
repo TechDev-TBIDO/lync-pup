@@ -124,33 +124,33 @@ $cohortReturnUrl = request('from') === 'assessment-hub'
                             <span class="text-sm text-gray-500">Pre-Assessment</span>
                         </div>
 
-                        @if ($startup->latestReadinessAssessment)
+                        @if ($startup->preAssessment)
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                             <x-readiness-radar
-                                :trl="$startup->latestReadinessAssessment->trl_score"
-                                :mrl="$startup->latestReadinessAssessment->mrl_score"
-                                :tmrl="$startup->latestReadinessAssessment->tmrl_score"
-                                :srl="$startup->latestReadinessAssessment->srl_score" />
+                                :trl="$startup->preAssessment->trl_score"
+                                :mrl="$startup->preAssessment->mrl_score"
+                                :tmrl="$startup->preAssessment->tmrl_score"
+                                :srl="$startup->preAssessment->srl_score" />
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <p class="text-xs text-gray-500">TECHNOLOGY</p>
-                                    <p class="text-xl font-bold">TRL {{ $startup->latestReadinessAssessment->trl_score !== null ? number_format($startup->latestReadinessAssessment->trl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
+                                    <p class="text-xl font-bold">TRL {{ $startup->preAssessment->trl_score !== null ? number_format($startup->preAssessment->trl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
                                 </div>
                                 <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <p class="text-xs text-gray-500">MANUFACTURING</p>
-                                    <p class="text-xl font-bold">MRL {{ $startup->latestReadinessAssessment->mrl_score !== null ? number_format($startup->latestReadinessAssessment->mrl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
+                                    <p class="text-xl font-bold">MRL {{ $startup->preAssessment->mrl_score !== null ? number_format($startup->preAssessment->mrl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
                                 </div>
                                 <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <p class="text-xs text-gray-500">TEAM & MGMT</p>
-                                    <p class="text-xl font-bold">TMRL {{ $startup->latestReadinessAssessment->tmrl_score !== null ? number_format($startup->latestReadinessAssessment->tmrl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
+                                    <p class="text-xl font-bold">TMRL {{ $startup->preAssessment->tmrl_score !== null ? number_format($startup->preAssessment->tmrl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
                                 </div>
                                 <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <p class="text-xs text-gray-500">SYSTEM / MARKET</p>
-                                    <p class="text-xl font-bold">SRL {{ $startup->latestReadinessAssessment->srl_score !== null ? number_format($startup->latestReadinessAssessment->srl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
+                                    <p class="text-xl font-bold">SRL {{ $startup->preAssessment->srl_score !== null ? number_format($startup->preAssessment->srl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
                                 </div>
                             </div>
                         </div>
-                        <p class="text-sm text-gray-500 mt-4">Composite RLS score: <strong>{{ number_format($startup->latestReadinessAssessment->overall_score, 1) }}/9</strong></p>
+                        <p class="text-sm text-gray-500 mt-4">Composite RLS score: <strong>{{ number_format($startup->preAssessment->overall_score, 1) }}/9</strong></p>
                         @else
                         <p class="text-sm text-gray-500">No readiness assessment has been conducted yet.</p>
                         @endif

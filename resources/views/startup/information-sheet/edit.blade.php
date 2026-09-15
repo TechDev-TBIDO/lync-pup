@@ -419,6 +419,7 @@ pendingRemoval: [],
                     'pagibig_no' => 'e.g. 1234-5678-9012',
                     'philhealth_no' => 'e.g. 12-345678901-2',
                     'sss_no' => 'e.g. 12-3456789-0',
+                    'tin' => 'e.g. 123-456-789-000',
                     'residential_address' => 'House/Unit, Street, Barangay, City',
                     'permanent_address' => 'House/Unit, Street, Barangay, City',
                     'sex' => 'e.g. Female',
@@ -445,7 +446,7 @@ pendingRemoval: [],
                     // break delivery on case-sensitive mail servers.
                     $upperFields = [
                     'surname', 'first_name', 'middle_name', 'name_extension', 'blood_type',
-                    'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no',
+                    'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
                     'residential_address', 'permanent_address', 'sex', 'civil_status',
                     'place_of_birth', 'mobile_no',
                     'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
@@ -458,7 +459,7 @@ pendingRemoval: [],
                     // down keep their placeholder in normal case for now.
                     $upperPlaceholderFields = [
                     'surname', 'first_name', 'middle_name', 'name_extension', 'blood_type',
-                    'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no',
+                    'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
                     'residential_address', 'permanent_address', 'place_of_birth', 'mobile_no',
                     ];
 
@@ -633,8 +634,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             {!! $field('pagibig_no', 'PAG-IBIG NO.', 9) !!}
                             {!! $field('philhealth_no', 'PHILHEALTH NO.', 10) !!}
                             {!! $field('sss_no', 'SSS NO.', 11) !!}
-                            {!! $field('residential_address', 'RESIDENTIAL ADDRESS', 12) !!}
-                            {!! $field('permanent_address', 'PERMANENT ADDRESS', 13) !!}
+                            {!! $field('tin', 'TIN', 12) !!}
+                            {!! $field('residential_address', 'RESIDENTIAL ADDRESS', 13) !!}
+                            {!! $field('permanent_address', 'PERMANENT ADDRESS', 14) !!}
                         </div>
 
                         {{-- Right column --}}
@@ -687,7 +689,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             </div>
 
                             {!! $field('place_of_birth', 'PLACE OF BIRTH', 18) !!}
-                            {!! $field('date_of_birth', 'DATE OF BIRTH', 18, 'date') !!}
+                            {!! $field('date_of_birth', 'DATE OF BIRTH', 19, 'date') !!}
                             {!! $field('mobile_no', 'MOBILE NO.', 20) !!}
                             {!! $field('founder_email', 'EMAIL ADDRESS', 21) !!}
                         </div>

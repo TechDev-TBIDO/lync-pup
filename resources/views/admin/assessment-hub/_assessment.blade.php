@@ -513,13 +513,66 @@ for ($i = 0; $i < $count; $i++) {
             toggleLevel(type, level) {
                 this.expanded[type] = (this.expanded[type] === level) ? null : level;
             },
+            // Scoped to the tab actually open when "Clear Form" is confirmed —
+            // it used to loop over every RL type and wipe all four at once,
+            // so clearing (say) TRL also silently blanked out MRL/TMRL/SRL's
+            // progress and signatory names. Also resets that type's own
+            // signatory block, which Clear previously left untouched.
             clearAll() {
-                for (const type of Object.keys(this.progress)) {
-                    for (const level of Object.keys(this.progress[type])) {
-                        this.progress[type][level] = this.progress[type][level].map(() => false);
-                    }
+                const type = this.activeType;
+
+                for (const level of Object.keys(this.progress[type])) {
+                    this.progress[type][level] = this.progress[type][level].map(() => false);
                 }
+
+                if (type === 'TRL') {
+                    this.preparedBy = '';
+                    this.preparedByPosition = '';
+                    this.trlNotedBy = '';
+                    this.trlNotedByPosition = '';
+                    this.approvedBy = '';
+                    this.approvedByPosition = '';
+                } else if (type === 'MRL' || type === 'TMRL') {
+                    this.evaluatedBy = '';
+                    this.reviewedBy = '';
+                    this.notedBy = '';
+                    this.evaluatedByPosition = '';
+                    this.reviewedByPosition = '';
+                    this.notedByPosition = '';
+                } else if (type === 'SRL') {
+                    this.srlEvaluatedBy = '';
+                    this.srlEvaluatedByPosition = '';
+                    this.srlReviewedBy = '';
+                    this.srlReviewedByPosition = '';
+                    this.srlNotedBy = '';
+                    this.srlNotedByPosition = '';
+                }
+
                 this.showClearConfirm = false;
+            },
+            // Whether the active tab has anything worth clearing — checked
+            // progress, or a filled-in signatory field, whether that came
+            // from a previous save or is only sitting unsaved right now.
+            // Clear Form used to only enable once something was *dirty*, so
+            // a fully-assessed type that had already been saved (and hadn't
+            // been touched again this visit) couldn't be cleared at all.
+            hasContentFor(type) {
+                const hasProgress = Object.values(this.progress[type]).some(levelChecks => levelChecks.some(v => v));
+
+                if (type === 'TRL') {
+                    return hasProgress || !!this.preparedBy || !!this.preparedByPosition
+                        || !!this.trlNotedBy || !!this.trlNotedByPosition
+                        || !!this.approvedBy || !!this.approvedByPosition;
+                }
+
+                if (type === 'MRL' || type === 'TMRL') {
+                    return hasProgress || !!this.evaluatedBy || !!this.reviewedBy || !!this.notedBy
+                        || !!this.evaluatedByPosition || !!this.reviewedByPosition || !!this.notedByPosition;
+                }
+
+                // SRL
+                return hasProgress || !!this.srlEvaluatedBy || !!this.srlReviewedBy || !!this.srlNotedBy
+                    || !!this.srlEvaluatedByPosition || !!this.srlReviewedByPosition || !!this.srlNotedByPosition;
             },
         }"
             x-init="
@@ -1010,7 +1063,7 @@ for ($i = 0; $i < $count; $i++) {
                     </div>
 
                     <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-                        <button type="button" @click="showClearConfirm = true" :disabled="! isDirty()"
+                        <button type="button" @click="showClearConfirm = true" :disabled="! hasContentFor(activeType)"
                             class="h-11 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white sm:flex-1">
                             Clear Form
                         </button>

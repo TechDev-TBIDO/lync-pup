@@ -408,6 +408,7 @@
                         @for ($i = 0; $i < 3; $i++)
                         <div>
                             <input type="text" x-model="doc6.prepared_by[{{ $i }}].name" placeholder="Input Name"
+                                oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             <input type="text" x-model="doc6.prepared_by[{{ $i }}].position"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
@@ -418,6 +419,7 @@
                     <p class="mb-2 mt-6 text-sm font-semibold text-gray-700">Noted By:</p>
                     <div class="max-w-xs">
                         <input type="text" x-model="doc6.noted_by" placeholder="Input Name"
+                            oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         <input type="text" x-model="doc6.noted_by_position"
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
@@ -521,6 +523,7 @@
                     <div>
                         <p class="mb-2 text-sm font-semibold text-gray-700">Prepared By:</p>
                         <input type="text" x-model="doc7.prepared_by_name" placeholder="Input Name"
+                            oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         <input type="text" x-model="doc7.prepared_by_position"
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
@@ -529,6 +532,7 @@
                     <div>
                         <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
                         <input type="text" x-model="doc7.noted_by_name" placeholder="Input Name"
+                            oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         <input type="text" x-model="doc7.noted_by_position"
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
@@ -716,6 +720,7 @@
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Name</p>
                             <input type="text" x-model="doc8.validated_by_name"
+                                oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         </div>
                         <div>
@@ -725,8 +730,12 @@
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Contact No.</p>
-                            <input type="text" x-model="doc8.validated_by_contact"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <input type="text" x-model="doc8.validated_by_contact" placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+                                maxlength="13" oninput="this.value = this.value.replace(/[^0-9+]/g, '')"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                :class="doc8.validated_by_contact && ! /^(09\d{9}|\+639\d{9})$/.test(doc8.validated_by_contact) ? 'border-red-400' : ''">
+                            <p x-show="doc8.validated_by_contact && ! /^(09\d{9}|\+639\d{9})$/.test(doc8.validated_by_contact)" x-cloak
+                                class="mt-1 text-xs text-red-600">Use format 09XXXXXXXXX or +639XXXXXXXXX.</p>
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Date</p>
@@ -739,6 +748,7 @@
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
                             <input type="text" x-model="doc8.noted_by_name"
+                                oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             <input type="text" x-model="doc8.noted_by_position"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
@@ -747,6 +757,7 @@
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Approved By:</p>
                             <input type="text" x-model="doc8.approved_by_name"
+                                oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             <textarea x-model="doc8.approved_by_position" rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>

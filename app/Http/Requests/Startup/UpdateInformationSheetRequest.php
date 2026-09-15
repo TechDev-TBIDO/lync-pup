@@ -47,7 +47,7 @@ class UpdateInformationSheetRequest extends FormRequest
         $upper = [
             // I. Founder's information
             'surname', 'first_name', 'middle_name', 'name_extension', 'blood_type',
-            'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no',
+            'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
             'residential_address', 'permanent_address', 'sex', 'civil_status',
             'citizenship_by_birth', 'citizenship_dual', 'place_of_birth',
             // 28-31. Startup registration
@@ -658,6 +658,10 @@ class UpdateInformationSheetRequest extends FormRequest
             'pagibig_no' => $govId(12, 'PAG-IBIG number'),
             'philhealth_no' => $govId(12, 'PhilHealth number'),
             'sss_no' => $govId(10, 'SSS number'),
+            // Item 12 — the founder's own TIN, distinct from Item 31's
+            // business_tin. Same digit count/format as business_tin since
+            // both are the same kind of BIR-issued number.
+            'tin' => $govId(12, 'TIN'),
             'residential_address' => $address(255),
             'permanent_address' => $address(255),
             // Both come from a fixed control now (segmented buttons / a dropdown),
@@ -748,6 +752,8 @@ class UpdateInformationSheetRequest extends FormRequest
             'philhealth_no.regex' => 'Please enter a valid PhilHealth number, or N/A.',
             'sss_no.required' => 'Please enter your SSS number or N/A.',
             'sss_no.regex' => 'Please enter a valid SSS number, or N/A.',
+            'tin.required' => 'Please enter your TIN or N/A.',
+            'tin.regex' => 'Please enter a valid TIN, or N/A.',
 
             'residential_address.required' => 'Please enter your residential address.',
             'residential_address.regex' => 'Letters, numbers and . , - # / & only. N/A not accepted.',
@@ -838,6 +844,7 @@ class UpdateInformationSheetRequest extends FormRequest
             'pagibig_no' => 'Pag-IBIG no.',
             'philhealth_no' => 'PhilHealth no.',
             'sss_no' => 'SSS no.',
+            'tin' => 'TIN',
             'mobile_no' => 'mobile no.',
             'founder_email' => 'email address',
             'citizenship_by_birth' => 'citizenship by birth',

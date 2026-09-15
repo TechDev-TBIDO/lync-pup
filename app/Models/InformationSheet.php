@@ -15,7 +15,7 @@ class InformationSheet extends Model
         'startup_id', 'business_description', 'startup_overview', 'target_market', 'problem_statement', 'solution_offered',
         'submission_date', 'approval_status', 'approved_at', 'rejected_at', 'evaluator_remarks',
         'surname', 'first_name', 'middle_name', 'name_extension', 'height_m', 'weight_kg', 'blood_type',
-        'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'residential_address', 'permanent_address',
+        'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin', 'residential_address', 'permanent_address',
         'sex', 'civil_status', 'citizenship_by_birth', 'citizenship_dual', 'place_of_birth', 'date_of_birth',
         'mobile_no', 'founder_email',
         'secondary_school', 'secondary_degree_course', 'secondary_highest_level_unit', 'secondary_year_graduated',

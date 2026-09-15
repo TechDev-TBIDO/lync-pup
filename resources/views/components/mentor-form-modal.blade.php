@@ -145,7 +145,20 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             "
                 @input="refresh()"
                 @change="refresh()"
-                @dirty-check="$nextTick(() => refresh())"
+                {{--
+                    .window (not a plain bubbling listener): the crop dialog's
+                    Apply/Cancel buttons live inside a `x-teleport="body"`
+                    template (see the photo cropper below), so once a photo is
+                    cropped, applyCrop()'s $dispatch('dirty-check') fires from
+                    a node that's been physically moved out to <body> -- it no
+                    longer bubbles up through this <form> at all. Listening on
+                    window instead catches it regardless of where in the
+                    document it was dispatched from. This was the actual bug
+                    behind "uploading a photo doesn't enable Save Changes":
+                    every other field change bubbles to this form directly,
+                    but a newly-cropped photo never did.
+                --}}
+                @dirty-check.window="$nextTick(() => refresh())"
                 x-on:{{ $resetEvent }}.window="
                 Object.entries(@js($textDefaults)).forEach(([name, value]) => {
                     const control = $el.elements[name];

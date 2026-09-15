@@ -82,6 +82,14 @@ class DashboardController extends Controller
         $startupIds = (clone $startupsQuery)->pluck('startup_id');
         $totalStartups = $startupIds->count();
 
+        // Only a currently-Approved startup is actually eligible to be
+        // assessed (see AssessmentHubController's own $assessableStartups =
+        // $approvedStartups) — an assessment row left over from before a
+        // startup was rejected/reset shouldn't still count it as "assessed".
+        $approvedStartupIds = InformationSheet::whereIn('startup_id', $startupIds)
+            ->where('approval_status', 'Approved')
+            ->pluck('startup_id');
+
         return view('dashboard', [
             // 'cohorts'/'selectedCohort' no longer passed to the view — the
             // cohort selector + manage menu now lives in the sidebar (see
@@ -90,10 +98,10 @@ class DashboardController extends Controller
             // above here to scope this page's own stats.
             'readinessStage' => $readinessStage,
             'totalStartups' => $totalStartups,
-            'stats' => $this->buildStatCards($startupIds, $totalStartups),
+            'stats' => $this->buildStatCards($startupIds, $totalStartups, $approvedStartupIds),
             'incubationProgress' => $this->buildIncubationProgress($startupIds),
             'riskClassification' => $this->buildRiskClassification($startupIds),
-            'averageReadiness' => $this->buildAverageReadiness($startupIds, $totalStartups, $readinessStage),
+            'averageReadiness' => $this->buildAverageReadiness($approvedStartupIds, $totalStartups, $readinessStage),
             'milestones' => $this->buildMilestoneCompletion($startupIds, $totalStartups),
             'updates' => $this->updates(),
         ]);
@@ -131,19 +139,19 @@ class DashboardController extends Controller
      * historical snapshot in the data model (risk is always current-state),
      * so its sparkline is decorative rather than computed.
      */
-    protected function buildStatCards($startupIds, int $totalStartups): array
+    protected function buildStatCards($startupIds, int $totalStartups, $approvedStartupIds): array
     {
         $preRlCount = ReadinessLevelAssessment::where('stage', 'Pre-Assessment')
             ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $startupIds)
+            ->whereIn('startup_id', $approvedStartupIds)
             ->count();
         $postRlCount = ReadinessLevelAssessment::where('stage', 'Post-Assessment')
             ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $startupIds)
+            ->whereIn('startup_id', $approvedStartupIds)
             ->count();
         $assessedCount = ReadinessLevelAssessment::whereIn('stage', ['Pre-Assessment', 'Post-Assessment'])
             ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $startupIds)
+            ->whereIn('startup_id', $approvedStartupIds)
             ->distinct('startup_id')
             ->count('startup_id');
 
@@ -171,12 +179,12 @@ class DashboardController extends Controller
         // any assessments now exist, or 0% if there are still none.
         $preRlCountLastWeek = ReadinessLevelAssessment::where('stage', 'Pre-Assessment')
             ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $startupIds)
+            ->whereIn('startup_id', $approvedStartupIds)
             ->where('created_at', '<=', now()->subWeek())
             ->count();
         $postRlCountLastWeek = ReadinessLevelAssessment::where('stage', 'Post-Assessment')
             ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $startupIds)
+            ->whereIn('startup_id', $approvedStartupIds)
             ->where('created_at', '<=', now()->subWeek())
             ->count();
         $preRlTrend = $preRlCountLastWeek > 0
@@ -205,7 +213,7 @@ class DashboardController extends Controller
                 'pre_rl_trend' => $preRlTrend,
                 'post_rl_trend' => $postRlTrend,
                 'sparkline' => $this->weeklyCounts(
-                    ReadinessLevelAssessment::whereIn('startup_id', $startupIds)->whereNotNull('overall_score'),
+                    ReadinessLevelAssessment::whereIn('startup_id', $approvedStartupIds)->whereNotNull('overall_score'),
                     'created_at'
                 ),
             ],
@@ -379,11 +387,20 @@ class DashboardController extends Controller
      * TRL score of 6/8/4, averages to (6+8+4+0+0+0+0) ÷ 7 = 2.57, not
      * (6+8+4) ÷ 3 = 6.0. Feeds the shared <x-readiness-radar> component
      * plus the 4 category boxes.
+     *
+     * $approvedStartupIds (not every in-scope startup_id) is what the SUM is
+     * taken over — only a currently-Approved startup is actually eligible to
+     * be assessed at all, so a stray assessment row left over from before a
+     * startup was rejected/reset must not inflate this average. The
+     * TOTAL-startup denominator below is deliberately still $totalStartups,
+     * not count($approvedStartupIds) — see the "honest about the whole
+     * cohort" reasoning above.
      */
-    protected function buildAverageReadiness($startupIds, int $totalStartups, string $stage): array
+    protected function buildAverageReadiness($approvedStartupIds, int $totalStartups, string $stage): array
     {
-        $row = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
+        $row = ReadinessLevelAssessment::whereIn('startup_id', $approvedStartupIds)
             ->where('stage', $stage)
+            ->whereNotNull('overall_score')
             ->selectRaw('SUM(trl_score) as trl, SUM(mrl_score) as mrl, SUM(tmrl_score) as tmrl, SUM(srl_score) as srl, SUM(overall_score) as overall, COUNT(*) as n')
             ->first();
 

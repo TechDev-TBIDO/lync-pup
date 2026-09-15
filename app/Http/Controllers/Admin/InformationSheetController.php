@@ -22,6 +22,7 @@ use App\Models\StartupReference;
 use App\Models\Startup;
 use App\Models\TeamMember;
 use App\Models\VersionHistory;
+use App\Support\ReadinessRubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -65,6 +66,12 @@ class InformationSheetController extends Controller
             // cohort at email verification (see AssignLatestCohortOnVerification
             // and approve()).
             'cohorts' => Cohort::where('status', 'Active')->orderBy('number')->get(),
+            // Same "which pills are still not started" list Venture Exit's own
+            // Save gate warns with (see ReadinessRubric::incompleteLabelsFor's
+            // docblock) — the Accept & Lock confirmation warns with it too,
+            // instead of silently locking a sheet whose founder's Pre/Active/
+            // Post assessments were never actually finished.
+            'incompleteAssessments' => ReadinessRubric::incompleteLabelsFor($startup),
         ]);
     }
 

@@ -90,6 +90,7 @@ class WordDocumentExporter
         $processor->setValue('pagibig_no', $vc($sheet?->pagibig_no));
         $processor->setValue('philhealth_no', $vc($sheet?->philhealth_no));
         $processor->setValue('sss_no', $vc($sheet?->sss_no));
+        $processor->setValue('tin', $vc($sheet?->tin));
         $processor->setValue('residential_address', $vc($sheet?->residential_address));
         $processor->setValue('permanent_address', $vc($sheet?->permanent_address));
         $processor->setValue('sex', $vc($sheet?->sex));

@@ -97,6 +97,20 @@ class Startup extends Model
         return $this->hasOne(ReadinessLevelAssessment::class, 'startup_id')->latestOfMany('assessment_date');
     }
 
+    /**
+     * Specifically the Pre-Assessment stage's row — unlike
+     * latestReadinessAssessment() above, which is whichever stage was
+     * scored most recently (Post-Assessment, once it exists, since it
+     * always comes chronologically after Pre-Assessment). Added because the
+     * admin Startup Profile page's "Readiness Level" card is hardcoded to
+     * label itself "Pre-Assessment", so it needs the actual Pre-Assessment
+     * row specifically, not whatever's newest overall.
+     */
+    public function preAssessment()
+    {
+        return $this->hasOne(ReadinessLevelAssessment::class, 'startup_id')->where('stage', 'Pre-Assessment');
+    }
+
     public function coordinatorAssignments()
     {
         return $this->hasMany(CoordinatorAssignment::class, 'startup_id');

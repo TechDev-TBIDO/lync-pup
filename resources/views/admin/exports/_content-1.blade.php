@@ -43,11 +43,7 @@
                 <tr><td class="info-label">9. Pag-IBIG No.:</td><td class="info-value">{!! $v($sheet?->pagibig_no) !!}</td></tr>
                 <tr><td class="info-label">10. PhilHealth No.:</td><td class="info-value">{!! $v($sheet?->philhealth_no) !!}</td></tr>
                 <tr><td class="info-label">11. SSS No.:</td><td class="info-value">{!! $v($sheet?->sss_no) !!}</td></tr>
-                {{-- Personal TIN No. (item 12 on the real form) isn't captured
-                     by the Information Sheet data model yet - kept as a blank
-                     row so the field numbering below stays lined up with the
-                     official form (13/14) instead of drifting by one. --}}
-                <tr><td class="info-label">12. TIN No.:</td><td class="info-value">&nbsp;</td></tr>
+                <tr><td class="info-label">12. TIN No.:</td><td class="info-value">{!! $v($sheet?->tin) !!}</td></tr>
             </table>
             <table class="info-table" style="margin-top: 10px;">
                 <tr><td class="info-label">13. Residential Address:</td><td class="info-value">{!! $v($sheet?->residential_address) !!}</td></tr>

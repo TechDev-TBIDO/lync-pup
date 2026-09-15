@@ -90,6 +90,21 @@ class NewPasswordController extends Controller
             }
         );
 
+        // A link that was still valid when the form loaded can expire while
+        // the founder is busy typing a new password (the window is only 3
+        // minutes — see create() above) — submitting afterward used to just
+        // show Laravel's generic "This password reset token is invalid."
+        // inline error, with the form still sitting there looking usable.
+        // Routing back through the same GET page instead re-runs create()'s
+        // own expiry check and lands on the friendly "This session link has
+        // expired." page, same as following the link fresh after it expired.
+        if ($status === Password::INVALID_TOKEN) {
+            return redirect()->route('password.reset', [
+                'token' => $request->token,
+                'email' => $request->email,
+            ]);
+        }
+
         // If the password was successfully reset, send them back to login (same
         // pattern as email verification) with a status flash message instead of
         // a separate confirmation page. If there is an error we can redirect

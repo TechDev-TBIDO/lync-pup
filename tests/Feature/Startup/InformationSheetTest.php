@@ -66,6 +66,7 @@ class InformationSheetTest extends TestCase
             'pagibig_no' => '123456789012',
             'philhealth_no' => '123456789012',
             'sss_no' => '1234567890',
+            'tin' => '123456789000',
             'residential_address' => '123 Rizal St., Brgy. San Antonio, Quezon City',
             'permanent_address' => '456 Bonifacio Ave., Brgy. Poblacion, Makati City',
             'sex' => 'FEMALE',
@@ -460,6 +461,37 @@ class InformationSheetTest extends TestCase
             'business_tin' => '123-456-789-000',
         ]);
         $valid->assertSessionDoesntHaveErrors(['business_tin']);
+    }
+
+    public function test_tin_requires_exactly_twelve_digits(): void
+    {
+        [$user] = $this->makeFounder();
+
+        $tooShort = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'tin' => '1111111111',
+        ]);
+        $tooShort->assertSessionHasErrors(['tin']);
+
+        $valid = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'tin' => '123-456-789-000',
+        ]);
+        $valid->assertSessionDoesntHaveErrors(['tin']);
+    }
+
+    public function test_tin_accepts_na(): void
+    {
+        [$user] = $this->makeFounder();
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'intent' => 'save',
+            'tin' => 'N/A',
+        ]);
+
+        $response->assertSessionDoesntHaveErrors(['tin']);
     }
 
     // --------------------------------------------------------------

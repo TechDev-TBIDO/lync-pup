@@ -107,6 +107,13 @@ class PasswordResetTest extends TestCase
      * DatabaseTokenRepository already deletes the existing token for that
      * email before inserting the new one (password_reset_tokens.email is
      * the primary key), so this just confirms that behavior holds.
+     *
+     * Password::reset() reports a super seded token the same way it reports
+     * a genuinely time-expired one (both are just Password::INVALID_TOKEN —
+     * Laravel doesn't distinguish "deleted" from "past its expiry window" at
+     * that layer), so submitting an old link now lands on the same friendly
+     * "This session link has expired." page an expired one does, instead of
+     * a generic inline error on the reset form.
      */
     public function test_an_old_reset_link_stops_working_once_a_newer_one_is_requested(): void
     {
@@ -133,7 +140,48 @@ class PasswordResetTest extends TestCase
             'password_confirmation' => 'Password123!',
         ]);
 
-        $response->assertSessionHasErrors('email');
+        $response->assertRedirect(route('password.reset', ['token' => $oldToken, 'email' => $user->email]));
         $this->assertFalse(Hash::check('Password123!', $user->fresh()->password));
+
+        // Following that redirect renders the friendly expired-link page.
+        $this->get($response->headers->get('Location'))
+            ->assertOk()
+            ->assertSee('This session link has expired.');
+    }
+
+    /**
+     * A link that was still valid when the reset form loaded, but expires
+     * while the founder is filling it in (the window is only 3 minutes —
+     * see NewPasswordController::create()), used to show a generic inline
+     * "invalid token" error on submit. It now lands on the same friendly
+     * expired-link page a stale GET request does.
+     */
+    public function test_submitting_after_the_link_expires_shows_the_expired_page(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+
+        $this->post('/forgot-password', ['email' => $user->email]);
+
+        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+            $this->travel(4)->minutes(); // past the 3-minute expiry window
+
+            $response = $this->post('/reset-password', [
+                'token' => $notification->token,
+                'email' => $user->email,
+                'password' => 'Password123!',
+                'password_confirmation' => 'Password123!',
+            ]);
+
+            $response->assertRedirect(route('password.reset', ['token' => $notification->token, 'email' => $user->email]));
+            $this->assertFalse(Hash::check('Password123!', $user->fresh()->password));
+
+            $this->get($response->headers->get('Location'))
+                ->assertOk()
+                ->assertSee('This session link has expired.');
+
+            return true;
+        });
     }
 }
