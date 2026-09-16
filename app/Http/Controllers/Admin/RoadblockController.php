@@ -8,6 +8,7 @@ use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\Mentor;
 use App\Models\Roadblock;
+use App\Models\VersionHistory;
 use App\Notifications\MentorshipScheduled;
 use App\Notifications\NewRoadblockSubmitted;
 use App\Notifications\RoadblockStatusUpdated;
@@ -31,9 +32,18 @@ class RoadblockController extends Controller
         // one is selected, instead of always mixing every cohort together.
         $cohortId = session('selected_cohort_id');
 
+        // Resolved to the Cohort's `number`, not filtered on cohort_id
+        // directly below: cohort_number is the field that's actually
+        // reliably populated on every startup (see StartupProfileController::
+        // index()'s same fix) — filtering on cohort_id alone left every list
+        // on this page empty for any startup whose cohort_id never got
+        // backfilled/synced to match its already-correct, already-displayed
+        // cohort_number.
+        $cohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
+
         $pending = Roadblock::with(['startup', 'files'])
             ->where('status', 'Pending')
-            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->latest()
             ->get();
 
@@ -43,7 +53,7 @@ class RoadblockController extends Controller
         // whose meeting just ended but hasn't been swept yet.
         $scheduled = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
             ->whereIn('status', ['Scheduled', 'Pending Review'])
-            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->get();
 
         // sortBy('meeting_date') only compares the date part, so multiple
@@ -70,13 +80,13 @@ class RoadblockController extends Controller
         // total.
         $resolved = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
             ->where('status', 'Resolved')
-            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->orderByDesc('resolved_at')
             ->get();
 
         $failed = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
             ->where('status', 'Failed')
-            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->orderByDesc('failed_at')
             ->get();
 
@@ -84,6 +94,15 @@ class RoadblockController extends Controller
         $coordinators = Coordinator::orderBy('coordinator_id')->get();
 
         return view('admin.roadblocks.index', [
+            // One shared, page-wide Edit History feed of every Assign &
+            // Schedule/Edit/Resolve/Failed/Recover action across every
+            // startup's roadblocks — this page already lists every cohort's
+            // roadblocks together, so there's no single-record scope to
+            // narrow this feed to either.
+            'roadblockVersionHistory' => VersionHistory::where('context', 'Roadblock Management')
+                ->with('user')
+                ->latest()
+                ->get(),
             'pending' => $pending,
             'upcoming' => $upcoming,
             'scheduledToday' => $scheduledToday,
@@ -104,6 +123,13 @@ class RoadblockController extends Controller
         if ($roadblock->status === 'Resolved') {
             return back()->with('error', 'This roadblock is already resolved. Recover it first before reassigning.');
         }
+
+        // Captured before the update below overwrites status to 'Scheduled'
+        // regardless — this is the only way to tell "Assign & Schedule" (a
+        // still-Pending roadblock getting its first mentor/slot) apart from
+        // "Edit" (an already-Scheduled one being reassigned/rescheduled),
+        // since both actions share this same method/route.
+        $wasAlreadyScheduled = $roadblock->status === 'Scheduled';
 
         $validated = $request->validated();
 
@@ -143,6 +169,13 @@ class RoadblockController extends Controller
             }
         }
 
+        VersionHistory::record(
+            $roadblock->startup,
+            'Roadblock Management',
+            $wasAlreadyScheduled ? 'reassign_roadblock' : 'assign_roadblock',
+            $roadblock->startup?->company_name
+        );
+
         return back()->with('status', 'Roadblock scheduled.');
     }
 
@@ -176,6 +209,8 @@ class RoadblockController extends Controller
 
         $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Resolved'));
 
+        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'resolve_roadblock', $roadblock->startup?->company_name);
+
         // Jump straight to the Resolved stage so the admin lands where the
         // roadblock actually went, instead of staying on Pending Review where
         // it no longer appears.
@@ -193,6 +228,8 @@ class RoadblockController extends Controller
 
         $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Failed'));
 
+        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'fail_roadblock', $roadblock->startup?->company_name);
+
         return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'failed'])
             ->with('status', 'Roadblock marked failed.');
     }
@@ -208,6 +245,8 @@ class RoadblockController extends Controller
         $roadblock->update(['status' => 'Pending Review', 'resolved_at' => null]);
 
         $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Pending Review'));
+
+        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'recover_roadblock', $roadblock->startup?->company_name);
 
         return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'assessment'])
             ->with('status', 'Roadblock recovered to Pending Review.');

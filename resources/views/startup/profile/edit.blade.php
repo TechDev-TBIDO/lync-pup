@@ -22,7 +22,12 @@
 
     <div
         x-data="{
-        editing: false,
+        // Reopen edit mode automatically when the redirect-back after a
+        // failed save (e.g. an invalid Website URL) carries validation
+        // errors — otherwise this hardcoded false would re-init on the
+        // full-page reload and leave the field readonly, hiding the very
+        // value old() already preserved for the user to correct.
+        editing: {{ $errors->any() ? 'true' : 'false' }},
         dirty: false,
 
         showLeaveModal: false,

@@ -19,8 +19,16 @@ class RiskMonitoringController extends Controller
         // is selected, instead of always assessing every cohort together.
         $cohortId = session('selected_cohort_id');
 
+        // Resolved to the Cohort's `number`, not filtered on cohort_id
+        // directly below: cohort_number is the field that's actually
+        // reliably populated on every startup (see StartupProfileController::
+        // index()'s same fix) — filtering on cohort_id alone left this page
+        // empty for any startup whose cohort_id never got backfilled/synced
+        // to match its already-correct, already-displayed cohort_number.
+        $cohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
+
         $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
-            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+            ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
             ->get();
 
         $documentsByStartup = AssessmentDocument::whereIn('startup_id', $startups->pluck('startup_id'))

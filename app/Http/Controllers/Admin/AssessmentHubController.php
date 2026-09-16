@@ -24,6 +24,15 @@ class AssessmentHubController extends Controller
         // one is selected, instead of always mixing every cohort together.
         $cohortId = session('selected_cohort_id');
 
+        // Resolved to the Cohort's `number`, not filtered on cohort_id
+        // directly below: cohort_number is the field that's actually
+        // reliably populated on every startup (see StartupProfileController::
+        // index()'s same fix) — filtering on cohort_id alone left every list
+        // on this page empty for any startup whose cohort_id never got
+        // backfilled/synced to match its already-correct, already-displayed
+        // cohort_number.
+        $cohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
+
         // "Awaiting Schedule" / "Unscheduled" — every startup that isn't yet
         // Approved/Rejected and has no active (Scheduled) evaluation, regardless
         // of how far along their Information Sheet is (see
@@ -47,7 +56,7 @@ class AssessmentHubController extends Controller
             // with. They appear the moment VerifyEmailController flips
             // email_verified_at (and account_status to Active).
             ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
-            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+            ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
             // Completed (submitted) on top, then In Progress (sheet started
             // but not submitted), then Not Started (no sheet row yet) -
             // mirrors Startup::informationSheetStatus()'s three states via
@@ -94,13 +103,13 @@ class AssessmentHubController extends Controller
             ->where('status', 'Scheduled')
             ->whereDate('evaluation_date', now()->toDateString())
             ->whereDoesntHave('startup.informationSheet', fn ($q) => $q->whereIn('approval_status', ['Approved', 'Rejected']))
-            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->orderBy('start_time')
             ->get();
 
         $scheduled = EvaluationSchedule::with('startup.informationSheet')
             ->where('status', 'Scheduled')
-            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->get()
             // Rejected startups belong solely to the Rejected tab from the
             // moment they're rejected — never back on Today/Upcoming/Missed,
@@ -129,7 +138,7 @@ class AssessmentHubController extends Controller
 
         $approvedStartups = Startup::with('informationSheet')
             ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
-            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+            ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
             ->orderBy('company_name')
             ->get();
 
@@ -139,7 +148,7 @@ class AssessmentHubController extends Controller
         // command's next casualties are the first thing an admin sees.
         $rejectedStartups = Startup::with('informationSheet')
             ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Rejected'))
-            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+            ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
             ->get()
             ->sortBy(fn (Startup $s) => $s->informationSheet?->rejected_at ?? now())
             ->values();

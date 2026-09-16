@@ -303,9 +303,18 @@ class DevDataSeeder extends Seeder
                 'industry_sector' => 'CleanTech',
                 'contact_phone' => '09191234567',
                 'location' => 'Pasig City, PH',
+                'startup_photo_path' => 'startup-photos/placeholder.png',
             ]
         );
-        $greenloop->update(['user_id' => $greenloopFounder->id, 'cohort_number' => null, 'cohort_id' => null]);
+        // startup_photo_path forced every run too (like cohort_number/cohort_id
+        // below): Startup::isProfileComplete() requires it, and that gates
+        // Startup::isReadyForEvaluation() — without it GreenLoop shows the
+        // "Applicant" badge forever even after this seeder gives it a real
+        // submitted sheet and a scheduled (now missed) evaluation, a
+        // combination that can't actually happen through the real founder
+        // flow since isProfileComplete() is what unlocks the Information
+        // Sheet in the first place.
+        $greenloop->update(['user_id' => $greenloopFounder->id, 'cohort_number' => null, 'cohort_id' => null, 'startup_photo_path' => 'startup-photos/placeholder.png']);
 
         $greenloopSheet = InformationSheet::firstOrCreate(
             ['startup_id' => $greenloop->startup_id],

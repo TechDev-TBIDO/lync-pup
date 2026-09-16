@@ -187,6 +187,7 @@ class ActiveAssessmentForms
             6 => self::isDocument6Filled($data),
             7 => self::isDocument7Filled($data),
             8 => self::isDocument8Filled($data),
+            \App\Support\VentureExitForm::DOCUMENT_NUMBER => self::isVentureExitFilled($data),
             default => ! empty($data),
         };
     }
@@ -251,6 +252,50 @@ class ActiveAssessmentForms
             || filled($data['validated_by_position'] ?? null)
             || filled($data['validated_by_contact'] ?? null)
             || filled($data['validated_by_date'] ?? null);
+    }
+
+    /**
+     * Whether the Venture Exit "Startup Exit Form" (document 13) has any
+     * real admin-entered content. Startup Name is deliberately excluded —
+     * _venture-exit.blade.php's clearAll() intentionally leaves it
+     * untouched when the admin hits "Clear Form" (see its own comment:
+     * clearing shouldn't wipe out which startup the form is for), so a
+     * cleared-and-resaved document would otherwise still have a non-empty
+     * `data` array (just startup_name) and read as "Started" via the
+     * `default => !empty($data)` fallback below — even though every actual
+     * field is blank. The *_position signatory fields are excluded too,
+     * same reasoning as isDocument8Filled(): they're fixed institutional
+     * defaults ("Portfolio Coordinator, TBIDO", etc.), not admin-entered.
+     */
+    public static function isVentureExitFilled(array $data): bool
+    {
+        if (filled($data['date_of_assessment'] ?? null)
+            || filled($data['summary_of_progress'] ?? null)
+            || filled($data['post_incubation_recommendation'] ?? null)
+            || filled($data['scale_up_linkages'] ?? null)
+            || filled($data['exit_status'] ?? null)) {
+            return true;
+        }
+
+        if (self::hasAnyValue($data['business_stage'] ?? [])) {
+            return true;
+        }
+
+        foreach ($data['graduation_readiness'] ?? [] as $row) {
+            if (($row['status'] ?? false) === true || filled($row['remark'] ?? null)) {
+                return true;
+            }
+        }
+
+        foreach ($data['readiness_levels'] ?? [] as $row) {
+            if (filled($row['highest_level'] ?? null) || filled($row['remarks'] ?? null)) {
+                return true;
+            }
+        }
+
+        return filled($data['evaluated_by_name'] ?? null)
+            || filled($data['reviewed_by_name'] ?? null)
+            || filled($data['noted_by_name'] ?? null);
     }
 
     /**

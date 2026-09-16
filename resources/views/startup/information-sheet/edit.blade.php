@@ -186,7 +186,7 @@ pendingRemoval: [],
         if (intentInput) intentInput.value = intent;
 
         // A draft Save has nothing that's actually required yet - only
-        // Submit enforces "every required field answered" and Core Team's
+        // Submit enforces 'every required field answered' and Core Team's
         // at-least-one-row rule client-side. Save still round-trips through
         // the server (see submitInfoSheetForms() below), so a value that IS
         // typed but badly formatted is still caught and shown either way.

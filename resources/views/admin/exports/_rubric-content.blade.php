@@ -26,10 +26,19 @@
             ['label' => 'Reviewed by', 'name' => $assessment?->srl_reviewed_by, 'position' => $assessment?->srl_reviewed_by_position],
             ['label' => 'Noted by', 'name' => $assessment?->srl_noted_by, 'position' => $assessment?->srl_noted_by_position],
         ],
+        // MRL and TMRL used to share one evaluated_by/reviewed_by/noted_by
+        // column set (see the migration that split them) — each now reads
+        // its own independent columns so a TMRL export can no longer show
+        // MRL's signatories (or vice versa).
+        'MRL' => [
+            ['label' => 'Evaluated by', 'name' => $assessment?->mrl_evaluated_by, 'position' => $assessment?->mrl_evaluated_by_position],
+            ['label' => 'Reviewed by', 'name' => $assessment?->mrl_reviewed_by, 'position' => $assessment?->mrl_reviewed_by_position],
+            ['label' => 'Noted by', 'name' => $assessment?->mrl_noted_by, 'position' => $assessment?->mrl_noted_by_position],
+        ],
         default => [
-            ['label' => 'Evaluated by', 'name' => $assessment?->evaluated_by, 'position' => $assessment?->evaluated_by_position],
-            ['label' => 'Reviewed by', 'name' => $assessment?->reviewed_by, 'position' => $assessment?->reviewed_by_position],
-            ['label' => 'Noted by', 'name' => $assessment?->noted_by, 'position' => $assessment?->noted_by_position],
+            ['label' => 'Evaluated by', 'name' => $assessment?->tmrl_evaluated_by, 'position' => $assessment?->tmrl_evaluated_by_position],
+            ['label' => 'Reviewed by', 'name' => $assessment?->tmrl_reviewed_by, 'position' => $assessment?->tmrl_reviewed_by_position],
+            ['label' => 'Noted by', 'name' => $assessment?->tmrl_noted_by, 'position' => $assessment?->tmrl_noted_by_position],
         ],
     };
 @endphp

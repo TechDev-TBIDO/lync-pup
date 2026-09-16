@@ -56,6 +56,8 @@ class MeetingController extends Controller
                     'date_label' => $schedule->evaluation_date->format('l, F j, Y'),
                     'time_label' => $schedule->time_range_label,
                     'status_label' => $this->dayLabel($schedule->evaluation_date),
+                    'platform' => $schedule->modality,
+                    'meeting_link' => $schedule->link,
                     'notes' => $schedule->notes,
                 ];
             });

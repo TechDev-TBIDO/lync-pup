@@ -420,16 +420,19 @@ class WordDocumentExporter
             }
         }
 
-        $processor->setValue('evaluated_by', $vc($assessment?->evaluated_by));
-        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->evaluated_by_position ?? ''));
+        // MRL's own independent signatory block (see the migration that
+        // split this from the shared evaluated_by/reviewed_by/noted_by
+        // columns TMRL used to write to as well).
+        $processor->setValue('evaluated_by', $vc($assessment?->mrl_evaluated_by));
+        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->mrl_evaluated_by_position ?? ''));
         $processor->setValue('evaluated_by_position_1', $v($evaluatedPositionLines[0] ?? ''));
         $processor->setValue('evaluated_by_position_2', $v($evaluatedPositionLines[1] ?? ''));
 
-        $processor->setValue('reviewed_by', $vc($assessment?->reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->reviewed_by_position));
+        $processor->setValue('reviewed_by', $vc($assessment?->mrl_reviewed_by));
+        $processor->setValue('reviewed_by_position', $v($assessment?->mrl_reviewed_by_position));
 
-        $processor->setValue('noted_by', $vc($assessment?->noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->noted_by_position ?? ''));
+        $processor->setValue('noted_by', $vc($assessment?->mrl_noted_by));
+        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->mrl_noted_by_position ?? ''));
         $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
         $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
 
@@ -483,16 +486,19 @@ class WordDocumentExporter
             }
         }
 
-        $processor->setValue('evaluated_by', $vc($assessment?->evaluated_by));
-        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->evaluated_by_position ?? ''));
+        // TMRL's own independent signatory block (see the migration that
+        // split this from the shared evaluated_by/reviewed_by/noted_by
+        // columns MRL used to write to as well).
+        $processor->setValue('evaluated_by', $vc($assessment?->tmrl_evaluated_by));
+        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->tmrl_evaluated_by_position ?? ''));
         $processor->setValue('evaluated_by_position_1', $v($evaluatedPositionLines[0] ?? ''));
         $processor->setValue('evaluated_by_position_2', $v($evaluatedPositionLines[1] ?? ''));
 
-        $processor->setValue('reviewed_by', $vc($assessment?->reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->reviewed_by_position));
+        $processor->setValue('reviewed_by', $vc($assessment?->tmrl_reviewed_by));
+        $processor->setValue('reviewed_by_position', $v($assessment?->tmrl_reviewed_by_position));
 
-        $processor->setValue('noted_by', $vc($assessment?->noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->noted_by_position ?? ''));
+        $processor->setValue('noted_by', $vc($assessment?->tmrl_noted_by));
+        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->tmrl_noted_by_position ?? ''));
         $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
         $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
 
@@ -676,14 +682,17 @@ class WordDocumentExporter
             }
         }
 
-        $processor->setValue('evaluated_by', $vc($assessment?->evaluated_by));
-        $processor->setValue('evaluated_by_position', $v($assessment?->evaluated_by_position));
+        // MRL's own independent signatory block (see the migration that
+        // split this from the shared evaluated_by/reviewed_by/noted_by
+        // columns TMRL used to write to as well).
+        $processor->setValue('evaluated_by', $vc($assessment?->mrl_evaluated_by));
+        $processor->setValue('evaluated_by_position', $v($assessment?->mrl_evaluated_by_position));
 
-        $processor->setValue('reviewed_by', $vc($assessment?->reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->reviewed_by_position));
+        $processor->setValue('reviewed_by', $vc($assessment?->mrl_reviewed_by));
+        $processor->setValue('reviewed_by_position', $v($assessment?->mrl_reviewed_by_position));
 
-        $processor->setValue('noted_by', $vc($assessment?->noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->noted_by_position ?? ''));
+        $processor->setValue('noted_by', $vc($assessment?->mrl_noted_by));
+        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->mrl_noted_by_position ?? ''));
         $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
         $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
 
@@ -735,14 +744,17 @@ class WordDocumentExporter
             }
         }
 
-        $processor->setValue('evaluated_by', $vc($assessment?->evaluated_by));
-        $processor->setValue('evaluated_by_position', $v($assessment?->evaluated_by_position));
+        // TMRL's own independent signatory block (see the migration that
+        // split this from the shared evaluated_by/reviewed_by/noted_by
+        // columns MRL used to write to as well).
+        $processor->setValue('evaluated_by', $vc($assessment?->tmrl_evaluated_by));
+        $processor->setValue('evaluated_by_position', $v($assessment?->tmrl_evaluated_by_position));
 
-        $processor->setValue('reviewed_by', $vc($assessment?->reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->reviewed_by_position));
+        $processor->setValue('reviewed_by', $vc($assessment?->tmrl_reviewed_by));
+        $processor->setValue('reviewed_by_position', $v($assessment?->tmrl_reviewed_by_position));
 
-        $processor->setValue('noted_by', $vc($assessment?->noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->noted_by_position ?? ''));
+        $processor->setValue('noted_by', $vc($assessment?->tmrl_noted_by));
+        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->tmrl_noted_by_position ?? ''));
         $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
         $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
 

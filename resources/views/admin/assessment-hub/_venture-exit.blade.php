@@ -64,7 +64,6 @@
         showClearConfirm: false,
         incompleteAssessments: @js($incompleteAssessments ?? []),
         showIncompleteConfirm: false,
-        confirmedIncomplete: false,
         aiGenerating: false,
         aiError: '',
         // Generate with AI — drafts the Graduation Readiness
@@ -161,26 +160,20 @@
             }
             this.ve.readiness_levels[type].highest_level = cleaned === '' ? '' : cleaned + '/9';
         },
-        // Gate the actual submit: if this startup still has other
-        // assessments/documents that were never started, ask once before
-        // proceeding instead of silently exiting them. Already-complete
-        // startups submit immediately, same as before.
+        // Save Assessment always just saves now — the 'Incomplete
+        // Assessments' warning no longer gates the submit (it used to
+        // block Save and only let it through after a second confirm,
+        // which also meant it kept reappearing even right after the admin
+        // had cleared the form back to blank). It's shown once instead, up
+        // front, the moment this page loads — see the x-init below —
+        // purely as a heads-up, never as something to get past before
+        // saving.
         trySubmit(event) {
-            if (this.incompleteAssessments.length && ! this.confirmedIncomplete) {
-                event.preventDefault();
-                this.showIncompleteConfirm = true;
-                return;
-            }
             // Submission is actually going through (full page reload) —
             // same as the other assessment forms' @submit reset, so the
             // beforeunload guard doesn't fire a native 'leave site?' prompt
             // over the navigation this very submit is causing.
             this.$store.navigation.hasUnsavedChanges = false;
-        },
-        proceedAnyway() {
-            this.confirmedIncomplete = true;
-            this.showIncompleteConfirm = false;
-            this.$nextTick(() => document.getElementById('venture-exit-form').requestSubmit());
         },
         clearAll() {
             // Startup Name is intentionally left untouched — clearing the
@@ -205,7 +198,10 @@
             this.showClearConfirm = false;
         },
     }"
-    x-init="$watch(() => isDirty(), value => { $store.navigation.hasUnsavedChanges = value; })">
+    x-init="
+        $watch(() => isDirty(), value => { $store.navigation.hasUnsavedChanges = value; });
+        if (incompleteAssessments.length) { showIncompleteConfirm = true; }
+    ">
 
     <div class="rounded-t-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-3 text-center font-bold uppercase text-white">
         Startup Exit Form
@@ -489,16 +485,12 @@
                 </template>
             </ul>
 
-            <p class="mt-3 text-xs leading-5 text-gray-600">Do you want to proceed anyway?</p>
+            <p class="mt-3 text-xs leading-5 text-gray-600">You can still fill out and save this Venture Exit form.</p>
 
-            <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
+            <div class="mt-4">
                 <button type="button" @click="showIncompleteConfirm = false"
-                    class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50">
-                    Cancel
-                </button>
-                <button type="button" @click="proceedAnyway()"
                     class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
-                    Proceed Anyway
+                    Got it
                 </button>
             </div>
         </div>

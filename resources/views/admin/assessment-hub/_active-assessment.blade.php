@@ -192,16 +192,16 @@
         doc8CategoryIncomplete(category) {
             return this.doc8.ratings[category].some(v => v === null || v === '');
         },
-        // Gates the shared Save button: Document 6/7 have no completeness
-        // rule (unchanged), but Document 8's 6 rating tables must each be
-        // fully rated — ONLY while the admin is actually on the Document 8
-        // tab, though. Otherwise saving Document 6 or 7 progress (with
-        // Document 8 not even open yet, let alone started) would get
-        // wrongly blocked and force-jump to Document 8 over a table the
-        // admin never intended to touch this time. Blocks on the FIRST
-        // incomplete category (in the same order the tables render) rather
-        // than listing every offender, since the scroll-to-table only
-        // makes sense one at a time.
+        // Document 6/7 have no completeness rule, and Document 8's 6 rating
+        // tables (Section 2) never block Save either — nothing server-side
+        // requires them to be filled (AssessmentController::updateDocuments()
+        // stores whatever JSON it's given), so the admin must always be able
+        // to save Document 8's other fields, or a deliberately partial
+        // rating pass, without Section 2 being finished first. This still
+        // flags which category (if any) is incomplete, purely so the
+        // existing red-ring + warning-message UI below can keep gently
+        // pointing it out — it just no longer calls event.preventDefault()
+        // or blocks the actual submit the way it used to.
         trySubmit(event) {
             if (this.activeDoc !== 8) {
                 this.doc8InvalidCategory = null;
@@ -210,19 +210,7 @@
             }
 
             this.doc8ValidationAttempted = true;
-            const firstIncomplete = Object.keys(this.doc8.ratings).find(cat => this.doc8CategoryIncomplete(cat));
-
-            if (firstIncomplete) {
-                event.preventDefault();
-                this.doc8InvalidCategory = firstIncomplete;
-                this.$nextTick(() => {
-                    document.getElementById('doc8-cat-' + firstIncomplete)
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                });
-                return;
-            }
-
-            this.doc8InvalidCategory = null;
+            this.doc8InvalidCategory = Object.keys(this.doc8.ratings).find(cat => this.doc8CategoryIncomplete(cat)) || null;
             this.$store.navigation.hasUnsavedChanges = false;
         },
         addRow(doc, section, columns) {
@@ -268,14 +256,29 @@
         // so nothing gets missed and a document that was never saved always
         // ends up byte-for-byte equal to its initialDocN after clearing —
         // i.e. no longer 'dirty', so navigating away afterward doesn't warn.
+        //
+        // Scoped to whichever document tab is actually open when 'Clear
+        // Form' is confirmed — it used to reset doc6/doc7/doc8 all at once
+        // regardless of activeDoc, so clearing (say) Document 8 silently
+        // wiped Document 6 and 7's drafts too.
         clearAll() {
-            document.getElementById('active-assessment-form').reset();
-            this.doc6 = JSON.parse(JSON.stringify(this.blankDoc6));
-            this.doc7 = JSON.parse(JSON.stringify(this.blankDoc7));
-            this.doc8 = JSON.parse(JSON.stringify(this.blankDoc8));
-            this.doc8ValidationAttempted = false;
-            this.doc8InvalidCategory = null;
+            this['doc' + this.activeDoc] = JSON.parse(JSON.stringify(this['blankDoc' + this.activeDoc]));
+
+            if (this.activeDoc === 8) {
+                this.doc8ValidationAttempted = false;
+                this.doc8InvalidCategory = null;
+            }
+
             this.showClearConfirm = false;
+        },
+        // Whether the active document already has anything worth clearing —
+        // checked against its blank template, not just against whatever it
+        // looked like when the page loaded. Clear Form used to only enable
+        // once something was *dirty this visit* (via isDirty()), so a
+        // document that was already fully filled in and saved, but hadn't
+        // been touched again since, couldn't be cleared at all.
+        docHasContent(num) {
+            return JSON.stringify(this['doc' + num]) !== JSON.stringify(this['blankDoc' + num]);
         },
     }"
     x-init="$watch(() => isDirty(), value => { $store.navigation.hasUnsavedChanges = value; })">
@@ -768,7 +771,7 @@
         </div>
 
         <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button type="button" @click="showClearConfirm = true" :disabled="! isDirty()"
+            <button type="button" @click="showClearConfirm = true" :disabled="! docHasContent(activeDoc)"
                 class="h-11 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white sm:flex-1">
                 Clear Form
             </button>

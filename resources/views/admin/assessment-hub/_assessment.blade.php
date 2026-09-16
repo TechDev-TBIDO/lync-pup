@@ -48,13 +48,19 @@ for ($i = 0; $i < $count; $i++) {
         ?->full_name;
     $overviewAssessmentDateInput = ($currentAssessment?->assessment_date ?? now())->format('Y-m-d');
 
-    // Signatory block at the end of the form. Evaluated by defaults to the
-    // logged-in admin (matching the old auto-filled behavior) the first
-    // time this assessment is saved; Reviewed by / Noted by have no
-    // sensible default and start blank until someone fills them in.
-    $overviewEvaluatedBy = $currentAssessment?->evaluated_by ?? (auth()->user()?->name ?? auth()->user()?->email ?? '');
-    $overviewReviewedBy = $currentAssessment?->reviewed_by ?? '';
-    $overviewNotedBy = $currentAssessment?->noted_by ?? '';
+    // MRL and TMRL's own independent signatory blocks — used to be one
+    // shared set of columns/variables (see the migration that split them),
+    // so typing into one type's "Evaluated by" visibly overwrote the
+    // other's. Evaluated by defaults to the logged-in admin (matching the
+    // old auto-filled behavior) the first time each type is saved;
+    // Reviewed by / Noted by have no sensible default and start blank
+    // until someone fills them in.
+    $overviewMrlEvaluatedBy = $currentAssessment?->mrl_evaluated_by ?? (auth()->user()?->name ?? auth()->user()?->email ?? '');
+    $overviewMrlReviewedBy = $currentAssessment?->mrl_reviewed_by ?? '';
+    $overviewMrlNotedBy = $currentAssessment?->mrl_noted_by ?? '';
+    $overviewTmrlEvaluatedBy = $currentAssessment?->tmrl_evaluated_by ?? (auth()->user()?->name ?? auth()->user()?->email ?? '');
+    $overviewTmrlReviewedBy = $currentAssessment?->tmrl_reviewed_by ?? '';
+    $overviewTmrlNotedBy = $currentAssessment?->tmrl_noted_by ?? '';
 
     // TRL-only signatory block ("Prepared By" / "Noted By" / "Approved
     // by") — distinct from the MRL-only Evaluated/Reviewed/Noted block
@@ -72,16 +78,24 @@ for ($i = 0; $i < $count; $i++) {
     $overviewApprovedByPosition = $currentAssessment?->approved_by_position
         ?? "Director, Technology Business Incubation and Development Office\nProject Leader, DOST-HEIRIT";
 
-    // MRL/TMRL block's own three position/title lines — same
-    // editable-but-prefilled treatment as approved_by_position above.
-    // Evaluated by only gets its second line on Pre-Assessment — the real
+    // MRL and TMRL's own three position/title lines — same
+    // editable-but-prefilled treatment as approved_by_position above, now
+    // kept independently per type instead of one shared set. Evaluated by
+    // only gets its second line on Pre-Assessment — the real
     // Post-Assessment form only ever prints one position line.
-    $overviewEvaluatedByPosition = $currentAssessment?->evaluated_by_position
+    $overviewMrlEvaluatedByPosition = $currentAssessment?->mrl_evaluated_by_position
         ?? ($isPostAssessment
             ? 'Portfolio Coordinator, TBIDO'
             : "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT");
-    $overviewReviewedByPosition = $currentAssessment?->reviewed_by_position ?? 'Startup Development Chief, TBIDO';
-    $overviewNotedByPosition = $currentAssessment?->noted_by_position
+    $overviewMrlReviewedByPosition = $currentAssessment?->mrl_reviewed_by_position ?? 'Startup Development Chief, TBIDO';
+    $overviewMrlNotedByPosition = $currentAssessment?->mrl_noted_by_position
+        ?? "Director, TBIDO\nProject Leader, DOST HEIRIT";
+    $overviewTmrlEvaluatedByPosition = $currentAssessment?->tmrl_evaluated_by_position
+        ?? ($isPostAssessment
+            ? 'Portfolio Coordinator, TBIDO'
+            : "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT");
+    $overviewTmrlReviewedByPosition = $currentAssessment?->tmrl_reviewed_by_position ?? 'Startup Development Chief, TBIDO';
+    $overviewTmrlNotedByPosition = $currentAssessment?->tmrl_noted_by_position
         ?? "Director, TBIDO\nProject Leader, DOST HEIRIT";
 
     // SRL's own Evaluated/Reviewed/Noted by block — distinct storage
@@ -148,17 +162,23 @@ for ($i = 0; $i < $count; $i++) {
             $onMeetings = $selectedStage === 'Meetings';
         @endphp
 
-        <div class="mb-6 flex w-full gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-gray-100 p-1 sm:inline-flex sm:w-auto">
-            <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $onMeetings ? 'Overview' : $selectedStage, 'assessment_startup' => $selectedStartup?->startup_id]) }}"
-                @click="if ({{ $onMeetings ? 'false' : 'true' }}) { $event.preventDefault(); } else if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
-                class="flex-1 whitespace-nowrap rounded-md px-4 py-1.5 text-center text-sm font-medium transition sm:flex-none {{ ! $onMeetings ? 'bg-white text-rose-900 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
-                Documents
-            </a>
-            <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => 'Meetings']) }}"
-                @click="if ({{ $onMeetings ? 'true' : 'false' }}) { $event.preventDefault(); } else if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
-                class="flex-1 whitespace-nowrap rounded-md px-4 py-1.5 text-center text-sm font-medium transition sm:flex-none {{ $onMeetings ? 'bg-white text-rose-900 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
-                Meetings
-            </a>
+        <div class="mb-6 flex items-center justify-between gap-3">
+            <div class="flex w-full gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-gray-100 p-1 sm:inline-flex sm:w-auto">
+                <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $onMeetings ? 'Overview' : $selectedStage, 'assessment_startup' => $selectedStartup?->startup_id]) }}"
+                    @click="if ({{ $onMeetings ? 'false' : 'true' }}) { $event.preventDefault(); } else if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
+                    class="flex-1 whitespace-nowrap rounded-md px-4 py-1.5 text-center text-sm font-medium transition sm:flex-none {{ ! $onMeetings ? 'bg-white text-rose-900 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                    Documents
+                </a>
+                <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => 'Meetings']) }}"
+                    @click="if ({{ $onMeetings ? 'true' : 'false' }}) { $event.preventDefault(); } else if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
+                    class="flex-1 whitespace-nowrap rounded-md px-4 py-1.5 text-center text-sm font-medium transition sm:flex-none {{ $onMeetings ? 'bg-white text-rose-900 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                    Meetings
+                </a>
+            </div>
+
+            @if ($selectedStartup && in_array($selectedStage, ['Pre-Assessment', 'Active-Assessment', 'Post-Assessment', 'Venture Exit'], true))
+                <x-version-history-panel :entries="$stageVersionHistory ?? collect()" />
+            @endif
         </div>
 
         @if ($onMeetings)
@@ -169,9 +189,6 @@ for ($i = 0; $i < $count; $i++) {
             <span class="icon-mask h-8 w-8 text-rose-900"
                 style="--icon: url('{{ asset('images/icons/submit-roadblock.svg') }}')"></span>
             <span class="font-bold text-gray-900">{{ $selectedStage }}</span>
-            @if ($selectedStartup && in_array($selectedStage, ['Pre-Assessment', 'Active-Assessment', 'Post-Assessment', 'Venture Exit'], true))
-                <x-version-history-panel :entries="$stageVersionHistory" />
-            @endif
         </div>
 
         <div class="flex flex-wrap items-center gap-3 mb-6">
@@ -311,18 +328,44 @@ for ($i = 0; $i < $count; $i++) {
             progress: @js($seedProgress),
             trlOverview: @js($trlOverviewSeed),
             assessmentDate: @js($overviewAssessmentDateInput),
-            evaluatedBy: @js($overviewEvaluatedBy),
-            reviewedBy: @js($overviewReviewedBy),
-            notedBy: @js($overviewNotedBy),
+            // MRL and TMRL's own independent signatory state — used to be
+            // one shared evaluatedBy/reviewedBy/notedBy set, which is
+            // exactly why typing into one type's block used to show up on
+            // the other's. The 'evaluatedBy'/'reviewedBy'/'notedBy' names
+            // below (and their positions) still exist too, as computed
+            // get/set accessors further down — the shared MRL/TMRL section
+            // of the form still binds to those plain names, but each now
+            // transparently reads/writes whichever type is actually active.
+            mrlEvaluatedBy: @js($overviewMrlEvaluatedBy),
+            mrlEvaluatedByPosition: @js($overviewMrlEvaluatedByPosition),
+            mrlReviewedBy: @js($overviewMrlReviewedBy),
+            mrlReviewedByPosition: @js($overviewMrlReviewedByPosition),
+            mrlNotedBy: @js($overviewMrlNotedBy),
+            mrlNotedByPosition: @js($overviewMrlNotedByPosition),
+            tmrlEvaluatedBy: @js($overviewTmrlEvaluatedBy),
+            tmrlEvaluatedByPosition: @js($overviewTmrlEvaluatedByPosition),
+            tmrlReviewedBy: @js($overviewTmrlReviewedBy),
+            tmrlReviewedByPosition: @js($overviewTmrlReviewedByPosition),
+            tmrlNotedBy: @js($overviewTmrlNotedBy),
+            tmrlNotedByPosition: @js($overviewTmrlNotedByPosition),
+            get evaluatedBy() { return this.activeType === 'MRL' ? this.mrlEvaluatedBy : this.tmrlEvaluatedBy; },
+            set evaluatedBy(v) { if (this.activeType === 'MRL') this.mrlEvaluatedBy = v; else this.tmrlEvaluatedBy = v; },
+            get evaluatedByPosition() { return this.activeType === 'MRL' ? this.mrlEvaluatedByPosition : this.tmrlEvaluatedByPosition; },
+            set evaluatedByPosition(v) { if (this.activeType === 'MRL') this.mrlEvaluatedByPosition = v; else this.tmrlEvaluatedByPosition = v; },
+            get reviewedBy() { return this.activeType === 'MRL' ? this.mrlReviewedBy : this.tmrlReviewedBy; },
+            set reviewedBy(v) { if (this.activeType === 'MRL') this.mrlReviewedBy = v; else this.tmrlReviewedBy = v; },
+            get reviewedByPosition() { return this.activeType === 'MRL' ? this.mrlReviewedByPosition : this.tmrlReviewedByPosition; },
+            set reviewedByPosition(v) { if (this.activeType === 'MRL') this.mrlReviewedByPosition = v; else this.tmrlReviewedByPosition = v; },
+            get notedBy() { return this.activeType === 'MRL' ? this.mrlNotedBy : this.tmrlNotedBy; },
+            set notedBy(v) { if (this.activeType === 'MRL') this.mrlNotedBy = v; else this.tmrlNotedBy = v; },
+            get notedByPosition() { return this.activeType === 'MRL' ? this.mrlNotedByPosition : this.tmrlNotedByPosition; },
+            set notedByPosition(v) { if (this.activeType === 'MRL') this.mrlNotedByPosition = v; else this.tmrlNotedByPosition = v; },
             preparedBy: @js($overviewPreparedBy),
             preparedByPosition: @js($overviewPreparedByPosition),
             trlNotedBy: @js($overviewTrlNotedBy),
             trlNotedByPosition: @js($overviewTrlNotedByPosition),
             approvedBy: @js($overviewApprovedBy),
             approvedByPosition: @js($overviewApprovedByPosition),
-            evaluatedByPosition: @js($overviewEvaluatedByPosition),
-            reviewedByPosition: @js($overviewReviewedByPosition),
-            notedByPosition: @js($overviewNotedByPosition),
             srlEvaluatedBy: @js($overviewSrlEvaluatedBy),
             srlEvaluatedByPosition: @js($overviewSrlEvaluatedByPosition),
             srlReviewedBy: @js($overviewSrlReviewedBy),
@@ -332,18 +375,24 @@ for ($i = 0; $i < $count; $i++) {
             initialProgress: @js($seedProgress),
             initialTrlOverview: @js($trlOverviewSeed),
             initialAssessmentDate: @js($overviewAssessmentDateInput),
-            initialEvaluatedBy: @js($overviewEvaluatedBy),
-            initialReviewedBy: @js($overviewReviewedBy),
-            initialNotedBy: @js($overviewNotedBy),
+            initialMrlEvaluatedBy: @js($overviewMrlEvaluatedBy),
+            initialMrlEvaluatedByPosition: @js($overviewMrlEvaluatedByPosition),
+            initialMrlReviewedBy: @js($overviewMrlReviewedBy),
+            initialMrlReviewedByPosition: @js($overviewMrlReviewedByPosition),
+            initialMrlNotedBy: @js($overviewMrlNotedBy),
+            initialMrlNotedByPosition: @js($overviewMrlNotedByPosition),
+            initialTmrlEvaluatedBy: @js($overviewTmrlEvaluatedBy),
+            initialTmrlEvaluatedByPosition: @js($overviewTmrlEvaluatedByPosition),
+            initialTmrlReviewedBy: @js($overviewTmrlReviewedBy),
+            initialTmrlReviewedByPosition: @js($overviewTmrlReviewedByPosition),
+            initialTmrlNotedBy: @js($overviewTmrlNotedBy),
+            initialTmrlNotedByPosition: @js($overviewTmrlNotedByPosition),
             initialPreparedBy: @js($overviewPreparedBy),
             initialPreparedByPosition: @js($overviewPreparedByPosition),
             initialTrlNotedBy: @js($overviewTrlNotedBy),
             initialTrlNotedByPosition: @js($overviewTrlNotedByPosition),
             initialApprovedBy: @js($overviewApprovedBy),
             initialApprovedByPosition: @js($overviewApprovedByPosition),
-            initialEvaluatedByPosition: @js($overviewEvaluatedByPosition),
-            initialReviewedByPosition: @js($overviewReviewedByPosition),
-            initialNotedByPosition: @js($overviewNotedByPosition),
             initialSrlEvaluatedBy: @js($overviewSrlEvaluatedBy),
             initialSrlEvaluatedByPosition: @js($overviewSrlEvaluatedByPosition),
             initialSrlReviewedBy: @js($overviewSrlReviewedBy),
@@ -381,8 +430,10 @@ for ($i = 0; $i < $count; $i++) {
                 this.showTypeSwitchConfirm = false;
             },
             // Which fields belong to a given RL type — MRL and TMRL
-            // deliberately share one signatory block (evaluatedBy/reviewedBy/
-            // notedBy and their positions), same as the read/edit form above;
+            // MRL and TMRL now each own their independent signatory block
+            // (mrlEvaluatedBy/tmrlEvaluatedBy etc. — see the x-data fields
+            // above) instead of sharing one, so each branch below reads/
+            // writes only its own type's fields, never the other's.
             // assessmentDate is shared by all four types' own 'Date of
             // Assessment' field, so it's included everywhere.
             discardChangesFor(type) {
@@ -397,13 +448,20 @@ for ($i = 0; $i < $count; $i++) {
                     this.trlNotedByPosition = this.initialTrlNotedByPosition;
                     this.approvedBy = this.initialApprovedBy;
                     this.approvedByPosition = this.initialApprovedByPosition;
-                } else if (type === 'MRL' || type === 'TMRL') {
-                    this.evaluatedBy = this.initialEvaluatedBy;
-                    this.reviewedBy = this.initialReviewedBy;
-                    this.notedBy = this.initialNotedBy;
-                    this.evaluatedByPosition = this.initialEvaluatedByPosition;
-                    this.reviewedByPosition = this.initialReviewedByPosition;
-                    this.notedByPosition = this.initialNotedByPosition;
+                } else if (type === 'MRL') {
+                    this.mrlEvaluatedBy = this.initialMrlEvaluatedBy;
+                    this.mrlReviewedBy = this.initialMrlReviewedBy;
+                    this.mrlNotedBy = this.initialMrlNotedBy;
+                    this.mrlEvaluatedByPosition = this.initialMrlEvaluatedByPosition;
+                    this.mrlReviewedByPosition = this.initialMrlReviewedByPosition;
+                    this.mrlNotedByPosition = this.initialMrlNotedByPosition;
+                } else if (type === 'TMRL') {
+                    this.tmrlEvaluatedBy = this.initialTmrlEvaluatedBy;
+                    this.tmrlReviewedBy = this.initialTmrlReviewedBy;
+                    this.tmrlNotedBy = this.initialTmrlNotedBy;
+                    this.tmrlEvaluatedByPosition = this.initialTmrlEvaluatedByPosition;
+                    this.tmrlReviewedByPosition = this.initialTmrlReviewedByPosition;
+                    this.tmrlNotedByPosition = this.initialTmrlNotedByPosition;
                 } else if (type === 'SRL') {
                     this.srlEvaluatedBy = this.initialSrlEvaluatedBy;
                     this.srlEvaluatedByPosition = this.initialSrlEvaluatedByPosition;
@@ -434,14 +492,24 @@ for ($i = 0; $i < $count; $i++) {
                         || this.approvedByPosition !== this.initialApprovedByPosition;
                 }
 
-                if (type === 'MRL' || type === 'TMRL') {
+                if (type === 'MRL') {
                     return progressDirty || dateDirty
-                        || this.evaluatedBy !== this.initialEvaluatedBy
-                        || this.reviewedBy !== this.initialReviewedBy
-                        || this.notedBy !== this.initialNotedBy
-                        || this.evaluatedByPosition !== this.initialEvaluatedByPosition
-                        || this.reviewedByPosition !== this.initialReviewedByPosition
-                        || this.notedByPosition !== this.initialNotedByPosition;
+                        || this.mrlEvaluatedBy !== this.initialMrlEvaluatedBy
+                        || this.mrlReviewedBy !== this.initialMrlReviewedBy
+                        || this.mrlNotedBy !== this.initialMrlNotedBy
+                        || this.mrlEvaluatedByPosition !== this.initialMrlEvaluatedByPosition
+                        || this.mrlReviewedByPosition !== this.initialMrlReviewedByPosition
+                        || this.mrlNotedByPosition !== this.initialMrlNotedByPosition;
+                }
+
+                if (type === 'TMRL') {
+                    return progressDirty || dateDirty
+                        || this.tmrlEvaluatedBy !== this.initialTmrlEvaluatedBy
+                        || this.tmrlReviewedBy !== this.initialTmrlReviewedBy
+                        || this.tmrlNotedBy !== this.initialTmrlNotedBy
+                        || this.tmrlEvaluatedByPosition !== this.initialTmrlEvaluatedByPosition
+                        || this.tmrlReviewedByPosition !== this.initialTmrlReviewedByPosition
+                        || this.tmrlNotedByPosition !== this.initialTmrlNotedByPosition;
                 }
 
                 // SRL
@@ -456,23 +524,33 @@ for ($i = 0; $i < $count; $i++) {
             // Whole-form check — deliberately NOT scoped to activeType, since
             // this gates Save/Clear Form (which act on all four types at
             // once) and the page-navigation-away guard (leaving the page
-            // loses every type's draft, not just the visible one).
+            // loses every type's draft, not just the visible one). Reads
+            // MRL/TMRL's own fields directly (not the evaluatedBy/etc.
+            // get/set accessors above, which only ever reflect whichever
+            // type is currently active) so a draft sitting on a
+            // non-active type is never missed here.
             isDirty() {
                 return JSON.stringify(this.progress) !== JSON.stringify(this.initialProgress)
                     || JSON.stringify(this.trlOverview) !== JSON.stringify(this.initialTrlOverview)
                     || this.assessmentDate !== this.initialAssessmentDate
-                    || this.evaluatedBy !== this.initialEvaluatedBy
-                    || this.reviewedBy !== this.initialReviewedBy
-                    || this.notedBy !== this.initialNotedBy
+                    || this.mrlEvaluatedBy !== this.initialMrlEvaluatedBy
+                    || this.mrlReviewedBy !== this.initialMrlReviewedBy
+                    || this.mrlNotedBy !== this.initialMrlNotedBy
+                    || this.mrlEvaluatedByPosition !== this.initialMrlEvaluatedByPosition
+                    || this.mrlReviewedByPosition !== this.initialMrlReviewedByPosition
+                    || this.mrlNotedByPosition !== this.initialMrlNotedByPosition
+                    || this.tmrlEvaluatedBy !== this.initialTmrlEvaluatedBy
+                    || this.tmrlReviewedBy !== this.initialTmrlReviewedBy
+                    || this.tmrlNotedBy !== this.initialTmrlNotedBy
+                    || this.tmrlEvaluatedByPosition !== this.initialTmrlEvaluatedByPosition
+                    || this.tmrlReviewedByPosition !== this.initialTmrlReviewedByPosition
+                    || this.tmrlNotedByPosition !== this.initialTmrlNotedByPosition
                     || this.preparedBy !== this.initialPreparedBy
                     || this.preparedByPosition !== this.initialPreparedByPosition
                     || this.trlNotedBy !== this.initialTrlNotedBy
                     || this.trlNotedByPosition !== this.initialTrlNotedByPosition
                     || this.approvedBy !== this.initialApprovedBy
                     || this.approvedByPosition !== this.initialApprovedByPosition
-                    || this.evaluatedByPosition !== this.initialEvaluatedByPosition
-                    || this.reviewedByPosition !== this.initialReviewedByPosition
-                    || this.notedByPosition !== this.initialNotedByPosition
                     || this.srlEvaluatedBy !== this.initialSrlEvaluatedBy
                     || this.srlEvaluatedByPosition !== this.initialSrlEvaluatedByPosition
                     || this.srlReviewedBy !== this.initialSrlReviewedBy
@@ -513,7 +591,7 @@ for ($i = 0; $i < $count; $i++) {
             toggleLevel(type, level) {
                 this.expanded[type] = (this.expanded[type] === level) ? null : level;
             },
-            // Scoped to the tab actually open when "Clear Form" is confirmed —
+            // Scoped to the tab actually open when 'Clear Form' is confirmed —
             // it used to loop over every RL type and wipe all four at once,
             // so clearing (say) TRL also silently blanked out MRL/TMRL/SRL's
             // progress and signatory names. Also resets that type's own
@@ -532,13 +610,20 @@ for ($i = 0; $i < $count; $i++) {
                     this.trlNotedByPosition = '';
                     this.approvedBy = '';
                     this.approvedByPosition = '';
-                } else if (type === 'MRL' || type === 'TMRL') {
-                    this.evaluatedBy = '';
-                    this.reviewedBy = '';
-                    this.notedBy = '';
-                    this.evaluatedByPosition = '';
-                    this.reviewedByPosition = '';
-                    this.notedByPosition = '';
+                } else if (type === 'MRL') {
+                    this.mrlEvaluatedBy = '';
+                    this.mrlReviewedBy = '';
+                    this.mrlNotedBy = '';
+                    this.mrlEvaluatedByPosition = '';
+                    this.mrlReviewedByPosition = '';
+                    this.mrlNotedByPosition = '';
+                } else if (type === 'TMRL') {
+                    this.tmrlEvaluatedBy = '';
+                    this.tmrlReviewedBy = '';
+                    this.tmrlNotedBy = '';
+                    this.tmrlEvaluatedByPosition = '';
+                    this.tmrlReviewedByPosition = '';
+                    this.tmrlNotedByPosition = '';
                 } else if (type === 'SRL') {
                     this.srlEvaluatedBy = '';
                     this.srlEvaluatedByPosition = '';
@@ -565,9 +650,14 @@ for ($i = 0; $i < $count; $i++) {
                         || !!this.approvedBy || !!this.approvedByPosition;
                 }
 
-                if (type === 'MRL' || type === 'TMRL') {
-                    return hasProgress || !!this.evaluatedBy || !!this.reviewedBy || !!this.notedBy
-                        || !!this.evaluatedByPosition || !!this.reviewedByPosition || !!this.notedByPosition;
+                if (type === 'MRL') {
+                    return hasProgress || !!this.mrlEvaluatedBy || !!this.mrlReviewedBy || !!this.mrlNotedBy
+                        || !!this.mrlEvaluatedByPosition || !!this.mrlReviewedByPosition || !!this.mrlNotedByPosition;
+                }
+
+                if (type === 'TMRL') {
+                    return hasProgress || !!this.tmrlEvaluatedBy || !!this.tmrlReviewedBy || !!this.tmrlNotedBy
+                        || !!this.tmrlEvaluatedByPosition || !!this.tmrlReviewedByPosition || !!this.tmrlNotedByPosition;
                 }
 
                 // SRL
@@ -651,18 +741,32 @@ for ($i = 0; $i < $count; $i++) {
                     <input type="hidden" name="trl_overview" :value="JSON.stringify(trlOverview)">
                     @endif
                     <input type="hidden" name="assessment_date" :value="assessmentDate">
-                    <input type="hidden" name="evaluated_by" :value="evaluatedBy">
-                    <input type="hidden" name="reviewed_by" :value="reviewedBy">
-                    <input type="hidden" name="noted_by" :value="notedBy">
+                    {{-- MRL and TMRL each submit their own independent
+                         signatory fields now (see the migration that split
+                         these from one shared evaluated_by/reviewed_by/
+                         noted_by set) rather than the evaluatedBy/reviewedBy/
+                         notedBy accessors above, which only ever reflect
+                         whichever type is currently active — submitting
+                         through those would silently drop whichever type
+                         isn't on screen right now. --}}
+                    <input type="hidden" name="mrl_evaluated_by" :value="mrlEvaluatedBy">
+                    <input type="hidden" name="mrl_evaluated_by_position" :value="mrlEvaluatedByPosition">
+                    <input type="hidden" name="mrl_reviewed_by" :value="mrlReviewedBy">
+                    <input type="hidden" name="mrl_reviewed_by_position" :value="mrlReviewedByPosition">
+                    <input type="hidden" name="mrl_noted_by" :value="mrlNotedBy">
+                    <input type="hidden" name="mrl_noted_by_position" :value="mrlNotedByPosition">
+                    <input type="hidden" name="tmrl_evaluated_by" :value="tmrlEvaluatedBy">
+                    <input type="hidden" name="tmrl_evaluated_by_position" :value="tmrlEvaluatedByPosition">
+                    <input type="hidden" name="tmrl_reviewed_by" :value="tmrlReviewedBy">
+                    <input type="hidden" name="tmrl_reviewed_by_position" :value="tmrlReviewedByPosition">
+                    <input type="hidden" name="tmrl_noted_by" :value="tmrlNotedBy">
+                    <input type="hidden" name="tmrl_noted_by_position" :value="tmrlNotedByPosition">
                     <input type="hidden" name="prepared_by" :value="preparedBy">
                     <input type="hidden" name="prepared_by_position" :value="preparedByPosition">
                     <input type="hidden" name="trl_noted_by" :value="trlNotedBy">
                     <input type="hidden" name="trl_noted_by_position" :value="trlNotedByPosition">
                     <input type="hidden" name="approved_by" :value="approvedBy">
                     <input type="hidden" name="approved_by_position" :value="approvedByPosition">
-                    <input type="hidden" name="evaluated_by_position" :value="evaluatedByPosition">
-                    <input type="hidden" name="reviewed_by_position" :value="reviewedByPosition">
-                    <input type="hidden" name="noted_by_position" :value="notedByPosition">
                     <input type="hidden" name="srl_evaluated_by" :value="srlEvaluatedBy">
                     <input type="hidden" name="srl_evaluated_by_position" :value="srlEvaluatedByPosition">
                     <input type="hidden" name="srl_reviewed_by" :value="srlReviewedBy">

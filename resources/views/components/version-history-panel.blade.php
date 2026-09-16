@@ -8,7 +8,27 @@
     $entries must already be ordered newest-first (->latest()) — the very
     first one is what gets the "Current Version" badge.
 --}}
-@props(['entries'])
+{{--
+    $dark: true on a dark/colored background (e.g. the sidebar's cohort
+    control) restyles just the trigger button to match its surroundings —
+    the dropdown panel itself is always the same light card either way.
+
+    $align: which side of the trigger button the panel opens from —
+    'left' anchors the panel's left edge to the button (opens rightward;
+    use this when the button sits near the left of the page, close to the
+    sidebar, so the panel doesn't open backward into it — e.g. the
+    Assessment Hub/Information Sheet pilot usages). 'right' (the default)
+    anchors the panel's right edge to the button (opens leftward; use this
+    when the button sits at a page's top-right corner, so the panel
+    doesn't run off the right side of the viewport instead).
+
+    Always icon-only, visually — no pill, no visible text next to the
+    icon, on any usage. $label optionally overrides just the tooltip and
+    panel header text (default "Edit History"); e.g. the Dashboard passes
+    label="Cohort History" since that button covers only Cohort
+    Management actions, not the whole page.
+--}}
+@props(['entries', 'dark' => false, 'align' => 'right', 'label' => 'Edit History'])
 
 @php
     // No per-user color exists anywhere else in the app yet — this is a
@@ -29,9 +49,14 @@
     class="relative inline-block">
 
     <button type="button" @click="open = !open"
-        class="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-rose-900"
-        title="Version History" aria-label="Version History">
-        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        @class([
+            'flex items-center justify-center rounded-full transition',
+            'text-white/80 border border-white/20 bg-white/10 hover:bg-white/15' => $dark,
+            'h-8 w-8 text-gray-400 hover:bg-gray-100 hover:text-rose-900' => ! $dark,
+        ])
+        @style(['width: 34px; height: 34px;' => $dark])
+        title="{{ $label }}" aria-label="{{ $label }}">
+        <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 3v5h5" />
             <path d="M3.05 13A9 9 0 106 5.3L3 8" />
@@ -39,11 +64,15 @@
         </svg>
     </button>
 
-    <div x-show="open" x-cloak x-transition.origin.top-left
-        class="absolute left-0 top-full z-40 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-2xl"
+    <div x-show="open" x-cloak {{ $align === 'right' ? 'x-transition.origin.top-right' : 'x-transition.origin.top-left' }}
+        @class([
+            'absolute top-full z-40 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-2xl',
+            'right-0' => $align === 'right',
+            'left-0' => $align === 'left',
+        ])
         style="display:none;">
         <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-3">
-            <p class="text-sm font-bold text-white">Version History</p>
+            <p class="text-sm font-bold text-white">{{ $label }}</p>
         </div>
 
         <div class="max-h-96 overflow-y-auto px-4 py-3">

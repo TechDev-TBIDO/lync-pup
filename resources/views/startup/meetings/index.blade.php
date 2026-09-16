@@ -207,16 +207,37 @@
                             </div>
                         </div>
 
-                        {{-- Location: building --}}
+                        {{-- Same real platform/link as mentorship/assessment above —
+                             EvaluationSchedule stores its own modality/link (see
+                             migration 0001_01_01_000055), so this used to be a fixed
+                             "TBIDO Office" placeholder that never reflected what the
+                             admin actually picked in the Schedule modal. --}}
+                        @if (($meeting['platform'] ?? null) === 'Location')
                         <div class="{{ $row }}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
                             </svg>
                             <div class="min-w-0">
                                 <p class="text-xs font-semibold text-gray-900 sm:text-sm">Location</p>
-                                <p class="truncate text-xs text-gray-600 sm:text-sm">TBIDO Office</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm">{{ $meeting['meeting_link'] ?? '—' }}</p>
                             </div>
                         </div>
+                        @else
+                        <div class="{{ $row }}">
+                            @if ($platformLogo)
+                            <img src="{{ asset('images/icons/' . $platformLogo) }}" alt=""
+                                class="h-5 w-5 flex-shrink-0 object-contain">
+                            @else
+                            <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                            </svg>
+                            @endif
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-gray-900 sm:text-sm">Platform</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm">{{ $meeting['platform'] ?? '—' }}</p>
+                            </div>
+                        </div>
+                        @endif
                         @endif
                     </div>
 

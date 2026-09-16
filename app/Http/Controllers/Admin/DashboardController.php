@@ -77,8 +77,24 @@ class DashboardController extends Controller
             ->get();
         $selectedCohort = $cohortId ? $cohorts->firstWhere('cohort_id', (int) $cohortId) : null;
 
+        // Filtered on cohort_number, not cohort_id: cohort_id is the newer
+        // cohorts-table FK, but cohort_number is the field that's actually
+        // reliably populated on every startup (see the same reasoning in
+        // StartupProfileController::index()'s $applyCohort) — filtering on
+        // cohort_id alone left this "startups do not show" empty for any
+        // startup whose cohort_id never got backfilled/synced to match its
+        // already-correct, already-displayed cohort_number.
+        //
+        // Also excludes any startup whose founder hasn't verified their
+        // email yet — same reasoning as AssessmentHubController's Awaiting
+        // Schedule list: an unverified account isn't "applied" in any
+        // actionable sense, so it shouldn't inflate Total Startup or any of
+        // the other cards below that derive from $startupIds (Assessed,
+        // At Risk, Incubation Progress, Risk Classification, Average
+        // Readiness, Milestone Completion all read from the same pool).
         $startupsQuery = Startup::query()
-            ->when($selectedCohort, fn ($q) => $q->where('cohort_id', $selectedCohort->cohort_id));
+            ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
+            ->when($selectedCohort, fn ($q) => $q->where('cohort_number', $selectedCohort->number));
         $startupIds = (clone $startupsQuery)->pluck('startup_id');
         $totalStartups = $startupIds->count();
 
@@ -292,8 +308,19 @@ class DashboardController extends Controller
             ->where('stage', 'Post-Assessment')->whereNotNull('overall_score')
             ->pluck('startup_id')->flip();
 
+        // Row existence alone isn't "filled" here: clearAll() in
+        // _venture-exit.blade.php intentionally leaves Startup Name
+        // untouched when an admin hits "Clear Form" (so the form doesn't
+        // forget which startup it belongs to), so a cleared-and-resaved
+        // document still leaves behind a row with a non-blank `data` array
+        // — see ActiveAssessmentForms::isVentureExitFilled() for the actual
+        // "has real content" check, same one Milestone Completion below and
+        // the Assessment Hub Overview pill both use, so every "is Venture
+        // Exit actually started" check in the app agrees.
         $ventureExitIds = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
+            ->get()
+            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitFilled($doc->data ?? []))
             ->pluck('startup_id')->flip();
 
         foreach ($startupIds as $id) {

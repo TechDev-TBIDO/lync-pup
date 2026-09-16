@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateMentorRequest;
 use App\Models\Cohort;
 use App\Models\Mentor;
 use App\Models\Roadblock;
+use App\Models\VersionHistory;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
@@ -28,14 +29,22 @@ class MentorController extends Controller
         // count startups in that cohort — rather than filtering out mentors.
         $cohortId = session('selected_cohort_id');
 
+        // Resolved to the Cohort's `number`, not filtered on cohort_id
+        // directly below: cohort_number is the field that's actually
+        // reliably populated on every startup (see StartupProfileController::
+        // index()'s same fix) — filtering on cohort_id alone left this list
+        // empty for any startup whose cohort_id never got backfilled/synced
+        // to match its already-correct, already-displayed cohort_number.
+        $cohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
+
         // Eager-loaded (with their startup) so the Active Cases / Completed
         // stat on each mentor card can list the actual startups behind those
         // counts without an extra query per click — see
         // Mentor::getActiveCasesCountAttribute()/getCompletedCasesCountAttribute(),
         // which read from this loaded collection instead of re-querying.
-        $mentors = Mentor::with(['roadblocks' => function ($query) use ($cohortId) {
+        $mentors = Mentor::with(['roadblocks' => function ($query) use ($cohortNumber) {
             $query->whereIn('status', array_merge(Roadblock::ACTIVE_STATUSES, ['Resolved', 'Failed']))
-                ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+                ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
                 ->with('startup')
                 ->latest();
         }])->latest()->get();
@@ -54,6 +63,13 @@ class MentorController extends Controller
         return view('admin.mentors.index', [
             'mentors' => $mentors,
             'otherSpecializationSuggestions' => $otherSpecializationSuggestions,
+            // One shared, page-wide Edit History feed of every Add/Edit/
+            // Delete Mentor action together — a mentor isn't tied to one
+            // startup, so there's no per-record scope to narrow this to.
+            'mentorVersionHistory' => VersionHistory::where('context', 'Mentor Profile')
+                ->with('user')
+                ->latest()
+                ->get(),
             'selectedCohortId' => $cohortId ? (int) $cohortId : null,
             'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
                 ->orderBy('number')
@@ -80,7 +96,9 @@ class MentorController extends Controller
             }
         }
 
-        Mentor::create($data);
+        $mentor = Mentor::create($data);
+
+        VersionHistory::record(null, 'Mentor Profile', 'create_mentor', $mentor->display_name);
 
         return redirect()->route('admin.mentors.index')->with('status', 'Mentor added successfully.');
     }
@@ -114,6 +132,8 @@ class MentorController extends Controller
 
         $mentor->update($data);
 
+        VersionHistory::record(null, 'Mentor Profile', 'update_mentor', $mentor->display_name);
+
         return redirect()->route('admin.mentors.index')->with('status', 'Mentor updated successfully.');
     }
 
@@ -146,7 +166,11 @@ class MentorController extends Controller
             Storage::disk('public')->delete($mentor->mentor_photo_path);
         }
 
+        $mentorName = $mentor->display_name;
+
         $mentor->delete();
+
+        VersionHistory::record(null, 'Mentor Profile', 'delete_mentor', $mentorName);
 
         return redirect()->route('admin.mentors.index')->with('status', 'Mentor removed.');
     }

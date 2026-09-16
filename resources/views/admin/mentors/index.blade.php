@@ -46,6 +46,8 @@
                     </div>
 
                     <div class="flex flex-shrink-0 items-center gap-3">
+                        <x-version-history-panel :entries="$mentorVersionHistory ?? collect()" />
+
                         {{-- Desktop trigger: top right, beside the title --}}
                         <button @click="open = true" class="{{ $addBtn }} hidden flex-shrink-0 sm:flex">
                             <span class="text-lg leading-none">+</span> Add Mentor
@@ -288,7 +290,11 @@
                                     <div x-show="casesOpen === 'active'" class="space-y-2">
                                         @forelse ($mentor->active_roadblocks as $roadblock)
                                         @if ($roadblock->startup)
-                                        <a href="{{ route('admin.startups.show', $roadblock->startup) }}"
+                                        {{-- Active Case: routes to Roadblock Management's default
+                                             "Manage Roadblock" tab (Upcoming Mentorship lives there),
+                                             not the startup's own profile — the admin wants to see/act
+                                             on the roadblock, and ?highlight pulses the exact row. --}}
+                                        <a href="{{ route('admin.roadblocks.index', ['tab' => 'manage', 'highlight' => 'startup-'.$roadblock->startup_id]) }}"
                                             class="block rounded-lg border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
                                             <p class="truncate text-sm font-semibold text-gray-900">{{ $roadblock->startup->company_name }}</p>
                                             <p class="mt-0.5 text-xs text-gray-500">{{ $roadblock->display_category }} &middot; {{ $roadblock->status }}</p>
@@ -302,7 +308,10 @@
                                     <div x-show="casesOpen === 'completed'" class="space-y-2">
                                         @forelse ($mentor->completed_roadblocks as $roadblock)
                                         @if ($roadblock->startup)
-                                        <a href="{{ route('admin.startups.show', $roadblock->startup) }}"
+                                        {{-- Completed Case: completed_roadblocks mixes Resolved and
+                                             Failed statuses, so the Archive tab's sub-stage is picked
+                                             per-roadblock rather than hardcoded to 'resolved'. --}}
+                                        <a href="{{ route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => $roadblock->status === 'Failed' ? 'failed' : 'resolved', 'highlight' => 'startup-'.$roadblock->startup_id]) }}"
                                             class="block rounded-lg border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
                                             <p class="truncate text-sm font-semibold text-gray-900">{{ $roadblock->startup->company_name }}</p>
                                             <p class="mt-0.5 text-xs text-gray-500">{{ $roadblock->display_category }} &middot; {{ $roadblock->status }}</p>

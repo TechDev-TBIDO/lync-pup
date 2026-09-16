@@ -20,6 +20,18 @@ class ReadinessLevelAssessment extends Model
         'srl_evaluated_by', 'srl_evaluated_by_position',
         'srl_reviewed_by', 'srl_reviewed_by_position',
         'srl_noted_by', 'srl_noted_by_position',
+        // MRL and TMRL's own independent signatory blocks — see the
+        // migration that added these for why they exist separately from
+        // the legacy evaluated_by/reviewed_by/noted_by columns above
+        // (still kept, still fillable, but no longer written to by
+        // AssessmentController::update() — MRL and TMRL now write here
+        // instead so editing one no longer overwrites the other).
+        'mrl_evaluated_by', 'mrl_evaluated_by_position',
+        'mrl_reviewed_by', 'mrl_reviewed_by_position',
+        'mrl_noted_by', 'mrl_noted_by_position',
+        'tmrl_evaluated_by', 'tmrl_evaluated_by_position',
+        'tmrl_reviewed_by', 'tmrl_reviewed_by_position',
+        'tmrl_noted_by', 'tmrl_noted_by_position',
         'trl_score', 'trl_progress', 'trl_overview',
         'mrl_score', 'mrl_progress',
         'tmrl_score', 'tmrl_progress',

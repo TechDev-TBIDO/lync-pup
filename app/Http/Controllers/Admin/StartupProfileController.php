@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Cohort;
 use App\Models\Startup;
+use App\Models\VersionHistory;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use App\Mail\PitchDeckRequested;
@@ -23,8 +24,16 @@ class StartupProfileController extends Controller
         // page always showing every cohort's startups mixed together.
         $cohortId = session('selected_cohort_id');
 
-        $applyCohort = function ($q) use ($cohortId) {
-            return $q->when($cohortId, fn ($q2) => $q2->where('cohort_id', $cohortId));
+        // Resolved to the Cohort's `number`, not filtered on cohort_id
+        // directly: cohort_number is the field that's actually reliably
+        // populated on every startup (see the cohortBreakdown comment further
+        // down), so filtering by cohort_id alone left this page empty for any
+        // startup whose cohort_id never got backfilled/synced to match its
+        // already-correct, already-displayed cohort_number.
+        $selectedCohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
+
+        $applyCohort = function ($q) use ($selectedCohortNumber) {
+            return $q->when($selectedCohortNumber, fn ($q2) => $q2->where('cohort_number', $selectedCohortNumber));
         };
 
         // "Startup Profile" tracks progress AFTER a founder's application has
@@ -50,10 +59,26 @@ class StartupProfileController extends Controller
         $totalStartups = $scopedTotal()->count();
         $activeStartups = $scopedTotal()->active()->count();
         $needsCoordinatorStartups = $scopedTotal()->needsCoordinator()->count();
+        // Surfaced as its own summary card below (see 'applicant' in
+        // 'totals') for the same reason 'pending' already is: the
+        // "Applicant" tab (scopeOnboarding — not yet ready for evaluation)
+        // is a real, populated slice of Total Startup on this page, same as
+        // Active/Assign Coordinator/Pending. Leaving it out of the summary
+        // cards made Total Startup not add up to Active + Assign Coordinator
+        // + Pending, which read as the counts being wrong rather than just
+        // one whole category not being shown.
+        $applicantStartups = $scopedTotal()->onboarding()->count();
 
         return view('admin.startups.index', [
             'startups' => $startups,
             'activeTab' => $request->query('tab', 'all'),
+            // One shared, page-wide Edit History feed of every Assign/Edit
+            // Coordinator + Delete Startup action across every startup
+            // (see VersionHistoryController for its rename/delete actions).
+            'startupVersionHistory' => VersionHistory::where('context', 'Startup Profile')
+                ->with('user')
+                ->latest()
+                ->get(),
             'selectedCohortId' => $cohortId ? (int) $cohortId : null,
             'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
                 ->orderBy('number')
@@ -63,6 +88,7 @@ class StartupProfileController extends Controller
                 'active' => $activeStartups,
                 'needsCoordinator' => $needsCoordinatorStartups,
                 'pending' => $scopedTotal()->awaitingEvaluation()->count(),
+                'applicant' => $applicantStartups,
             ],
             // cohort_number (not the newer cohort_id -> cohorts table FK) is the
             // field actually populated on existing startups and used everywhere
@@ -140,6 +166,13 @@ class StartupProfileController extends Controller
         if ($user?->email) {
             Mail::to($user->email)->send(new StartupAccountDeleted($founderName, $companyName, $data['reason']));
         }
+
+        // Recorded before the delete too, same reason — but the row itself
+        // survives it (see version_histories' nullOnDelete FK): the point of
+        // logging a deletion is that the log entry outlives the thing it
+        // describes, snapshotting the company name in subject_label so it
+        // still reads correctly once startup_id goes null underneath it.
+        VersionHistory::record($startup, 'Startup Profile', 'delete_startup', $companyName);
 
         // DB rows cascade automatically (see class doc comment above), but
         // the physical photo file on disk doesn't — same cleanup

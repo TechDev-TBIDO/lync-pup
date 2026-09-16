@@ -187,6 +187,7 @@
                     <p class="mt-1 text-sm text-gray-500 sm:text-base">Review startup roadblocks and assign experts.</p>
                 </div>
 
+                <x-version-history-panel :entries="$roadblockVersionHistory ?? collect()" />
             </div>
 
             <div class="border-b border-gray-200 mb-6">
@@ -206,7 +207,15 @@
             </div>
 
             {{-- ============ MANAGE ROADBLOCK ============ --}}
-            <div x-show="tab === 'manage'">
+            {{-- x-cloak on all three top-level tab panels below: without it,
+             every panel renders visible in the initial server-side HTML and
+             only gets hidden once Alpine finishes hydrating. That's invisible
+             on a normal page load (the flash is imperceptibly brief), but
+             Resolve/Failed/Recover land here via a full-page redirect straight
+             to a non-default tab+stage (?tab=archive&stage=resolved) — for
+             that first paint 'manage' (first in DOM order) would otherwise
+             flash on top of 'archive' until JS catches up. --}}
+            <div x-show="tab === 'manage'" x-cloak>
                 <h2 class="font-bold text-gray-900 mb-4">Pending Roadblock</h2>
 
                 @if ($pendingCount)
@@ -566,7 +575,7 @@
             </div>
 
             {{-- ============ SCHEDULED TODAY ============ --}}
-            <div x-show="tab === 'today'">
+            <div x-show="tab === 'today'" x-cloak>
                 <h2 class="mb-4 flex items-center gap-2 font-bold text-gray-900">
                     <img src="{{ asset('images/icons/upcoming-mentorship.svg') }}" alt="" class="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
                     <span>Mentorship Today</span>
@@ -578,7 +587,7 @@
             </div>
 
             {{-- ============ ARCHIVE ============ --}}
-            <div x-show="tab === 'archive'">
+            <div x-show="tab === 'archive'" x-cloak>
                 <h2 class="font-bold text-gray-900 mb-4">Mentorship Evaluation</h2>
 
                 @php
@@ -624,7 +633,11 @@
                 </div>
 
                 {{-- Assessment stage --}}
-                <div x-show="archiveStage === 'assessment'">
+                {{-- Same x-cloak reasoning as the top-level tabs above: Resolve
+                 and Failed redirect straight to stage=resolved/failed, and
+                 without x-cloak this 'assessment' panel (first in DOM) would
+                 flash visible first since it's the archiveStage default. --}}
+                <div x-show="archiveStage === 'assessment'" x-cloak>
                     <div class="rounded-xl border border-gray-200 overflow-hidden">
                         <div class="overflow-x-auto">
                             <table class="w-full min-w-[780px] text-sm">
@@ -640,7 +653,7 @@
                                 <tbody>
                                     @forelse ($assessment as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                                    <tr class="border-b border-gray-100 last:border-0" x-data="{ viewOpen: false, previewImage: null }">
+                                    <tr class="border-b border-gray-100 last:border-0" data-highlight-id="startup-{{ $roadblock->startup_id }}" x-data="{ viewOpen: false, previewImage: null }">
                                         <td style="width: 14rem;" class="px-3 py-3 text-left align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)
@@ -688,7 +701,7 @@
                 </div>
 
                 {{-- Resolved stage --}}
-                <div x-show="archiveStage === 'resolved'">
+                <div x-show="archiveStage === 'resolved'" x-cloak>
                     <div class="bg-green-50 text-green-800 border border-green-200 rounded-lg px-4 py-3 mb-4 text-sm">
                         These roadblocks have been successfully resolved.
                     </div>
@@ -707,7 +720,7 @@
                                 <tbody>
                                     @forelse ($resolved as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                                    <tr class="border-b border-gray-100 last:border-0" x-data="{ viewOpen: false, previewImage: null }">
+                                    <tr class="border-b border-gray-100 last:border-0" data-highlight-id="startup-{{ $roadblock->startup_id }}" x-data="{ viewOpen: false, previewImage: null }">
                                         <td style="width: 14rem;" class="px-3 py-3 text-left align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)
@@ -751,7 +764,7 @@
                 </div>
 
                 {{-- Failed stage --}}
-                <div x-show="archiveStage === 'failed'">
+                <div x-show="archiveStage === 'failed'" x-cloak>
                     <div class="bg-rose-50 text-rose-800 border border-rose-200 rounded-lg px-4 py-3 mb-4 text-sm">
                         Efforts to resolve these roadblocks were unsuccessful.
                     </div>

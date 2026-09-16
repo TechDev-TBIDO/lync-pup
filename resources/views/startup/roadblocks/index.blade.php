@@ -247,6 +247,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             this.errors = {};
             this.touched = {};
             this.fileError = '';
+            this.$store.navigation.hasUnsavedChanges = false;
         },
 
         get isDirty() {
@@ -259,6 +260,25 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         x-init="
         $watch('tab', value => setQueryParam('tab', value));
         $watch('archiveStatusFilter', value => setQueryParam('status', value));
+
+        // Leave-confirmation guard for an unsaved Roadblock draft — this
+        // page never wired into the shared $store.navigation guard used
+        // elsewhere (e.g. Startup Profile edit), so navigating away (sidebar
+        // links, a tab close, address bar) never warned about losing a
+        // draft. isDirty already tracks every field this form cares about;
+        // it just needed forwarding into the store the layout's beforeunload
+        // listener and Leave modal already watch.
+        $watch('isDirty', value => {
+            $store.navigation.hasUnsavedChanges = value;
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            if ($store.navigation.hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
         @if(session('roadblock_submitted'))
             tab = 'archive';
             @if(session('roadblock_skipped_files'))
@@ -844,7 +864,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                         </button>
 
                         <button type="button"
-                            @click="if (validateAll()) { showConfirm = false; $refs.form.requestSubmit(); }"
+                            @click="if (validateAll()) { showConfirm = false; $store.navigation.hasUnsavedChanges = false; $refs.form.requestSubmit(); }"
                             class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 focus:outline-none">
                             Submit
                         </button>

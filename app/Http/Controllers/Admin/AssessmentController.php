@@ -37,14 +37,8 @@ class AssessmentController extends Controller
             // Editable Date of Assessment picker — also only present on that
             // same TRL Pre-Assessment tab; falls back to today when absent.
             'assessment_date' => ['nullable', 'date'],
-            // Signatory block at the end of the form — shared across every
-            // RL type/stage, submitted once per save regardless of which
-            // tab is active.
-            'evaluated_by' => ['nullable', 'string', 'max:150'],
-            'reviewed_by' => ['nullable', 'string', 'max:150'],
-            'noted_by' => ['nullable', 'string', 'max:150'],
             // TRL's own signatory block ("Prepared By" / "Noted By" /
-            // "Approved by") — distinct from the MRL block's fields above.
+            // "Approved by") — distinct from the MRL/TMRL blocks below.
             // "Approved by" is editable but arrives pre-filled with the
             // director's fixed signature, so it's stored like its siblings.
             'prepared_by' => ['nullable', 'string', 'max:150'],
@@ -53,11 +47,25 @@ class AssessmentController extends Controller
             'trl_noted_by_position' => ['nullable', 'string', 'max:150'],
             'approved_by' => ['nullable', 'string', 'max:150'],
             'approved_by_position' => ['nullable', 'string', 'max:1000'],
-            // Position/title lines under the MRL block's three names —
-            // editable-but-prefilled the same way as approved_by_position.
-            'evaluated_by_position' => ['nullable', 'string', 'max:1000'],
-            'reviewed_by_position' => ['nullable', 'string', 'max:150'],
-            'noted_by_position' => ['nullable', 'string', 'max:1000'],
+            // MRL and TMRL's own independent Evaluated/Reviewed/Noted by
+            // blocks — used to be one shared set of columns (see the
+            // migration that split them), which meant editing MRL's block
+            // silently overwrote TMRL's (and vice versa) since both tabs
+            // wrote to the exact same fields. Submitted once per save
+            // regardless of which tab is active, same as every other RL
+            // type's signatory block.
+            'mrl_evaluated_by' => ['nullable', 'string', 'max:150'],
+            'mrl_evaluated_by_position' => ['nullable', 'string', 'max:1000'],
+            'mrl_reviewed_by' => ['nullable', 'string', 'max:150'],
+            'mrl_reviewed_by_position' => ['nullable', 'string', 'max:150'],
+            'mrl_noted_by' => ['nullable', 'string', 'max:150'],
+            'mrl_noted_by_position' => ['nullable', 'string', 'max:1000'],
+            'tmrl_evaluated_by' => ['nullable', 'string', 'max:150'],
+            'tmrl_evaluated_by_position' => ['nullable', 'string', 'max:1000'],
+            'tmrl_reviewed_by' => ['nullable', 'string', 'max:150'],
+            'tmrl_reviewed_by_position' => ['nullable', 'string', 'max:150'],
+            'tmrl_noted_by' => ['nullable', 'string', 'max:150'],
+            'tmrl_noted_by_position' => ['nullable', 'string', 'max:1000'],
             // SRL's own Evaluated/Reviewed/Noted by block — distinct
             // columns from the MRL/TMRL block above (different default
             // "Reviewed by" title, so it can't share the same fields).
@@ -83,18 +91,28 @@ class AssessmentController extends Controller
             $assessment->trl_overview = json_decode($validated['trl_overview'], true);
         }
 
-        $assessment->evaluated_by = $validated['evaluated_by'] ?? ($request->user()->name ?? $request->user()->email);
-        $assessment->reviewed_by = $validated['reviewed_by'] ?? null;
-        $assessment->noted_by = $validated['noted_by'] ?? null;
         $assessment->prepared_by = $validated['prepared_by'] ?? null;
         $assessment->prepared_by_position = $validated['prepared_by_position'] ?? null;
         $assessment->trl_noted_by = $validated['trl_noted_by'] ?? null;
         $assessment->trl_noted_by_position = $validated['trl_noted_by_position'] ?? null;
         $assessment->approved_by = $validated['approved_by'] ?? null;
         $assessment->approved_by_position = $validated['approved_by_position'] ?? null;
-        $assessment->evaluated_by_position = $validated['evaluated_by_position'] ?? null;
-        $assessment->reviewed_by_position = $validated['reviewed_by_position'] ?? null;
-        $assessment->noted_by_position = $validated['noted_by_position'] ?? null;
+        // Each defaults to the current admin's name/email on this
+        // assessment's first save, same behavior the old shared
+        // evaluated_by column used to have — now applied independently
+        // for MRL and TMRL since they no longer share one column.
+        $assessment->mrl_evaluated_by = $validated['mrl_evaluated_by'] ?? ($request->user()->name ?? $request->user()->email);
+        $assessment->mrl_evaluated_by_position = $validated['mrl_evaluated_by_position'] ?? null;
+        $assessment->mrl_reviewed_by = $validated['mrl_reviewed_by'] ?? null;
+        $assessment->mrl_reviewed_by_position = $validated['mrl_reviewed_by_position'] ?? null;
+        $assessment->mrl_noted_by = $validated['mrl_noted_by'] ?? null;
+        $assessment->mrl_noted_by_position = $validated['mrl_noted_by_position'] ?? null;
+        $assessment->tmrl_evaluated_by = $validated['tmrl_evaluated_by'] ?? ($request->user()->name ?? $request->user()->email);
+        $assessment->tmrl_evaluated_by_position = $validated['tmrl_evaluated_by_position'] ?? null;
+        $assessment->tmrl_reviewed_by = $validated['tmrl_reviewed_by'] ?? null;
+        $assessment->tmrl_reviewed_by_position = $validated['tmrl_reviewed_by_position'] ?? null;
+        $assessment->tmrl_noted_by = $validated['tmrl_noted_by'] ?? null;
+        $assessment->tmrl_noted_by_position = $validated['tmrl_noted_by_position'] ?? null;
         $assessment->srl_evaluated_by = $validated['srl_evaluated_by'] ?? null;
         $assessment->srl_evaluated_by_position = $validated['srl_evaluated_by_position'] ?? null;
         $assessment->srl_reviewed_by = $validated['srl_reviewed_by'] ?? null;

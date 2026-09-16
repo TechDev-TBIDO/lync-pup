@@ -107,6 +107,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         }
                         @endphp
                         <tr class="border-b border-gray-100 last:border-0 {{ $rowTint }}"
+                            data-highlight-id="startup-{{ $roadblock->startup_id }}"
                             @if ($filterKey)
                             data-row
                             data-ts="{{ $roadblock->meeting_date?->timestamp ?? 0 }}"

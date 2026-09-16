@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateCoordinatorRequest;
 use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\Roadblock;
+use App\Models\VersionHistory;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +28,14 @@ class CoordinatorProfileController extends Controller
         // coordinators.
         $cohortId = session('selected_cohort_id');
 
+        // Resolved to the Cohort's `number`, not filtered on cohort_id
+        // directly below: cohort_number is the field that's actually
+        // reliably populated on every startup (see StartupProfileController::
+        // index()'s same fix) — filtering on cohort_id alone left this list
+        // empty for any startup whose cohort_id never got backfilled/synced
+        // to match its already-correct, already-displayed cohort_number.
+        $cohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
+
         // Eager-loaded (with their startup) so the "X Startup" stat on each
         // coordinator card can list the actual startups behind that count
         // without an extra query per click — see
@@ -34,15 +43,22 @@ class CoordinatorProfileController extends Controller
         // this loaded collection instead of the stale assigned_startups_count
         // column (only ever incremented, never decremented — see
         // CoordinatorAssignmentController::store()).
-        $coordinators = Coordinator::with(['assignments' => function ($query) use ($cohortId) {
+        $coordinators = Coordinator::with(['assignments' => function ($query) use ($cohortNumber) {
             $query->where('assignment_status', 'Active')
-                ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+                ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
                 ->with('startup')
                 ->latest();
         }])->latest()->get();
 
         return view('admin.coordinators.index', [
             'coordinators' => $coordinators,
+            // One shared, page-wide Edit History feed of every Add/Edit/
+            // Delete Coordinator action together — same reasoning as
+            // MentorController::index()'s mentorVersionHistory.
+            'coordinatorVersionHistory' => VersionHistory::where('context', 'Coordinator Profile')
+                ->with('user')
+                ->latest()
+                ->get(),
             'selectedCohortId' => $cohortId ? (int) $cohortId : null,
             'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
                 ->orderBy('number')
@@ -70,7 +86,9 @@ class CoordinatorProfileController extends Controller
             }
         }
 
-        Coordinator::create($data);
+        $coordinator = Coordinator::create($data);
+
+        VersionHistory::record(null, 'Coordinator Profile', 'create_coordinator', $coordinator->name);
 
         return redirect()->route('admin.coordinators.index')->with('status', 'Coordinator added successfully.');
     }
@@ -105,6 +123,8 @@ class CoordinatorProfileController extends Controller
 
         $coordinator->update($data);
 
+        VersionHistory::record(null, 'Coordinator Profile', 'update_coordinator', $coordinator->name);
+
         return redirect()->route('admin.coordinators.index')->with('status', 'Coordinator updated successfully.');
     }
 
@@ -131,7 +151,11 @@ class CoordinatorProfileController extends Controller
             Storage::disk('public')->delete($coordinator->coordinator_photo_path);
         }
 
+        $coordinatorName = $coordinator->name;
+
         $coordinator->delete();
+
+        VersionHistory::record(null, 'Coordinator Profile', 'delete_coordinator', $coordinatorName);
 
         return redirect()->route('admin.coordinators.index')->with('status', 'Coordinator removed.');
     }

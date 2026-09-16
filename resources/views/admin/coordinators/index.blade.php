@@ -46,6 +46,8 @@
                     </div>
 
                     <div class="flex flex-shrink-0 items-center gap-3">
+                        <x-version-history-panel :entries="$coordinatorVersionHistory ?? collect()" />
+
                         {{-- Desktop trigger: top right, beside the title --}}
                         <button @click="open = true" class="{{ $addBtn }} hidden flex-shrink-0 sm:flex">
                             <span class="text-lg leading-none">+</span> Add Coordinator

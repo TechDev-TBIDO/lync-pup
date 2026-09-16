@@ -24,13 +24,20 @@
             // Whole-number percentage of $total, safe against division by zero.
             $pct = fn ($count, $total) => $total > 0 ? round(($count / $total) * 100) : 0;
 
-            // One definition per card so the four stay structurally identical — a change to
-            // padding or watermark size happens once, not four times.
+            // One definition per card so they stay structurally identical — a change to
+            // padding or watermark size happens once, not once per card.
+            //
+            // 'Applicant' is included alongside Active/Assign Coordinator/Pending
+            // so these four add up to Total Startup — it's a real, populated tab
+            // on this page (scopeOnboarding: not yet ready for evaluation), and
+            // leaving it out of the summary made Total look wrong instead of
+            // just under-explained.
             $stats = [
             ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => $cohortBreakdown],
             ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#BFDBFE]', 'bg' => 'bg-[#F8FBFF]', 'note' => $pct($totals['active'], $totals['total']).'% startup are active'],
             ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['needsCoordinator'], $totals['total']).'% startup needs assigned coordinator'],
             ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $pct($totals['pending'], $totals['total']).'% startup is under evaluation'],
+            ['label' => 'Applicant', 'value' => $totals['applicant'], 'icon' => 'person-loading.svg', 'border' => 'border-[#A7F3D0]', 'bg' => 'bg-[#F2FFFA]', 'note' => $pct($totals['applicant'], $totals['total']).'% startup is still applying'],
             ];
             @endphp
 
@@ -40,6 +47,7 @@
                     <p class="text-gray-500 mt-1">Monitor readiness, detect weak spots, and act on each startup.</p>
                 </div>
 
+                <x-version-history-panel :entries="$startupVersionHistory ?? collect()" />
             </div>
 
             {{--
@@ -61,14 +69,17 @@
                 }
                 /* Tablets/foldables (Surface Duo, iPad, Galaxy Fold unfolded, etc.) sit
                    in this range while the grid is still 2-up (matches grid-cols-2's
-                   xl:grid-cols-4 switch below) - the full 96px watermark looks
+                   xl:grid-cols-5 switch below) - the full 96px watermark looks
                    oversized against a narrower 2-up column here, so step it down. */
                 @media (min-width: 640px) and (max-width: 1279px) {
                     .startup-stat-card .stat-watermark-lg svg { width: 72px !important; height: 72px !important; }
                 }
             </style>
 
-            <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
+            {{-- xl:grid-cols-5 (not -4) now that Applicant is its own card alongside
+                 Total/Active/Assign Coordinator/Pending — five cards in a 4-col grid
+                 would leave the last one alone on its own row. --}}
+            <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4 mb-8">
                 @foreach ($stats as $stat)
                 {{-- relative + overflow-hidden are what let the silhouette bleed off the card
              edge without spilling into the grid gap. --}}

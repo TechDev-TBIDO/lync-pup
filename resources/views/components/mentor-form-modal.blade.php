@@ -110,7 +110,14 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
                 class="flex min-h-0 flex-1 flex-col overflow-y-auto space-y-3 px-8 pb-6 pt-1"
                 x-data="{
-                dirty: false,
+                // Starts true (not false) when this modal is re-rendering after ITS
+                // OWN failed submission ($isErroredRecord) — old() has already
+                // repopulated the DOM with whatever was typed before x-init's
+                // snapshot() below ever runs, so a plain 'differs from initial'
+                // check would compare the filled-in form against itself and read
+                // as pristine, wrongly disabling Clear Form (and Save Changes in
+                // Edit mode) right when there's the most to clear/fix.
+                dirty: @js($isErroredRecord),
                 initial: {},
 
                 /* A plain snapshot of every named field's CURRENT value, read

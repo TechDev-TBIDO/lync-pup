@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCohortRequest;
 use App\Http\Requests\Admin\UpdateCohortRequest;
 use App\Models\Cohort;
+use App\Models\VersionHistory;
 use Illuminate\Http\RedirectResponse;
 
 // No index() here — cohort management is now handled entirely through the
@@ -15,7 +16,7 @@ class CohortController extends Controller
 {
     public function store(StoreCohortRequest $request): RedirectResponse
     {
-        Cohort::create([
+        $cohort = Cohort::create([
             ...$request->validated(),
             // Not user-entered (see StoreCohortRequest) — auto-assigned so
             // Startup::cohort_number (used all over the rest of the app)
@@ -23,6 +24,8 @@ class CohortController extends Controller
             'number' => (Cohort::max('number') ?? 0) + 1,
             'status' => 'Active',
         ]);
+
+        VersionHistory::record(null, 'Cohort Management', 'create_cohort', $cohort->display_label);
 
         return redirect()->back()->with('cohortAction', 'created');
     }
@@ -39,6 +42,8 @@ class CohortController extends Controller
         }
 
         $cohort->update($data);
+
+        VersionHistory::record(null, 'Cohort Management', 'update_cohort', $cohort->display_label);
 
         return redirect()->back()->with('cohortAction', 'updated');
     }
@@ -60,6 +65,8 @@ class CohortController extends Controller
 
         $cohort->update(['status' => 'Inactive']);
 
+        VersionHistory::record(null, 'Cohort Management', 'archive_cohort', $cohort->display_label);
+
         return redirect()->back()->with('cohortAction', 'archived');
     }
 
@@ -69,8 +76,38 @@ class CohortController extends Controller
         // to null (see the nullOnDelete() FK) rather than being blocked or
         // cascaded — their cohort_number (used everywhere else in the app)
         // is untouched either way.
+        $wasSelected = (int) session('selected_cohort_id') === $cohort->cohort_id;
+        $cohortLabel = $cohort->display_label;
+
         $cohort->delete();
 
-        return redirect()->back()->with('cohortAction', 'deleted');
+        VersionHistory::record(null, 'Cohort Management', 'delete_cohort', $cohortLabel);
+
+        if (! $wasSelected) {
+            return redirect()->back()->with('cohortAction', 'deleted');
+        }
+
+        // The cohort just deleted was the one currently selected app-wide
+        // (see ResolveSelectedCohort) — every cohort-scoped controller reads
+        // that from the session, resolving it via Cohort::find($id), so
+        // leaving it as-is would silently point them at an id that no
+        // longer exists. That resolves to null and every "when($number, ...)"
+        // filter downstream correctly no-ops... except redirect()->back()
+        // alone isn't enough to fix the symptom: it returns to a URL that
+        // still carries '?cohort=<deleted-id>', which ResolveSelectedCohort
+        // re-reads on this very next request and puts right back into the
+        // session — re-establishing the same dead selection a page reload
+        // just cleared. So the session is reset AND that query param is
+        // stripped from the redirect target, so the next request has
+        // nothing to re-read.
+        session(['selected_cohort_id' => null]);
+
+        $previous = url()->previous();
+        $parts = parse_url($previous);
+        parse_str($parts['query'] ?? '', $query);
+        unset($query['cohort']);
+        $rebuilt = ($parts['path'] ?? '/').(($qs = http_build_query($query)) ? "?{$qs}" : '');
+
+        return redirect($rebuilt)->with('cohortAction', 'deleted');
     }
 }

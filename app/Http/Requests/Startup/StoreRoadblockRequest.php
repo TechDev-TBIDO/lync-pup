@@ -82,6 +82,22 @@ class StoreRoadblockRequest extends FormRequest
         }
 
         $this->files->set('supporting_files', $kept->values()->all());
+
+        // Request::allFiles() memoizes its result in $convertedFiles the
+        // first time it's called — and hasFile() above already triggered
+        // that on the ORIGINAL, unfiltered file list before any of this
+        // method's filtering ran. Without clearing it here, every later
+        // call to file()/all() (the validator's own data, AND the
+        // controller's $request->file('supporting_files') after this
+        // request passes validation) silently sees the stale, unfiltered
+        // list again — so a batch containing even one file PHP itself
+        // marked invalid (isValid() === false, e.g. one that tripped
+        // upload_max_filesize) still reaches the validator at its original
+        // index, where Laravel's implicit 'uploaded' rule rejects it with
+        // "The supporting_files.N failed to upload." and takes the whole
+        // submission down, good files included, instead of only dropping
+        // that one file as intended above.
+        $this->convertedFiles = null;
     }
 
     public function rules(): array

@@ -13,10 +13,15 @@
 @php
 $isReadOnly = $mode === 'view';
 
+// 'edit' and 'reschedule' both open this modal against an existing
+// $schedule row to change its date/time — both are the "Reschedule"
+// action from the admin's point of view (Upcoming uses 'edit', Today/
+// Missed use 'reschedule'), so both get the same header rather than the
+// generic "Schedule" or the previous, overly-verbose "Select Your
+// Reschedule Evaluation".
 $title = match ($mode) {
 'add' => 'Add Evaluation Schedule',
-'edit' => 'Schedule',
-'reschedule' => 'Select Your Reschedule Evaluation',
+'edit', 'reschedule' => 'Reschedule',
 default => 'Schedule',
 };
 
@@ -137,9 +142,14 @@ $initialServerError = $oldMatchesThisRow
         pick(day) {
             this.date = this.viewYear + '-' + this.pad(this.viewMonth + 1) + '-' + this.pad(day);
             // Clear the previously chosen time slot whenever the admin picks a
-            // different date — a slot valid on one day may be booked/past on
-            // another, so don't carry it over silently.
-            this.startTime = null;
+            // DIFFERENT date — a slot valid on one day may be booked/past on
+            // another, so don't carry it over silently. But if they're
+            // clicking back onto the date this modal actually opened with
+            // (edit/reschedule mode), restore that date's own already-saved
+            // slot instead of leaving it blank — otherwise browsing other
+            // days and returning to the original one made the existing
+            // booking look un-set even though nothing was actually changed.
+            this.startTime = (this.date === this.initialDate) ? this.initialStartTime : null;
             // A leftover error from a previous submit describes THAT old
             // date/time combo, not this new one — leaving it up would
             // misdescribe (or just plain lie about) the newly-picked slot.

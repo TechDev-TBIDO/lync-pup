@@ -72,13 +72,24 @@
     return Route::has($name) ? route($name, $params) : null;
     };
 
-    $backUrl = request('from') === 'assessment-hub'
-        ? route('admin.assessment-hub.index', array_filter([
+    // 'startups-list' is what components/startup-card.blade.php's "View
+    // Information Sheet" button (Startup Profile's Pending tab) stamps onto
+    // this link, carrying along whichever tab the admin was actually on
+    // (request()->only('tab')) — without re-reading that tab back out here,
+    // this fell through to the bare admin.startups.index route below, which
+    // always lands on the default "All" tab regardless of where Back was
+    // clicked from.
+    $backUrl = match (request('from')) {
+        'assessment-hub' => route('admin.assessment-hub.index', array_filter([
             'main' => 'information-sheet',
             'tab' => request('tab'),
             'stage' => request('stage'),
-        ]))
-        : ($url('admin.startups.index') ?? url()->previous());
+        ])),
+        'startups-list' => $url('admin.startups.index') !== null
+            ? route('admin.startups.index', array_filter(['tab' => request('tab')]))
+            : url()->previous(),
+        default => $url('admin.startups.index') ?? url()->previous(),
+    };
     $sheetUpdateUrl = $url('admin.information-sheet.update', $startup);
     $approveUrl = $url('admin.information-sheet.approve', $startup);
     $rejectUrl = $url('admin.information-sheet.reject', $startup);
@@ -135,7 +146,7 @@
     confirmingReject: false,
     lastClickedInput: null,
 
-    // Same "not started yet" pill list Venture Exit's own Save gate warns
+    // Same 'not started yet' pill list Venture Exit's own Save gate warns
     // with (see ReadinessRubric::incompleteLabelsFor) — Accept & Lock warns
     // with it too instead of silently locking a sheet whose founder still
     // has unfinished Pre/Active/Post assessments.
