@@ -118,6 +118,25 @@
     </div>
     @endforeach
 
+    {{--
+        Wide desktop screens (1280px+) have a lot of empty gradient between the score and the
+        TRL/MRL/TMRL/SRL tiles, so the tiles step up slightly there (bigger box,
+        label and score) to use that space. Below that only the depth effect below applies.
+        Plain scoped CSS + !important rather than Tailwind classes because the
+        app's CSS bundle is pre-compiled and won't contain new arbitrary sizes.
+    --}}
+    <style>
+        /* "Pressed-in" look: same 15% white fill as before, plus a soft dark
+           inner edge so the tiles read as recessed into the banner. Applies at
+           every screen size. */
+        .readiness-tile { box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.35); }
+        @media (min-width: 1280px) {
+            .readiness-tile { min-width: 150px !important; padding: 14px 20px !important; }
+            .readiness-tile-label { font-size: 13px !important; }
+            .readiness-tile-score { font-size: 46px !important; }
+        }
+    </style>
+
     {{-- Overall Readiness --}}
     <div class="mb-5 rounded-2xl bg-gradient-to-r from-[#6C0E24] to-[#AE0129] p-5 text-white shadow-sm sm:mb-6 sm:p-6">
         <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
@@ -141,11 +160,11 @@
                 </span>
             </div>
 
-            <div class="grid grid-cols-4 gap-2 sm:gap-3 lg:w-auto">
+            <div class="readiness-tiles grid grid-cols-4 gap-2 sm:gap-3 lg:w-auto">
                 @foreach (\App\Support\ReadinessRubric::TYPES as $type)
-                <div class="flex min-w-0 flex-col items-center justify-center rounded-xl bg-white/15 px-2 py-2 text-center sm:min-w-[118px] sm:px-4 sm:py-2.5">
-                    <p class="text-[10px] font-semibold uppercase tracking-wide text-white/70 sm:text-xs">{{ $type }}</p>
-                    <p class="mt-0.5 text-[26px] font-bold leading-none sm:text-[40px]">
+                <div class="readiness-tile flex min-w-0 flex-col items-center justify-center rounded-xl bg-white/15 px-2 py-2 text-center sm:min-w-[118px] sm:px-4 sm:py-2.5">
+                    <p class="readiness-tile-label text-[10px] font-semibold uppercase tracking-wide text-white/70 sm:text-xs">{{ $type }}</p>
+                    <p class="readiness-tile-score mt-0.5 text-[26px] font-bold leading-none sm:text-[40px]">
                         {{ $assessment && $assessment->scoreFor($type) !== null ? number_format($assessment->scoreFor($type), 1) : '—' }}
                     </p>
                 </div>

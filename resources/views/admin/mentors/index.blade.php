@@ -74,11 +74,18 @@
 
                         {{-- Menu wrapper. z-index lifts while the dropdown is open so it clears
                      neighbouring cards, which all sit at z-20 too. --}}
+                        {{-- The card menu is a singleton: each card keeps its own menuOpen, but
+                             opening one broadcasts a window event carrying that card's id and every
+                             OTHER card closes its menu in response. Click-outside and Escape also
+                             close it, so at most one menu is ever open. --}}
                         <div class="absolute right-2 top-2 sm:right-3 sm:top-3"
-                            :class="menuOpen ? 'z-30' : 'z-20'">
+                            :class="menuOpen ? 'z-30' : 'z-20'"
+                            @click.outside="menuOpen = false"
+                            @keydown.escape.window="menuOpen = false"
+                            @mentor-menu-open.window="if ($event.detail !== @js($mentor->mentor_id)) menuOpen = false">
 
                             <button
-                                @click="menuOpen = !menuOpen"
+                                @click="menuOpen = !menuOpen; if (menuOpen) $dispatch('mentor-menu-open', @js($mentor->mentor_id))"
 
                                 class="flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition duration-200 hover:bg-white hover:text-[#6D0D23] sm:h-9 sm:w-9">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -154,20 +161,28 @@
                                     </span>
                                 </p>
 
-                                <p class="flex flex-wrap items-center gap-x-2 gap-y-1 sm:gap-x-2">
+                                {{-- Icon on the left, counts in a column beside it. This row used to be
+                                     `flex-wrap` on the <p> itself, so whenever both counts didn't fit on
+                                     one line next to the icon the WHOLE counts block wrapped underneath
+                                     the icon, leaving it stranded on its own line. Now the icon never
+                                     wraps: it stays top-left and the counts wrap inside their own column
+                                     (the "·" stays with "Active Cases" so a wrapped second line starts
+                                     cleanly with "Completed"). --}}
+                                <p class="flex items-start gap-1.5 sm:gap-2">
                                     <span class="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-white/15 sm:h-5 sm:w-5">
                                         {!! $icon('3person.svg', 'w-2 h-2 sm:w-2.5 sm:h-2.5') !!}
                                     </span>
 
-                                    <span class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
-                                        <button
-                                            type="button"
-                                            @click.stop="casesOpen = 'active'"
-                                            class="whitespace-nowrap underline decoration-dotted underline-offset-2 hover:text-white">
-                                            {{ $mentor->active_cases_count }} {{ Str::plural('Active Case', $mentor->active_cases_count) }}
-                                        </button>
-
-                                        <span>&middot;</span>
+                                    <span class="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5" style="line-height: 16px;">
+                                        <span class="whitespace-nowrap">
+                                            <button
+                                                type="button"
+                                                @click.stop="casesOpen = 'active'"
+                                                class="whitespace-nowrap underline decoration-dotted underline-offset-2 hover:text-white">
+                                                {{ $mentor->active_cases_count }} {{ Str::plural('Active Case', $mentor->active_cases_count) }}
+                                            </button>
+                                            &middot;
+                                        </span>
 
                                         <button
                                             type="button"

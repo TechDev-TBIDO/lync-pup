@@ -177,27 +177,11 @@
 
             @if (session('startup_deleted'))
             {{-- The card itself is gone after this redirect (deleted rows never
-                 come back on reload), so the "Deleted" confirmation lives here
-                 at the page level rather than inside startup-card.blade.php. --}}
-            <div x-data="{ show: true }" x-show="show" x-cloak
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                <div class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl text-center">
-                    <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 pb-8 pt-8">
-                        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white">
-                            <svg class="h-7 w-7 text-[#11386A]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="px-6 pb-6 pt-5">
-                        <p class="text-lg font-bold text-gray-900">Startup Deleted</p>
-                        <p class="mt-1 text-sm text-gray-500">{{ session('startup_deleted') }} have been successfully deleted.</p>
-                        <button type="button" @click="show = false"
-                            class="mt-5 w-full rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-semibold text-white transition hover:opacity-95">
-                            Continue
-                        </button>
-                    </div>
-                </div>
-            </div>
+                 come back on reload), so the "Deleted" confirmation is fired
+                 from here at the page level rather than inside
+                 startup-card.blade.php. It's a toast (the admin layout's shared
+                 Alpine 'toast' store) rather than a blocking modal. The flash is
+                 one-time, so a reload or Back doesn't replay it. --}}
+            <div x-data x-init="$store.toast.success('Startup Deleted', @js(session('startup_deleted') . ' have been successfully deleted.'))"></div>
             @endif
 </x-layouts.admin>

@@ -5,13 +5,17 @@
 // scoring flow should return to that flow (scoped to the new cohort),
 // not stay pinned to this one startup, which may not belong to the
 // newly picked cohort at all.
-$cohortReturnUrl = request('from') === 'assessment-hub'
-? route('admin.assessment-hub.index', array_filter([
+$cohortReturnUrl = match (request('from')) {
+'assessment-hub' => route('admin.assessment-hub.index', array_filter([
 'main' => 'assessment',
 'stage' => request('stage'),
 'assessment_startup' => request('assessment_startup'),
-]))
-: null;
+])),
+// Opened from a coordinator's "Assigned Startups" list - switching cohorts
+// goes back to the Coordinator Profile page, same as the Back button.
+'coordinators' => route('admin.coordinators.index'),
+default => null,
+};
 @endphp
 <x-layouts.admin :title="$startup->company_name" :cohort-return-url="$cohortReturnUrl">
 
@@ -50,16 +54,20 @@ $cohortReturnUrl = request('from') === 'assessment-hub'
             ? $startup->business_description
             : null;
 
-            // Arriving here from the RL's assessment page ("View Profile") should
-            // return there — not to the generic Startups index — so it preserves
-            // exactly which stage/startup the admin was scoring.
-            $backUrl = request('from') === 'assessment-hub'
-            ? route('admin.assessment-hub.index', array_filter([
+            // Arriving here from the RL's assessment page ("View Profile") or from a
+            // coordinator's "Assigned Startups" list should return there — not to the
+            // generic Startups index — so Back preserves where the admin came from
+            // (for the assessment page, exactly which stage/startup they were scoring).
+            $backUrl = match (request('from')) {
+            'assessment-hub' => route('admin.assessment-hub.index', array_filter([
             'main' => 'assessment',
             'stage' => request('stage'),
             'assessment_startup' => request('assessment_startup'),
-            ]))
-            : route('admin.startups.index', request()->only('tab'));
+            ])),
+            // "Assigned Startups" modal on the Coordinator Profile page.
+            'coordinators' => route('admin.coordinators.index'),
+            default => route('admin.startups.index', request()->only('tab')),
+            };
             @endphp
 
             <div class="flex items-center justify-between mb-4">
@@ -115,45 +123,114 @@ $cohortReturnUrl = request('from') === 'assessment-hub'
                         @endif
                     </div>
 
-                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="flex items-center gap-2 font-bold text-gray-900">
-                                <span class="{{ $headingIcon }}">{!! $icon('up-arrow.svg', 'w-4 h-4') !!}</span>
-                                Readiness Level
-                            </h2>
-                            <span class="text-sm text-gray-500">Pre-Assessment</span>
-                        </div>
+                    @php
+                    // Whole-number scores drop the trailing ".0" (9.0 -> 9); anything
+                    // else keeps one decimal (6.3). Display only.
+                    $rl = function ($value) {
+                        if ($value === null) {
+                            return '—';
+                        }
+                        $rounded = round((float) $value, 1);
 
-                        @if ($startup->preAssessment)
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                            <x-readiness-radar
-                                :trl="$startup->preAssessment->trl_score"
-                                :mrl="$startup->preAssessment->mrl_score"
-                                :tmrl="$startup->preAssessment->tmrl_score"
-                                :srl="$startup->preAssessment->srl_score" />
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
-                                    <p class="text-xs text-gray-500">TECHNOLOGY</p>
-                                    <p class="text-xl font-bold">TRL {{ $startup->preAssessment->trl_score !== null ? number_format($startup->preAssessment->trl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
-                                </div>
-                                <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
-                                    <p class="text-xs text-gray-500">MANUFACTURING</p>
-                                    <p class="text-xl font-bold">MRL {{ $startup->preAssessment->mrl_score !== null ? number_format($startup->preAssessment->mrl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
-                                </div>
-                                <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
-                                    <p class="text-xs text-gray-500">TEAM & MGMT</p>
-                                    <p class="text-xl font-bold">TMRL {{ $startup->preAssessment->tmrl_score !== null ? number_format($startup->preAssessment->tmrl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
-                                </div>
-                                <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
-                                    <p class="text-xs text-gray-500">SYSTEM / MARKET</p>
-                                    <p class="text-xl font-bold">SRL {{ $startup->preAssessment->srl_score !== null ? number_format($startup->preAssessment->srl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
+                        return $rounded == floor($rounded) ? (string) (int) $rounded : number_format($rounded, 1);
+                    };
+
+                    // Both stages are rendered and the dropdown just toggles which one is
+                    // visible, so switching is instant (no page reload). Pre-Assessment
+                    // is what shows first, same as before the dropdown existed.
+                    $readinessStages = [
+                        'Pre-Assessment' => $startup->preAssessment,
+                        'Post-Assessment' => $startup->postAssessment,
+                    ];
+                    @endphp
+
+                    {{-- Heading + stage dropdown sit above the bordered card and the
+                         composite score below it — only the radar and the tiles are inside. --}}
+                    <div x-data="{ stage: 'Pre-Assessment', stageOpen: false }">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <h2 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                                <span class="{{ $headingIcon }}" style="color: #11386A;">{!! $icon('up-arrow.svg', 'w-4 h-4') !!}</span>
+                                <span style="font-size: 17px; font-weight: 600; color: transparent; background-image: linear-gradient(90deg, #6D0D23, #11386A); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Readiness Level</span>
+                            </h2>
+
+                            <div class="relative" @click.outside="stageOpen = false">
+                                <button type="button" @click="stageOpen = !stageOpen"
+                                    class="flex items-center gap-2 text-sm font-medium text-gray-800"
+                                    style="background-color: #F3F4F6; border-radius: 10px; padding: 6px 14px;">
+                                    <span x-text="stage"></span>
+                                    <svg class="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.293l3.71-4.06a.75.75 0 111.08 1.04l-4.25 4.65a.75.75 0 01-1.08 0l-4.25-4.65a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                                </button>
+                                <div x-show="stageOpen" x-cloak class="absolute right-0 z-20 mt-2 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-xl" style="width: 170px;">
+                                    @foreach ($readinessStages as $stageName => $stageAssessment)
+                                    <button type="button" @click="stage = '{{ $stageName }}'; stageOpen = false"
+                                        :class="stage === '{{ $stageName }}' ? 'text-[#6D0D23] font-semibold' : 'text-gray-700'"
+                                        class="block w-full px-4 py-2 text-left text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                        {{ $stageName }}
+                                    </button>
+                                    @endforeach
                                 </div>
                             </div>
                         </div>
-                        <p class="text-sm text-gray-500 mt-4">Composite RLS score: <strong>{{ number_format($startup->preAssessment->overall_score, 1) }}/9</strong></p>
-                        @else
-                        <p class="text-sm text-gray-500">No readiness assessment has been conducted yet.</p>
-                        @endif
+
+                        @foreach ($readinessStages as $stageName => $assessment)
+                        <div x-show="stage === '{{ $stageName }}'" @if (! $loop->first) x-cloak @endif>
+                            @if ($assessment)
+                            {{-- Sizes/spacing copied from the approved mockup (measured, then
+                                 scaled up ~1.5x from its screenshot): bordered white card with
+                                 24px/20px padding, radar on the left (~42% of the row), a 2x2
+                                 block of 96px-tall tiles on the right with 16px gaps.
+                                 It's intrinsic (flex-wrap) rather than breakpoint-based: the two
+                                 sit side by side only while there's room for both and stack
+                                 otherwise, since breakpoints key off the browser window, not this
+                                 card's own width (at 150% zoom the tiles used to get squeezed
+                                 narrower than their own text). Inline styles because the compiled
+                                 Tailwind bundle only has the arbitrary sizes already used. --}}
+                            <div style="background-color: #fff; border: 1px solid #4B5563; border-radius: 12px; padding: 24px 20px;">
+                                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+                                    <div style="flex: 0 1 42%; min-width: 190px;">
+                                        <x-readiness-radar :compact="true"
+                                            :trl="$assessment->trl_score"
+                                            :mrl="$assessment->mrl_score"
+                                            :tmrl="$assessment->tmrl_score"
+                                            :srl="$assessment->srl_score" />
+                                    </div>
+                                    <div style="flex: 1 1 260px; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px;">
+                                        @foreach ([
+                                            ['TECHNOLOGY', 'TRL', $assessment->trl_score],
+                                            ['MANUFACTURING', 'MRL', $assessment->mrl_score],
+                                            ['TEAM & MGMT', 'TMRL', $assessment->tmrl_score],
+                                            ['SYSTEM / MARKET', 'SRL', $assessment->srl_score],
+                                        ] as [$tileCaption, $tileKey, $tileScore])
+                                        {{-- min-w-0 + flex-wrap: if a tile is ever too narrow for
+                                             "TMRL 6.3/9" on one line, the score wraps underneath the
+                                             name instead of poking out of the box. --}}
+                                        <div class="min-w-0" style="min-height: 96px; padding: 14px 14px 18px; border: 1px solid #4B5563; border-radius: 12px;">
+                                            <p class="leading-tight text-gray-500" style="font-size: 13px;">{{ $tileCaption }}</p>
+                                            <p class="flex flex-wrap items-baseline gap-x-1.5 font-bold leading-tight text-gray-900" style="margin-top: 8px; font-size: 18px;">
+                                                <span>{{ $tileKey }}</span>
+                                                <span>{{ $rl($tileScore) }}<span class="text-gray-500" style="font-size: 12px; font-weight: 500;">/9</span></span>
+                                            </p>
+                                            {{-- 0-9 bar: rose track, maroon fill, as on the founder's
+                                                 Readiness Results page; the mockup's track is ~83% of the
+                                                 tile's inner width, not full width. --}}
+                                            @php $tilePct = $tileScore !== null ? max(0, min(100, ((float) $tileScore / 9) * 100)) : 0; @endphp
+                                            <div class="overflow-hidden rounded-full" style="width: 83%; height: 8px; margin-top: 8px; background-color: #FFE4E6;"
+                                                role="progressbar" aria-valuemin="0" aria-valuemax="9" aria-valuenow="{{ $tileScore !== null ? round((float) $tileScore, 1) : 0 }}" aria-label="{{ $tileKey }} score">
+                                                <div class="rounded-full" style="height: 8px; width: {{ $tilePct }}%; background-color: #6D0D23;"></div>
+                                            </div>
+                                        </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-gray-500" style="margin-top: 8px; font-size: 12px;">Composite RLS score: <strong>{{ $rl($assessment->overall_score) }}/9</strong></p>
+                            @else
+                            <div style="background-color: #fff; border: 1px solid #4B5563; border-radius: 12px; padding: 24px 20px;">
+                                <p class="text-sm text-gray-500">No {{ $stageName }} has been conducted yet.</p>
+                            </div>
+                            @endif
+                        </div>
+                        @endforeach
                     </div>
 
                     <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">

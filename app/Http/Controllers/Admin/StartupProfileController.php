@@ -116,12 +116,12 @@ class StartupProfileController extends Controller
     {
         $startup->load([
             'user', 'informationSheet', 'teamMembers',
-            // The "Readiness Level" card on this page is hardcoded to label
-            // itself "Pre-Assessment" (see admin.startups.show), so it needs
-            // preAssessment specifically — latestReadinessAssessment would
-            // silently switch to showing Post-Assessment data under that
-            // same label the moment a startup has both.
-            'preAssessment', 'activeCoordinatorAssignment.coordinator',
+            // The "Readiness Level" card on this page has a Pre-/Post-
+            // Assessment dropdown (see admin.startups.show), so it needs each
+            // stage's own row — latestReadinessAssessment would silently
+            // show Post-Assessment data under a "Pre-Assessment" label the
+            // moment a startup has both.
+            'preAssessment', 'postAssessment', 'activeCoordinatorAssignment.coordinator',
         ]);
 
         return view('admin.startups.show', compact('startup'));

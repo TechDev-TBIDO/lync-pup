@@ -86,6 +86,11 @@
             is pre-compiled and these exact sizes/media queries aren't
             already present in it.
         --}}
+        {{-- Watermark position: pinned to a fixed offset from the card's top (76px = half of
+             the 152px min-height) instead of top-1/2. top-1/2 centers it on the card's
+             *current* height, which changes with the cohort's data (e.g. the trend
+             line under 'Assessed Startup' wrapping to 2 lines) - so the icon used to
+             drift up/down when switching cohorts. --}}
         <style>
             @media (max-width: 639px) {
                 .stat-card { padding: 12px !important; }
@@ -99,7 +104,7 @@
         </style>
             <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFE8EE] bg-[#FFF7F7] p-5 shadow-sm" style="min-height: 152px;">
                 <img src="{{ asset('images/icons/dashboard-admin.svg') }}" alt="" aria-hidden="true"
-                    class="stat-watermark pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                    class="stat-watermark pointer-events-none absolute right-0" style="width: 105px; height: auto; top: 76px; transform: translateY(-50%);">
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#FFD5DF]" style="width: 64px; height: 64px;">
@@ -116,7 +121,7 @@
 
             <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D2E5FF] bg-[#F8FBFF] p-5 shadow-sm" style="min-height: 152px;">
                 <img src="{{ asset('images/icons/blue-line.svg') }}" alt="" aria-hidden="true"
-                    class="stat-watermark pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                    class="stat-watermark pointer-events-none absolute right-0" style="width: 105px; height: auto; top: 76px; transform: translateY(-50%);">
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#C1DBFF]" style="width: 64px; height: 64px;">
@@ -142,7 +147,7 @@
 
             <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFEAC1] bg-[#FFFBF2] p-5 shadow-sm" style="min-height: 152px;">
                 <img src="{{ asset('images/icons/yellow-line.svg') }}" alt="" aria-hidden="true"
-                    class="stat-watermark pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                    class="stat-watermark pointer-events-none absolute right-0" style="width: 105px; height: auto; top: 76px; transform: translateY(-50%);">
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#FFDB96]" style="width: 64px; height: 64px;">
@@ -159,7 +164,7 @@
 
             <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D8C7FF] bg-[#FAF6FF] p-5 shadow-sm" style="min-height: 152px;">
                 <img src="{{ asset('images/icons/purple-line.svg') }}" alt="" aria-hidden="true"
-                    class="stat-watermark pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                    class="stat-watermark pointer-events-none absolute right-0" style="width: 105px; height: auto; top: 76px; transform: translateY(-50%);">
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#DCCBFF]" style="width: 64px; height: 64px;">

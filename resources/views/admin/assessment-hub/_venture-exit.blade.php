@@ -137,6 +137,28 @@
         isDirty() {
             return JSON.stringify(this.ve) !== JSON.stringify(this.initialVe);
         },
+        // Whether the form already has anything worth clearing — checked
+        // against what Clear Form actually wipes (see clearAll() below), not
+        // against "changed since the page loaded". Clear Form used to enable
+        // only while isDirty(), so a Venture Exit form that was already
+        // filled in and saved, and hadn't been touched again this visit,
+        // couldn't be cleared at all.
+        // Left out on purpose: Startup Name and the three signatory blocks
+        // (clearAll() doesn't touch them), and Date of Assessment, which
+        // arrives pre-filled with today's date on a brand-new form and so
+        // isn't 'input' by itself — it only counts if it was changed.
+        hasContent() {
+            const ve = this.ve;
+
+            return (!! ve.date_of_assessment && ve.date_of_assessment !== this.initialVe.date_of_assessment)
+                || Object.values(ve.business_stage).some(Boolean)
+                || Object.values(ve.graduation_readiness).some(row => row.status || (row.remark || '').trim() !== '')
+                || (ve.summary_of_progress || '').trim() !== ''
+                || (ve.post_incubation_recommendation || '').trim() !== ''
+                || (ve.scale_up_linkages || '').trim() !== ''
+                || Object.values(ve.readiness_levels).some(row => (row.highest_level || '').trim() !== '' || (row.remarks || '').trim() !== '')
+                || !! ve.exit_status;
+        },
         // 'Highest Level' stays stored as the same 'X/9' (or 'X.X/9')
         // string VentureExitAiGenerator.php and the saved Post-Assessment
         // prefill already rely on — only the admin-facing input is
@@ -413,7 +435,7 @@
             </div>
 
             <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-                <button type="button" @click="showClearConfirm = true" :disabled="! isDirty()"
+                <button type="button" @click="showClearConfirm = true" :disabled="! hasContent()"
                     class="h-11 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white sm:flex-1">
                     Clear Form
                 </button>

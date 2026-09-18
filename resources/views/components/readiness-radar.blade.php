@@ -1,4 +1,4 @@
-@props(['trl' => 0, 'mrl' => 0, 'tmrl' => 0, 'srl' => 0, 'size' => 260])
+@props(['trl' => 0, 'mrl' => 0, 'tmrl' => 0, 'srl' => 0, 'size' => 260, 'compact' => false])
 
 @php
     $cx = $size / 2;
@@ -17,9 +17,17 @@
 
     $ink = '#7f1d3a';
 
-    // Scores are now decimals (e.g. 6.3) — format to exactly 1 decimal
-    // place for display, independent of the raw arithmetic above.
-    $fmt = fn ($value) => $value !== null ? number_format($value, 1) : '—';
+    // Scores are decimals (e.g. 6.3) shown to 1 decimal place, except whole
+    // numbers, which drop the trailing ".0" (9.0 -> 9). Display only — the
+    // raw arithmetic above is untouched.
+    $fmt = function ($value) {
+        if ($value === null) {
+            return '—';
+        }
+        $rounded = round((float) $value, 1);
+
+        return $rounded == floor($rounded) ? (string) (int) $rounded : number_format($rounded, 1);
+    };
 @endphp
 
 {{--
@@ -29,7 +37,11 @@
     anchored to the original $size-based coordinate system, so the diamond
     itself is unaffected; only the visible margin around it grows.
 --}}
-<svg viewBox="-36 -34 {{ $size + 72 }} {{ $size + 72 }}" class="h-auto w-full">
+{{-- compact: crop the viewBox tight around the labels (they reach roughly
+     x -4..264, y 6..262 at the default $size) so the web itself fills more of
+     the box — used where the radar sits beside other content in a small area.
+     Only valid for the default $size, which is what every caller uses. --}}
+<svg viewBox="{{ $compact ? '-8 0 '.($size + 16).' '.($size + 6) : '-36 -34 '.($size + 72).' '.($size + 72) }}" class="h-auto w-full">
     {{-- Grid: four evenly spaced rings plus the two axes --}}
     @foreach ([0.25, 0.5, 0.75, 1] as $ring)
         <circle cx="{{ $cx }}" cy="{{ $cy }}" r="{{ $r * $ring }}" fill="none" stroke="#e5e7eb" stroke-width="1" />

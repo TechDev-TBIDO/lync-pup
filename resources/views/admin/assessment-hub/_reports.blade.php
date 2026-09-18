@@ -96,7 +96,7 @@
                         <th class="px-4 py-3 font-semibold">Pages</th>
                         <th class="px-4 py-3 font-semibold">Size</th>
                         <th class="px-4 py-3 font-semibold">Generated</th>
-                        <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        <th class="px-4 py-3 text-center font-semibold">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -114,7 +114,7 @@
                         <td class="px-4 py-3 text-gray-600">{{ $report->file_size_label }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $report->created_at->format('M d, Y g:i A') }}</td>
                         <td class="px-4 py-3">
-                            <div class="flex items-center justify-end gap-3">
+                            <div class="flex items-center justify-center gap-3">
                                 <a href="{{ route('admin.exports.download', $report) }}"
                                     class="text-xs font-semibold text-rose-900 hover:underline">Download File</a>
 

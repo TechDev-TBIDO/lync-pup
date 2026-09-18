@@ -64,20 +64,27 @@
             <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-2.5">
                 <h2 class="text-white font-semibold text-base">Risk Classification</h2>
             </div>
-            <div class="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
+            {{-- flex-wrap (inline, not Tailwind) so that when the card is too narrow
+                 for donut + table side by side (e.g. browser zoom 150%), the table
+                 drops under the donut instead of being squeezed until the Count
+                 column is clipped by the card's overflow-hidden. --}}
+            <div class="p-4 sm:p-6" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 24px 32px;">
                 {{-- Sized via inline styles rather than Tailwind's h-*/inset-* utilities:
                      this project's compiled CSS only includes the specific
                      scale values already used elsewhere in the app, and
                      larger heights/insets like h-44 or inset-6 silently
                      resolve to 0 instead of erroring, collapsing the ring. --}}
-                <div class="relative shrink-0 rounded-full mx-auto sm:mx-0" style="width: 176px; height: 176px; background: {{ $gradient }};">
+                <div class="relative shrink-0 rounded-full" style="width: 176px; height: 176px; background: {{ $gradient }};">
                     <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
                         style="top: 24px; right: 24px; bottom: 24px; left: 24px;">
                         <span class="text-3xl font-bold text-gray-800">{{ $totalStartups }}</span>
                         <span class="text-xs text-gray-500">Total Startups</span>
                     </div>
                 </div>
-                <table class="w-full text-sm">
+                {{-- Scroll wrapper: if even the full-width row is too narrow for the
+                     table, it scrolls sideways rather than hiding the Count column. --}}
+                <div style="flex: 1 1 240px; min-width: 0; overflow-x: auto; overflow-y: hidden;">
+                <table class="w-full text-sm" style="min-width: 240px;">
                     <thead>
                         <tr class="text-left text-gray-400 border-b border-gray-200">
                             <th class="py-2 pr-2 font-medium">Status</th>
@@ -100,6 +107,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 

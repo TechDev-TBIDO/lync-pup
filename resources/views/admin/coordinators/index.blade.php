@@ -81,11 +81,18 @@
 
                         {{-- Menu wrapper. z-index lifts while the dropdown is open so it clears
                      neighbouring cards, which all sit at z-20 too. --}}
+                        {{-- The card menu is a singleton: each card keeps its own menuOpen, but
+                             opening one broadcasts a window event carrying that card's id and every
+                             OTHER card closes its menu in response. Click-outside and Escape also
+                             close it, so at most one menu is ever open. --}}
                         <div class="absolute right-2 top-2 sm:right-3 sm:top-3"
-                            :class="menuOpen ? 'z-30' : 'z-20'">
+                            :class="menuOpen ? 'z-30' : 'z-20'"
+                            @click.outside="menuOpen = false"
+                            @keydown.escape.window="menuOpen = false"
+                            @coordinator-menu-open.window="if ($event.detail !== @js($coordinator->coordinator_id)) menuOpen = false">
 
                             <button
-                                @click="menuOpen = !menuOpen"
+                                @click="menuOpen = !menuOpen; if (menuOpen) $dispatch('coordinator-menu-open', @js($coordinator->coordinator_id))"
                                 
                                 class="flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition duration-200 hover:bg-white hover:text-[#6D0D23] sm:h-9 sm:w-9">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -281,7 +288,7 @@
                                     <div class="flex-1 space-y-2 overflow-y-auto p-4">
                                         @forelse ($coordinator->active_startup_assignments as $assignment)
                                             @if ($assignment->startup)
-                                            <a href="{{ route('admin.startups.show', $assignment->startup) }}"
+                                            <a href="{{ route('admin.startups.show', ['startup' => $assignment->startup, 'from' => 'coordinators']) }}"
                                                 class="block rounded-lg border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
                                                 <p class="truncate text-sm font-semibold text-gray-900">{{ $assignment->startup->company_name }}</p>
                                                 <p class="mt-0.5 text-xs text-gray-500">

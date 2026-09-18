@@ -102,13 +102,23 @@ class Startup extends Model
      * latestReadinessAssessment() above, which is whichever stage was
      * scored most recently (Post-Assessment, once it exists, since it
      * always comes chronologically after Pre-Assessment). Added because the
-     * admin Startup Profile page's "Readiness Level" card is hardcoded to
-     * label itself "Pre-Assessment", so it needs the actual Pre-Assessment
-     * row specifically, not whatever's newest overall.
+     * admin Startup Profile page's "Readiness Level" card shows the Pre- and
+     * Post-Assessment rows separately (via a dropdown), so it needs each
+     * stage's actual row, not whatever's newest overall.
      */
     public function preAssessment()
     {
         return $this->hasOne(ReadinessLevelAssessment::class, 'startup_id')->where('stage', 'Pre-Assessment');
+    }
+
+    /**
+     * Specifically the Post-Assessment stage's row. Counterpart to
+     * preAssessment() above, so the admin Startup Profile page's "Readiness
+     * Level" card can offer a Pre-/Post-Assessment dropdown.
+     */
+    public function postAssessment()
+    {
+        return $this->hasOne(ReadinessLevelAssessment::class, 'startup_id')->where('stage', 'Post-Assessment');
     }
 
     public function coordinatorAssignments()

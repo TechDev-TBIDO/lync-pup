@@ -57,7 +57,7 @@ class DashboardController extends Controller
         'Moderately Ready' => '#F2BE25',
         'Moderately Unready' => '#FF9B20',
         'Not Ready' => '#FF2525',
-        'Critically Unready' => '#8D8D8D',
+        'Critically Unready' => '#9CA3AF', // same gray as RiskEngine::LEVEL_COLORS['None'] so both dashboard donuts share one gray
     ];
 
     public function index(Request $request): View

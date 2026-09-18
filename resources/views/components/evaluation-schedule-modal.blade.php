@@ -52,19 +52,41 @@ $oldMatchesThisRow = $errors->any()
     && old('schedule_row_key') !== null
     && (string) old('schedule_row_key') === (string) $rowKey;
 
-$initialDate = $oldMatchesThisRow
-    ? old('evaluation_date')
-    : ($schedule?->evaluation_date?->format('Y-m-d') ?? now()->format('Y-m-d'));
+// Two sets of values on purpose. "Pristine" is what a fresh, untouched modal
+// shows (the existing schedule's own values, or blank defaults) and is what
+// closing the modal ALWAYS resets to. "Initial" is what this particular page
+// render opened with: the same thing, except right after a failed submit,
+// when it's the flashed old() input so the admin sees what they typed next
+// to the error. Resetting to "initial" on close meant a rejected draft
+// survived Cancel/X (it just reset to itself) - hence the split.
+//
 // No $schedule (i.e. mode="add") means there's nothing to prefill from — leave
 // the time slot blank so the modal always opens with nothing pre-selected,
 // instead of always defaulting to the first slot (08:00) regardless of
 // whether it's actually available on whatever date ends up chosen.
-$initialStart = $oldMatchesThisRow
-    ? old('start_time')
-    : ($schedule ? substr($schedule->start_time, 0, 5) : null);
-$initialNotes = $oldMatchesThisRow ? old('notes') : $schedule?->notes;
-$initialModality = $oldMatchesThisRow ? old('modality') : $schedule?->modality;
-$initialLink = $oldMatchesThisRow ? old('link') : $schedule?->link;
+//
+// There's no "Select Platform" placeholder option any more (it wasn't a real
+// choice and the form can't be saved with it), so a modality is always
+// selected: the schedule's own, else the first platform in the list.
+$defaultModality = \App\Support\MeetingPlatform::OPTIONS[0];
+
+$pristineDate = $schedule?->evaluation_date?->format('Y-m-d') ?? now()->format('Y-m-d');
+$pristineStart = $schedule ? substr($schedule->start_time, 0, 5) : null;
+$pristineNotes = $schedule?->notes;
+$pristineModality = $schedule?->modality ?: $defaultModality;
+$pristineLink = $schedule?->link;
+
+$initialDate = $oldMatchesThisRow ? old('evaluation_date') : $pristineDate;
+$initialStart = $oldMatchesThisRow ? old('start_time') : $pristineStart;
+$initialNotes = $oldMatchesThisRow ? old('notes') : $pristineNotes;
+$initialModality = $oldMatchesThisRow ? (old('modality') ?: $defaultModality) : $pristineModality;
+$initialLink = $oldMatchesThisRow ? old('link') : $pristineLink;
+
+// Name of the parent's open/closed flag, taken from the $close expression
+// ("scheduleOpen = false" -> "scheduleOpen"). Watched below so the modal
+// wipes itself however it got closed, not only via its own Cancel/X buttons.
+$openVar = trim(\Illuminate\Support\Str::before((string) $close, '='));
+$openVar = preg_match('/^[A-Za-z_][A-Za-z0-9_.]*$/', $openVar) ? $openVar : null;
 $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($startup?->startup_id ?? '0');
 
 // The date/time validation error, scoped to THIS row via $oldMatchesThisRow
@@ -99,6 +121,28 @@ $initialServerError = $oldMatchesThisRow
         initialNotes: @js($initialNotes),
         initialModality: @js($initialModality),
         initialLink: @js($initialLink),
+        // Close = discard. Puts every field back to the pristine state (see
+        // the PHP note above), re-baselines the dirty check to it, clears any
+        // error and jumps the calendar back to the pristine date's month, so
+        // reopening always shows a clean modal with no leftover draft.
+        reset() {
+            this.date = @js($pristineDate);
+            this.startTime = @js($pristineStart);
+            this.notes = @js($pristineNotes);
+            this.modality = @js($pristineModality);
+            this.link = @js($pristineLink);
+            this.serverError = null;
+            this.initialDate = this.date;
+            this.initialStartTime = this.startTime;
+            this.initialNotes = this.notes;
+            this.initialModality = this.modality;
+            this.initialLink = this.link;
+            const d = new Date(this.date + 'T00:00:00');
+            this.viewMonth = d.getMonth();
+            this.viewYear = d.getFullYear();
+            const startupSelect = this.$root.querySelector('select[name=startup_id]');
+            if (startupSelect) startupSelect.selectedIndex = 0;
+        },
         isDirty() {
             return this.date !== this.initialDate
                 || this.startTime !== this.initialStartTime
@@ -177,13 +221,13 @@ $initialServerError = $oldMatchesThisRow
             return hour12 + ':' + (m < 10 ? '0' + m : m) + ' ' + (h < 12 ? 'AM' : 'PM');
         },
     }"
-    x-init="if (startTime && !{{ $isReadOnly ? 'true' : 'false' }} && (isPastSlot(startTime) || isSlotBooked(startTime))) { const f = slots.find(t => !isPastSlot(t) && !isSlotBooked(t)); if (f) startTime = f; }">
+    x-init="if (startTime && !{{ $isReadOnly ? 'true' : 'false' }} && (isPastSlot(startTime) || isSlotBooked(startTime))) { const f = slots.find(t => !isPastSlot(t) && !isSlotBooked(t)); if (f) startTime = f; }@if ($openVar) $watch('{{ $openVar }}', (isOpen) => { if (! isOpen) reset(); })@endif">
     <div class="shrink-0 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-4 flex items-center justify-between">
         <h3 class="text-sm font-bold flex items-center gap-3">
             <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-6 w-6 brightness-0 invert" aria-hidden="true">
             <span>{{ $title }}</span>
         </h3>
-        <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); modality = @js($initialModality); link = @js($initialLink); serverError = @js($initialServerError); {{ $close }}"
+        <button type="button" @click="reset(); {{ $close }}"
             class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             aria-label="Close">
             <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -290,7 +334,6 @@ $initialServerError = $oldMatchesThisRow
                 <p class="font-medium mb-2">3. Choose a Modality</p>
                 <select name="modality" x-model="modality"
                     class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700">
-                    <option value="" disabled>Select Platform</option>
                     @foreach (\App\Support\MeetingPlatform::OPTIONS as $platformOption)
                     <option value="{{ $platformOption }}">{{ $platformOption }}</option>
                     @endforeach
@@ -311,6 +354,7 @@ $initialServerError = $oldMatchesThisRow
                 <textarea name="notes" rows="3" placeholder="Enter any notes for this schedule..."
                     x-model="notes"
                     class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+                <x-notes-limit-counter />
                 @if ($oldMatchesThisRow) @error('notes') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
             </div>
             @else
@@ -352,7 +396,7 @@ $initialServerError = $oldMatchesThisRow
     <div class="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
         <div class="flex gap-3">
             @if ($mode !== 'edit')
-            <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); modality = @js($initialModality); link = @js($initialLink); serverError = @js($initialServerError); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
+            <button type="button" @click="reset(); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
                 {{ $isReadOnly ? 'Close' : 'Cancel' }}
             </button>
             @endif

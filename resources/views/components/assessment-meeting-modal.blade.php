@@ -177,6 +177,7 @@ $formId = 'assessment-meeting-form-'.$rowKey;
                 <textarea name="notes" rows="3" placeholder="Enter any notes for this meeting..."
                     x-model="notes"
                     class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+                <x-notes-limit-counter />
                 @if ($oldMatchesThisRow) @error('notes') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
             </div>
         </form>

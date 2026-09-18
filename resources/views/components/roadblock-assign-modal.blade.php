@@ -426,6 +426,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                         placeholder="Optional note for the founder (e.g. what to prepare, what to expect)"
                                         data-original="{{ $notesDefault }}"
                                         class="{{ $fieldCls }}">{{ $oldFor('notes', $notesDefault) }}</textarea>
+                                    <x-notes-limit-counter />
                                     @if ($isErroredRoadblock) @error('notes') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                                 </div>
                             </div>

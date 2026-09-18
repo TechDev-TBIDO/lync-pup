@@ -22,6 +22,15 @@
     when the button sits at a page's top-right corner, so the panel
     doesn't run off the right side of the viewport instead).
 
+    The dropdown panel is teleported to <body> and positioned with
+    position: fixed from the button's on-screen rectangle (see place() below),
+    then clamped to the viewport. That makes it immune to whatever it used to
+    sit inside: an ancestor with overflow-hidden / overflow-y-auto (the admin
+    layout's scrolling <main>, cards with overflow-hidden) or a lower
+    stacking context used to clip it - cutting off its right/bottom edge - or
+    let it run off the side of a narrow screen. $align still picks which side
+    of the button the panel prefers to line up with.
+
     Always icon-only, visually — no pill, no visible text next to the
     icon, on any usage. $label optionally overrides just the tooltip and
     panel header text (default "Edit History"); e.g. the Dashboard passes
@@ -36,6 +45,10 @@
     // this panel's actor dots.
     $avatarColors = ['#2563EB', '#DB2777', '#059669', '#D97706', '#7C3AED', '#DC2626', '#0891B2'];
     $colorFor = fn (?int $userId) => $userId ? $avatarColors[$userId % count($avatarColors)] : '#9CA3AF';
+
+    // Unique per instance: the panel lives in <body> (teleported), so the
+    // outside-click check finds it by id rather than by DOM containment.
+    $panelId = 'vh-panel-'.\Illuminate\Support\Str::random(8);
 @endphp
 
 <div x-data="{
@@ -43,12 +56,40 @@
         menuOpenId: null,
         renamingId: null,
         renameValue: '',
+        panelPos: {},
         startRename(id, current) { this.menuOpenId = null; this.renamingId = id; this.renameValue = current; },
+        toggle() { this.open = !this.open; if (this.open) this.place(); },
+        close() { this.open = false; this.menuOpenId = null; },
+        // Anchor to the button, on the preferred side, then clamp inside the
+        // viewport (12px margin) so no edge can be cut off; the panel's height
+        // is capped to the space below the button and its list scrolls inside.
+        place() {
+            const r = this.$refs.trigger.getBoundingClientRect();
+            const margin = 12;
+            const width = Math.min(320, window.innerWidth - margin * 2);
+            let left = '{{ $align }}' === 'left' ? r.left : r.right - width;
+            left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+            const top = r.bottom + 8;
+            this.panelPos = {
+                top: top + 'px',
+                left: left + 'px',
+                width: width + 'px',
+                'max-height': Math.min(520, Math.max(200, window.innerHeight - top - margin)) + 'px',
+            };
+        },
+        outside(e) {
+            const panel = document.getElementById('{{ $panelId }}');
+            if (this.$refs.trigger.contains(e.target) || (panel && panel.contains(e.target))) return;
+            this.close();
+        },
     }"
-    @click.outside="open = false; menuOpenId = null"
+    @click.window="if (open) outside($event)"
+    @keydown.escape.window="close()"
+    @resize.window="if (open) place()"
+    @scroll.window.capture="if (open) place()"
     class="relative inline-block">
 
-    <button type="button" @click="open = !open"
+    <button type="button" x-ref="trigger" @click="toggle()"
         @class([
             'flex items-center justify-center rounded-full transition',
             'text-white/80 border border-white/20 bg-white/10 hover:bg-white/15' => $dark,
@@ -64,18 +105,15 @@
         </svg>
     </button>
 
-    <div x-show="open" x-cloak {{ $align === 'right' ? 'x-transition.origin.top-right' : 'x-transition.origin.top-left' }}
-        @class([
-            'absolute top-full z-40 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-2xl',
-            'right-0' => $align === 'right',
-            'left-0' => $align === 'left',
-        ])
-        style="display:none;">
+    <template x-teleport="body">
+    <div id="{{ $panelId }}" x-show="open" x-cloak x-transition.opacity :style="panelPos"
+        class="fixed flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-2xl"
+        style="display:none; z-index: 60;">
         <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-3">
             <p class="text-sm font-bold text-white">{{ $label }}</p>
         </div>
 
-        <div class="max-h-96 overflow-y-auto px-4 py-3">
+        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
             <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Activity</p>
 
             @if ($entries->isEmpty())
@@ -161,6 +199,7 @@
             @endif
         </div>
     </div>
+    </template>
 
     {{-- Delete confirmations are rendered outside the collapsible panel
          above (its own x-show visually collapses this whole subtree, which

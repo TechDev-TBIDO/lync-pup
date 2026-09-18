@@ -85,6 +85,7 @@
             'tab' => request('tab'),
             'stage' => request('stage'),
         ])),
+        'coordinators' => $url('admin.coordinators.index') ?? url()->previous(),
         'startups-list' => $url('admin.startups.index') !== null
             ? route('admin.startups.index', array_filter(['tab' => request('tab')]))
             : url()->previous(),

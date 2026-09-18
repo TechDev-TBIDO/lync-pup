@@ -85,9 +85,8 @@
                             <p class="truncate text-[11px] text-white/90 xl:text-xs" title="{{ $meeting['stage_label'] }}">{{ $meeting['stage_label'] }}</p>
                         </div>
                         @else
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 flex-shrink-0 sm:h-7 sm:w-7 xl:mb-3 xl:h-8 xl:w-8 2xl:h-9 2xl:w-9" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 0H6.108c-1.135 0-2.098.847-2.192 1.98a48.424 48.424 0 000 7.86c.094 1.133 1.057 1.98 2.192 1.98h7.284c1.135 0 2.098-.847 2.192-1.98.075-.907.093-1.827.05-2.734M8.25 3v6a.75.75 0 00.75.75h6" />
-                        </svg>
+                        <span class="icon-mask h-6 w-6 flex-shrink-0 sm:h-7 sm:w-7 xl:mb-3 xl:h-8 xl:w-8 2xl:h-9 2xl:w-9"
+                            style="--icon: url('{{ asset('images/icons/eval-meeting.svg') }}')" aria-hidden="true"></span>
 
                         <p class="text-sm font-bold leading-tight sm:text-base 2xl:text-lg">Evaluation</p>
                         @endif
