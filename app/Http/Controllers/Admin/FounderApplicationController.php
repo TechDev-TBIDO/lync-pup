@@ -30,6 +30,20 @@ class FounderApplicationController extends Controller
         $tab = $request->query('tab', 'all');
         $perPage = (int) $request->query('per_page', 10);
 
+        // Red dot on each sign-up that arrived since this admin last opened
+        // the page — also drives the sidebar dot (AppServiceProvider). Worked
+        // out before marking the page seen, and against the request's start
+        // time, so a sign-up landing mid-request still counts as new next time.
+        $admin = $request->user();
+        $visitedAt = now();
+        $newStartupIds = Startup::query()
+            ->whereHas('user', fn ($q) => $q->where('role', 'Startup'))
+            ->where('created_at', '>', $admin->moduleSeenAt('founder_registrations'))
+            ->pluck('startup_id')
+            ->map(fn ($id) => (int) $id) // driver may hand ids back as strings; the view compares strictly
+            ->all();
+        $admin->markModuleSeen('founder_registrations', $visitedAt);
+
         if (! in_array($perPage, self::PER_PAGE_OPTIONS, true)) {
             $perPage = 10;
         }
@@ -54,6 +68,7 @@ class FounderApplicationController extends Controller
 
         return view('admin.founder-applications.index', [
             'applications' => $applications,
+            'newStartupIds' => $newStartupIds,
             'activeTab' => $tab,
             'perPage' => $perPage,
             'perPageOptions' => self::PER_PAGE_OPTIONS,

@@ -9,9 +9,12 @@ use App\Models\Startup;
 use App\Models\VersionHistory;
 use App\Notifications\ReadinessResultsReleased;
 use App\Notifications\WeeklyCheckInPosted;
+use App\Rules\PersonName;
+use App\Rules\PhMobile;
 use App\Support\ReadinessRubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AssessmentController extends Controller
 {
@@ -41,12 +44,12 @@ class AssessmentController extends Controller
             // "Approved by") — distinct from the MRL/TMRL blocks below.
             // "Approved by" is editable but arrives pre-filled with the
             // director's fixed signature, so it's stored like its siblings.
-            'prepared_by' => ['nullable', 'string', 'max:150'],
-            'prepared_by_position' => ['nullable', 'string', 'max:150'],
-            'trl_noted_by' => ['nullable', 'string', 'max:150'],
-            'trl_noted_by_position' => ['nullable', 'string', 'max:150'],
-            'approved_by' => ['nullable', 'string', 'max:150'],
-            'approved_by_position' => ['nullable', 'string', 'max:1000'],
+            'prepared_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'prepared_by_position' => ['nullable', 'string', 'max:150', new PersonName],
+            'trl_noted_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'trl_noted_by_position' => ['nullable', 'string', 'max:150', new PersonName],
+            'approved_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'approved_by_position' => ['nullable', 'string', 'max:1000', new PersonName],
             // MRL and TMRL's own independent Evaluated/Reviewed/Noted by
             // blocks — used to be one shared set of columns (see the
             // migration that split them), which meant editing MRL's block
@@ -54,28 +57,35 @@ class AssessmentController extends Controller
             // wrote to the exact same fields. Submitted once per save
             // regardless of which tab is active, same as every other RL
             // type's signatory block.
-            'mrl_evaluated_by' => ['nullable', 'string', 'max:150'],
-            'mrl_evaluated_by_position' => ['nullable', 'string', 'max:1000'],
-            'mrl_reviewed_by' => ['nullable', 'string', 'max:150'],
-            'mrl_reviewed_by_position' => ['nullable', 'string', 'max:150'],
-            'mrl_noted_by' => ['nullable', 'string', 'max:150'],
-            'mrl_noted_by_position' => ['nullable', 'string', 'max:1000'],
-            'tmrl_evaluated_by' => ['nullable', 'string', 'max:150'],
-            'tmrl_evaluated_by_position' => ['nullable', 'string', 'max:1000'],
-            'tmrl_reviewed_by' => ['nullable', 'string', 'max:150'],
-            'tmrl_reviewed_by_position' => ['nullable', 'string', 'max:150'],
-            'tmrl_noted_by' => ['nullable', 'string', 'max:150'],
-            'tmrl_noted_by_position' => ['nullable', 'string', 'max:1000'],
+            'mrl_evaluated_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'mrl_evaluated_by_position' => ['nullable', 'string', 'max:1000', new PersonName],
+            'mrl_reviewed_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'mrl_reviewed_by_position' => ['nullable', 'string', 'max:150', new PersonName],
+            'mrl_noted_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'mrl_noted_by_position' => ['nullable', 'string', 'max:1000', new PersonName],
+            'tmrl_evaluated_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'tmrl_evaluated_by_position' => ['nullable', 'string', 'max:1000', new PersonName],
+            'tmrl_reviewed_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'tmrl_reviewed_by_position' => ['nullable', 'string', 'max:150', new PersonName],
+            'tmrl_noted_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'tmrl_noted_by_position' => ['nullable', 'string', 'max:1000', new PersonName],
             // SRL's own Evaluated/Reviewed/Noted by block — distinct
             // columns from the MRL/TMRL block above (different default
             // "Reviewed by" title, so it can't share the same fields).
-            'srl_evaluated_by' => ['nullable', 'string', 'max:150'],
-            'srl_evaluated_by_position' => ['nullable', 'string', 'max:1000'],
-            'srl_reviewed_by' => ['nullable', 'string', 'max:150'],
-            'srl_reviewed_by_position' => ['nullable', 'string', 'max:150'],
-            'srl_noted_by' => ['nullable', 'string', 'max:150'],
-            'srl_noted_by_position' => ['nullable', 'string', 'max:1000'],
+            'srl_evaluated_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'srl_evaluated_by_position' => ['nullable', 'string', 'max:1000', new PersonName],
+            'srl_reviewed_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'srl_reviewed_by_position' => ['nullable', 'string', 'max:150', new PersonName],
+            'srl_noted_by' => ['nullable', 'string', 'max:150', new PersonName],
+            'srl_noted_by_position' => ['nullable', 'string', 'max:1000', new PersonName],
         ]);
+
+        // The overview arrives as one JSON blob, so its contact number can't be
+        // covered by a per-field rule above. A malformed number rejects the
+        // whole save - nothing below runs.
+        if (isset($validated['trl_overview'])) {
+            $this->assertFieldFormats('TRL Overview', json_decode($validated['trl_overview'], true), 'trl_overview');
+        }
 
         $assessment = ReadinessLevelAssessment::firstOrNew([
             'startup_id' => $startup->startup_id,
@@ -167,6 +177,17 @@ class AssessmentController extends Controller
             'document_13' => ['nullable', 'json'],
         ]);
 
+        // Check every document's names/positions/contact numbers BEFORE any of
+        // them is written - one bad field rejects the whole save instead of
+        // leaving the other documents half-updated.
+        foreach ([6, 7, 8, 13] as $documentNumber) {
+            $key = 'document_'.$documentNumber;
+
+            if (array_key_exists($key, $validated)) {
+                $this->assertFieldFormats('Document '.$documentNumber, json_decode($validated[$key], true), $key);
+            }
+        }
+
         foreach ([6, 7, 8, 13] as $documentNumber) {
             $key = 'document_'.$documentNumber;
 
@@ -220,6 +241,63 @@ class AssessmentController extends Controller
             'assessment_startup' => $startup->startup_id,
             'active_doc' => $validated['stage'] === 'Active-Assessment' ? $request->input('active_document') : null,
         ]))->with('status', 'Changes saved successfully.');
+    }
+
+    /**
+     * Leaf keys inside the JSON documents that hold a person's name or job
+     * title (Prepared/Noted/Approved/Validated/Evaluated/Reviewed by, plus the
+     * plain `name` / `position` columns of Document 6's Prepared By rows).
+     * Everything else in the payload is free text and left alone.
+     */
+    private const PERSON_KEY = '/^(name|position|noted_by|(prepared|noted|approved|validated|evaluated|reviewed)_by(_name|_position)?)$/';
+
+    /**
+     * Walks a decoded JSON document and rejects the save when a name/position
+     * has anything but letters and / - ' . , (see PersonName), or a contact
+     * number is not exactly 09XXXXXXXXX / +639XXXXXXXXX (see PhMobile).
+     *
+     * @throws ValidationException
+     */
+    protected function assertFieldFormats(string $label, mixed $payload, string $errorKey): void
+    {
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $errors = [];
+        $this->collectFieldFormatErrors($label, $payload, [], $errors);
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages([$errorKey => array_values(array_unique($errors))]);
+        }
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $node
+     * @param  list<string>  $trail
+     * @param  list<string>  $errors
+     */
+    private function collectFieldFormatErrors(string $label, array $node, array $trail, array &$errors): void
+    {
+        foreach ($node as $key => $value) {
+            if (is_array($value)) {
+                $this->collectFieldFormatErrors($label, $value, is_int($key) ? $trail : [...$trail, (string) $key], $errors);
+
+                continue;
+            }
+
+            if (! is_string($key) || ! is_string($value)) {
+                continue;
+            }
+
+            $field = ucfirst(str_replace('_', ' ', trim(implode(' ', [...array_slice($trail, -1), $key]))));
+
+            if (preg_match(self::PERSON_KEY, $key) === 1 && ! PersonName::passes($value)) {
+                $errors[] = "{$label}: {$field} may only contain letters and / - ' . , (no numbers or other symbols).";
+            } elseif (str_contains($key, 'contact') && ! PhMobile::passes(trim($value))) {
+                $errors[] = "{$label}: {$field} must use the format 09XXXXXXXXX or +639XXXXXXXXX.";
+            }
+        }
     }
 
     /**

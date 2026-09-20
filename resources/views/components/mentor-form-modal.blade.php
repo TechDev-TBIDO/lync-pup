@@ -193,7 +193,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                             <input type="text" name="first_name" value="{{ $oldFor('first_name', $mentor?->first_name) }}"
                                 placeholder="Mentor First Name"
-                                oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')" class="{{ $field }}">
+                                data-person-name class="{{ $field }}">
                         </div>
 
                         @if ($isErroredRecord) @error('first_name') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
@@ -204,7 +204,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                         <input type="text" name="last_name" value="{{ $oldFor('last_name', $mentor?->last_name) }}"
                             placeholder="Mentor Last Name"
-                            oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')" class="{{ $plain }}">
+                            data-person-name class="{{ $plain }}">
 
                         @if ($isErroredRecord) @error('last_name') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
                     </div>
@@ -484,8 +484,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             </span>
 
                             <input type="text" name="contact_number" value="{{ $oldFor('contact_number', $mentor?->contact_number) }}"
-                                placeholder="09XX-XXX-XXXX" inputmode="numeric" maxlength="11"
-                                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                                placeholder="09XXXXXXXXX or +639XXXXXXXXX" inputmode="tel" maxlength="13"
+                                data-ph-mobile
                                 class="{{ $field }}">
                         </div>
 

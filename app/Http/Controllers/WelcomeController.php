@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cohort;
+use App\Models\InformationSheet;
 use App\Models\Startup;
 use App\Support\ActiveAssessmentForms;
 use App\Support\ReadinessRubric;
@@ -29,7 +30,7 @@ class WelcomeController extends Controller
                 'user',
                 'latestReadinessAssessment',
                 'readinessAssessments',
-                'startupTeamMembers',
+                'teamMembers',
             ])
             ->get();
 
@@ -116,10 +117,40 @@ class WelcomeController extends Controller
             'overall_score' => $overallScore,
             'stages' => $stages,
             'default_stage' => $stages->keys()->first(),
-            'team' => $startup->startupTeamMembers->pluck('full_name')->values(),
+            'team' => $this->presentTeam($startup),
             'website' => $startup->website,
             'email' => $startup->user?->email,
             'phone' => $startup->contact_phone,
         ];
+    }
+
+    /**
+     * The "Team" roster shown in the detail modal — built exactly like the
+     * admin Startup Profile "Team" card (admin/startups/show.blade.php) so the
+     * public View Profile and the internal one always agree: the registered
+     * founder first (flagged, rendered with a "Founder" badge), followed by the
+     * Information Sheet's Core Team rows ($startup->teamMembers).
+     *
+     * users.name is stored as one composed "First Middle Last" string, so it's
+     * split with the same helper the Information Sheet uses and rejoined as
+     * "Last, First, Middle" to match how the roster names are typed in.
+     *
+     * @return array<int, array{name: string, is_founder: bool}>
+     */
+    protected function presentTeam(Startup $startup): array
+    {
+        $parts = InformationSheet::splitFounderName($startup->user?->name);
+
+        $founderName = collect([$parts['surname'], $parts['first_name'], $parts['middle_name']])
+            ->filter(fn ($part) => filled($part))
+            ->implode(', ');
+
+        $members = $startup->teamMembers
+            ->map(fn ($member) => ['name' => $member->full_name, 'is_founder' => false]);
+
+        return collect($founderName !== '' ? [['name' => $founderName, 'is_founder' => true]] : [])
+            ->concat($members)
+            ->values()
+            ->all();
     }
 }

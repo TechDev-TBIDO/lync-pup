@@ -497,6 +497,7 @@
                     </div>
                 </div>
             </div>
+    @include('partials.input-guards')
 </body>
 
 </html>

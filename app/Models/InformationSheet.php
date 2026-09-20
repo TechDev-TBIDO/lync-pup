@@ -104,11 +104,19 @@ class InformationSheet extends Model
     /**
      * Given a submitted $data array (field => new value), returns the
      * fillable field names that currently hold a non-blank value but would
-     * be saved as blank by this submission. Used once a startup has a
-     * scheduled evaluation to enforce "replace, don't remove" instead of
-     * the normal partial-overwrite semantics of Model::update().
+     * be saved as blank by this submission. Backs the "once filled, never
+     * blank" rule: a saved answer can be replaced, never removed - by a
+     * draft Save or a Submit, by the founder or an admin, before or after an
+     * evaluation is scheduled.
+     *
+     * $only narrows the check to specific columns (the required ones) so an
+     * optional column is still free to be emptied; null checks every
+     * fillable column.
+     *
+     * @param  list<string>|null  $only
+     * @return list<string>
      */
-    public function blankedFields(array $data): array
+    public function blankedFields(array $data, ?array $only = null): array
     {
         $blanked = [];
 
@@ -117,9 +125,13 @@ class InformationSheet extends Model
                 continue;
             }
 
+            if ($only !== null && ! in_array($field, $only, true)) {
+                continue;
+            }
+
             $current = $this->getAttribute($field);
-            $currentIsBlank = $current === null || $current === '';
-            $newIsBlank = $value === null || $value === '';
+            $currentIsBlank = $current === null || (is_string($current) && trim($current) === '');
+            $newIsBlank = $value === null || (is_string($value) && trim($value) === '');
 
             if (! $currentIsBlank && $newIsBlank) {
                 $blanked[] = $field;
@@ -127,5 +139,18 @@ class InformationSheet extends Model
         }
 
         return $blanked;
+    }
+
+    /**
+     * Last line of defence for the same rule: drops any blank value that
+     * would overwrite a filled column, so even a code path that skipped the
+     * request-level guard cannot empty a saved answer.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public function withoutBlanking(array $data): array
+    {
+        return array_diff_key($data, array_flip($this->blankedFields($data)));
     }
 }

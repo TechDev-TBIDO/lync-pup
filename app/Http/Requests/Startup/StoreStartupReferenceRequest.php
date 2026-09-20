@@ -33,9 +33,7 @@ class StoreStartupReferenceRequest extends FormRequest
     {
         return $this->rowMessages([
             'name.required' => 'Enter the reference\'s full name.',
-            'name.regex' => 'Please enter a valid name.',
             'contact.required' => 'Enter the reference\'s mobile number.',
-            'contact.regex' => 'Format: 09XXXXXXXXX or +639XXXXXXXXX, digits only.',
             'email.required' => 'Enter the reference\'s email address.',
             'email.email' => 'Please enter a valid email address.',
             'address.required' => 'Enter the reference\'s address.',

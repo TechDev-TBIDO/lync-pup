@@ -265,6 +265,7 @@
                                 <input
                                     type="text"
                                     name="first_name"
+                                    data-person-name
                                     x-model="first_name"
                                     required
                                     :readonly="!editing"
@@ -278,6 +279,7 @@
                                 <input
                                     type="text"
                                     name="middle_name"
+                                    data-person-name
                                     x-model="middle_name"
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
@@ -290,6 +292,7 @@
                                 <input
                                     type="text"
                                     name="last_name"
+                                    data-person-name
                                     x-model="last_name"
                                     required
                                     :readonly="!editing"
@@ -313,6 +316,7 @@
                                     type="text"
                                     name="contact_phone"
                                     inputmode="tel"
+                                    data-ph-mobile
                                     :value="contact_phone"
                                     required
                                     pattern="^(09[0-9]{9}|\+639[0-9]{9})$"
@@ -390,6 +394,7 @@
                                 <input
                                     type="text"
                                     name="team_members[{{ $member->startup_team_member_id }}]"
+                                    data-person-name
                                     value="{{ old("team_members.$member->startup_team_member_id", $member->full_name) }}"
                                     :readonly="!editing"
                                     :class="editing
@@ -428,6 +433,7 @@
                                     <input
                                         type="text"
                                         :name="'new_team_members[' + index + ']'"
+                                        data-person-name
                                         x-model="newMembers[index]"
                                         placeholder="New team member name"
                                         class="w-full border rounded-lg px-3 py-2 text-sm"

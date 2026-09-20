@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Startup;
 
+use App\Rules\PersonName;
+use App\Rules\PhMobile;
+
 /**
  * Shared column shapes for the Information Sheet's row tables — Core Team
  * Formation, Incubation Involvement, L&D Interventions and References.
@@ -69,12 +72,12 @@ trait SheetRowRules
     /**
      * A Philippine mobile number in exactly one of two shapes - 09XXXXXXXXX
      * or +639XXXXXXXXX - digits only, no spaces, dashes or any other
-     * punctuation. Stricter than the founder's own mobile_no field on the
-     * Information Sheet itself, which still tolerates spacing.
+     * punctuation (see App\Rules\PhMobile), the same shape every phone field
+     * in the app now enforces.
      */
     protected function rowPhone(): array
     {
-        return ['required', 'string', 'max:13', 'regex:/^(?:09\d{9}|\+639\d{9})$/'];
+        return ['required', 'string', 'max:13', new PhMobile];
     }
 
     /**
@@ -132,7 +135,7 @@ trait SheetRowRules
      */
     protected function rowPersonName(int $max): array
     {
-        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}][\p{L}\s\.\,\-\x{2019}\']*$/iu'];
+        return ['required', 'string', 'max:'.$max, new PersonName, $this->notNA()];
     }
 
     /**
@@ -152,11 +155,11 @@ trait SheetRowRules
         $word = '[\p{L}][\p{L}\.\-\x{2019}\']*';
         $part = $word.'(?:\s+'.$word.')*';
 
-        return ['required', 'string', 'max:'.$max, 'regex:/^'.$part.'(?:,\s*'.$part.'){1,3}$/iu'];
+        return ['required', 'string', 'max:'.$max, new PersonName, 'regex:/^'.$part.'(?:,\s*'.$part.'){1,3}$/iu'];
     }
 
     /**
-     * A job title or role: letters, numbers, spaces, and . - / & - no N/A.
+     * A job title or role: letters, spaces, and / - ' . , only (PersonName) - no digits, no N/A.
      * The slash is allowed for real designations ("Marketing / Sales
      * Lead"), so notNA() is appended to actually catch the literal "N/A"
      * that character class alone would otherwise let through.
@@ -164,9 +167,8 @@ trait SheetRowRules
     protected function rowDesignation(int $max): array
     {
         return [
-            'required', 'string', 'max:'.$max, 'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\&]*$/iu',
+            'required', 'string', 'max:'.$max, new PersonName,
             $this->notNA(),
-            $this->meaningfulText('Enter a real designation, not just numbers.'),
         ];
     }
 

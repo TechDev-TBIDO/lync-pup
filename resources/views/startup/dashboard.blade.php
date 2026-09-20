@@ -119,28 +119,77 @@
     @endforeach
 
     {{--
-        Wide desktop screens (1280px+) have a lot of empty gradient between the score and the
-        TRL/MRL/TMRL/SRL tiles, so the tiles step up slightly there (bigger box,
-        label and score) to use that space. Below that only the depth effect below applies.
-        Plain scoped CSS + !important rather than Tailwind classes because the
-        app's CSS bundle is pre-compiled and won't contain new arbitrary sizes.
+        Overall Readiness banner sizing is driven by the BANNER'S OWN width (container
+        queries), not the browser window's. Breakpoints like lg:/xl: key off the window,
+        but the founder sidebar eats ~250px of it, so at a given window width the banner
+        can be far narrower than the breakpoint assumes — that's what used to push the
+        four tiles (fixed min-widths) into each other and into the score text. Here:
+          - below 680px of banner width, the score block stacks above the tiles;
+          - at/above it, they sit side by side;
+          - the tiles are always four equal, shrinkable columns (minmax(0, 1fr), no
+            min-width) and their text scales with the banner (clamp + cqw), so nothing
+            can overflow or overlap at any width.
+        Plain scoped CSS rather than Tailwind classes because the app's CSS bundle is
+        pre-compiled and won't contain new arbitrary sizes.
     --}}
     <style>
-        /* "Pressed-in" look: same 15% white fill as before, plus a soft dark
-           inner edge so the tiles read as recessed into the banner. Applies at
-           every screen size. */
-        .readiness-tile { box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.35); }
-        @media (min-width: 1280px) {
-            .readiness-tile { min-width: 150px !important; padding: 14px 20px !important; }
-            .readiness-tile-label { font-size: 13px !important; }
-            .readiness-tile-score { font-size: 46px !important; }
+        .readiness-banner { container-type: inline-size; }
+
+        .readiness-row {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .readiness-summary { min-width: 0; }
+
+        .readiness-tiles {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            min-width: 0;
+        }
+
+        /* "Pressed-in" look: 15% white fill plus a soft dark inner edge so the
+           tiles read as recessed into the banner. */
+        .readiness-tile {
+            min-width: 0;
+            padding: 10px 6px;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.35);
+        }
+        .readiness-tile-label {
+            font-size: clamp(9px, 2.6cqw, 12px);
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: clip;
+        }
+        .readiness-tile-score {
+            font-size: clamp(20px, 8cqw, 40px);
+            white-space: nowrap;
+        }
+
+        @container (min-width: 680px) {
+            .readiness-row {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 24px;
+            }
+            .readiness-summary { flex: 0 1 auto; min-width: 200px; }
+            .readiness-tiles {
+                flex: 1 1 0;
+                max-width: 640px;
+                gap: 12px;
+            }
+            .readiness-tile { padding: 12px 10px; }
+            .readiness-tile-label { font-size: clamp(11px, 1.9cqw, 13px); }
+            .readiness-tile-score { font-size: clamp(28px, 5.4cqw, 46px); }
         }
     </style>
 
     {{-- Overall Readiness --}}
-    <div class="mb-5 rounded-2xl bg-gradient-to-r from-[#6C0E24] to-[#AE0129] p-5 text-white shadow-sm sm:mb-6 sm:p-6">
-        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
-            <div>
+    <div class="readiness-banner mb-5 rounded-2xl bg-gradient-to-r from-[#6C0E24] to-[#AE0129] p-5 text-white shadow-sm sm:mb-6 sm:p-6">
+        <div class="readiness-row">
+            <div class="readiness-summary">
                 <p class="text-xs font-semibold uppercase tracking-wide text-white/80">
                     Overall Readiness
                     @if ($readinessStage)
@@ -160,11 +209,11 @@
                 </span>
             </div>
 
-            <div class="readiness-tiles grid grid-cols-4 gap-2 sm:gap-3 lg:w-auto">
+            <div class="readiness-tiles">
                 @foreach (\App\Support\ReadinessRubric::TYPES as $type)
-                <div class="readiness-tile flex min-w-0 flex-col items-center justify-center rounded-xl bg-white/15 px-2 py-2 text-center sm:min-w-[118px] sm:px-4 sm:py-2.5">
-                    <p class="readiness-tile-label text-[10px] font-semibold uppercase tracking-wide text-white/70 sm:text-xs">{{ $type }}</p>
-                    <p class="readiness-tile-score mt-0.5 text-[26px] font-bold leading-none sm:text-[40px]">
+                <div class="readiness-tile flex flex-col items-center justify-center rounded-xl bg-white/15 text-center">
+                    <p class="readiness-tile-label font-semibold uppercase tracking-wide text-white/70">{{ $type }}</p>
+                    <p class="readiness-tile-score mt-0.5 font-bold leading-none">
                         {{ $assessment && $assessment->scoreFor($type) !== null ? number_format($assessment->scoreFor($type), 1) : '—' }}
                     </p>
                 </div>

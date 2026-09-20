@@ -32,5 +32,6 @@
                 {{ $slot }}
             </main>
         </div>
-    </body>
+        @include('partials.input-guards')
+</body>
 </html>

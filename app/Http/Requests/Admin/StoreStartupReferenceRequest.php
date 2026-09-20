@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\PersonName;
+use App\Rules\PhMobile;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreStartupReferenceRequest extends FormRequest
@@ -14,8 +16,8 @@ class StoreStartupReferenceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:150'],
-            'contact' => ['nullable', 'string', 'max:50'],
+            'name' => ['required', 'string', 'max:150', new PersonName],
+            'contact' => ['nullable', 'string', 'max:13', new PhMobile],
             'email' => ['nullable', 'email', 'max:150'],
             'address' => ['nullable', 'string', 'max:255'],
         ];

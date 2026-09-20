@@ -35,7 +35,37 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_first_login' => 'boolean',
+            'module_seen_at' => 'array',
         ];
+    }
+
+    /**
+     * When this user last opened a module that flags new entries with a red
+     * dot (see components/new-dot.blade.php). An entry created after this
+     * moment is "new". A module never opened before falls back to when the
+     * account itself was created, so a brand-new admin sees what has come in
+     * since they joined rather than the module's entire history.
+     */
+    public function moduleSeenAt(string $module): \Illuminate\Support\Carbon
+    {
+        $stored = $this->module_seen_at[$module] ?? null;
+
+        return $stored
+            ? \Illuminate\Support\Carbon::parse($stored)
+            : ($this->created_at ?? now());
+    }
+
+    /**
+     * Records that the module was just opened. Callers pass the moment the
+     * request STARTED (captured before querying what's new) so an entry that
+     * lands while the page is still building isn't swallowed as "seen".
+     */
+    public function markModuleSeen(string $module, ?\Illuminate\Support\Carbon $at = null): void
+    {
+        $seen = $this->module_seen_at ?? [];
+        $seen[$module] = ($at ?? now())->toDateTimeString();
+
+        $this->forceFill(['module_seen_at' => $seen])->save();
     }
 
     // Relationships

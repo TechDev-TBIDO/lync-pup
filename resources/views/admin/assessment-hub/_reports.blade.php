@@ -64,7 +64,9 @@
                         <td class="px-4 py-4">
                             <div class="flex flex-wrap justify-center gap-2">
                                 @foreach ($row['documents'] as $doc)
-                                <span class="whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold
+                                {{-- Same fixed tag width as the Overview tab's document tags
+                                     (_assessment.blade.php) so both read as one even set. --}}
+                                <span style="min-width: 7.5rem;" class="whitespace-nowrap rounded-full border px-3 py-1 text-center text-xs font-semibold
                                         {{ $doc['included'] ? 'border-green-400 text-green-700 bg-green-50' : 'border-rose-200 text-rose-500 bg-rose-50' }}">
                                     {{ $doc['label'] }}
                                 </span>

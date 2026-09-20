@@ -132,7 +132,15 @@
                                     };
                                     @endphp
                                     <tr x-data="{ step: null, submitting: false }">
-                                    <td class="px-4 py-3 font-medium text-gray-900 text-left" style="padding-left: 24px;">{{ $founder->name }}</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900 text-left" style="padding-left: 24px;">
+                                        {{-- New since the admin's last visit (see FounderApplicationController::index()) --}}
+                                        <span class="inline-flex items-center gap-2">
+                                            @if (in_array($application->startup_id, $newStartupIds ?? [], true))
+                                            <x-new-dot />
+                                            @endif
+                                            {{ $founder->name }}
+                                        </span>
+                                    </td>
                                     <td class="px-4 py-3 text-gray-600 text-center">{{ $application->company_name }}</td>
                                     <td class="px-4 py-3 text-gray-600 text-center">{{ $founder->email }}</td>
                                     <td class="px-4 py-3 text-gray-600 text-center">{{ $founder->created_at->format('M j, Y g:i A') }}</td>

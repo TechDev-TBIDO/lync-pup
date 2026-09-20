@@ -29,7 +29,18 @@
         no such redirect happened — the tab selector itself just forgot what
         the user had picked.
     --}}
-    <div class="h-screen lg:overflow-hidden flex flex-col lg:flex-row" x-data="{ activeTab: '{{ old('role', 'Startup') }}' }">
+    <div class="h-screen lg:overflow-hidden flex flex-col lg:flex-row" x-data="{
+            activeTab: '{{ old('role', 'Startup') }}',
+            lockoutSeconds: {{ (int) session('lockout_seconds', 0) }},
+            lockoutEndsAt: Date.now() + {{ (int) session('lockout_seconds', 0) }} * 1000,
+            init() {
+                if (this.lockoutSeconds <= 0) return;
+                const timer = setInterval(() => {
+                    this.lockoutSeconds = Math.max(0, Math.ceil((this.lockoutEndsAt - Date.now()) / 1000));
+                    if (this.lockoutSeconds === 0) clearInterval(timer);
+                }, 250);
+            },
+        }">
 
         {{-- Left panel --}}
         <div class="hidden lg:flex lg:w-1/2 relative bg-[#5c0f1e] text-white flex-col justify-between
@@ -132,7 +143,8 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('login') }}" class="space-y-5">
+                <form method="POST" action="{{ route('login') }}" class="space-y-5"
+                    @submit="if (lockoutSeconds > 0) $event.preventDefault()">
                     @csrf
                     <input type="hidden" name="role" :value="activeTab">
 
@@ -184,7 +196,22 @@
                             </button>
                         </div>
                         @error('password')
+                        @if (session('lockout_seconds'))
+                        {{-- Lockout message ("Too many login attempts…") as a live countdown
+                             instead of a number frozen at whatever it was when the attempt got
+                             blocked. Counts down against a fixed end time (not by decrementing)
+                             so it stays accurate even if the tab gets throttled in the
+                             background. The countdown state lives on the page's root x-data
+                             (top of this file) so the Sign in button can read it too. At zero
+                             the message hides itself and the button re-enables; the lockout has
+                             really expired server-side by then, so signing in works again
+                             without a manual reload. --}}
+                        <p class="mt-1 text-sm text-red-600"
+                            x-show="lockoutSeconds > 0"
+                            x-text="@js(trans('auth.throttle', ['seconds' => '__SECONDS__'])).replace('__SECONDS__', lockoutSeconds)">{{ $message }}</p>
+                        @else
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @endif
                         @enderror
                     </div>
 
@@ -194,8 +221,11 @@
                         <label for="remember" class="ml-2 text-sm text-gray-600">Remember me</label>
                     </div>
 
+                    {{-- Disabled while the lockout countdown runs (see the Password error above). --}}
                     <button type="submit"
-                        class="w-full bg-rose-900 hover:bg-rose-950 text-white font-semibold py-3 rounded-lg transition">
+                        :disabled="lockoutSeconds > 0"
+                        :class="lockoutSeconds > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-950'"
+                        class="w-full bg-rose-900 text-white font-semibold py-3 rounded-lg transition">
                         Sign in as <span x-text="activeTab === 'Startup' ? 'Founder' : 'Admin'"></span>
                     </button>
                 </form>

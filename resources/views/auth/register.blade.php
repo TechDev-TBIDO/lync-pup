@@ -58,7 +58,7 @@
                         <svg class="w-4 h-4 absolute left-3 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name"
+                        <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" data-person-name
                             placeholder="Juan Dela Cruz"
                             class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-800 focus:border-rose-800">
                     </div>

@@ -41,7 +41,7 @@ for ($i = 0; $i < $count; $i++) {
     // instead of being retyped by the assessor here — rendered read-only
     // below so they can never drift from the source of truth.
     $overviewFounderName = $selectedStartup?->informationSheet?->full_name ?: $selectedStartup?->user?->name;
-    $overviewContactInfo = $selectedStartup?->informationSheet?->mobile_no ?: $selectedStartup?->contact_phone;
+    $overviewContactInfo = preg_replace('/[\s\-]/', '', (string) ($selectedStartup?->informationSheet?->mobile_no ?: $selectedStartup?->contact_phone));
     $overviewTechLead = $selectedStartup?->teamMembers?->first(fn ($member) => str_contains(strtolower($member->designation ?? ''), 'cto')
             || str_contains(strtolower($member->designation ?? ''), 'tech lead')
             || str_contains(strtolower($member->role ?? ''), 'cto'))
@@ -55,10 +55,10 @@ for ($i = 0; $i < $count; $i++) {
     // old auto-filled behavior) the first time each type is saved;
     // Reviewed by / Noted by have no sensible default and start blank
     // until someone fills them in.
-    $overviewMrlEvaluatedBy = $currentAssessment?->mrl_evaluated_by ?? (auth()->user()?->name ?? auth()->user()?->email ?? '');
+    $overviewMrlEvaluatedBy = $currentAssessment?->mrl_evaluated_by ?? (auth()->user()?->name ?? '');
     $overviewMrlReviewedBy = $currentAssessment?->mrl_reviewed_by ?? '';
     $overviewMrlNotedBy = $currentAssessment?->mrl_noted_by ?? '';
-    $overviewTmrlEvaluatedBy = $currentAssessment?->tmrl_evaluated_by ?? (auth()->user()?->name ?? auth()->user()?->email ?? '');
+    $overviewTmrlEvaluatedBy = $currentAssessment?->tmrl_evaluated_by ?? (auth()->user()?->name ?? '');
     $overviewTmrlReviewedBy = $currentAssessment?->tmrl_reviewed_by ?? '';
     $overviewTmrlNotedBy = $currentAssessment?->tmrl_noted_by ?? '';
 
@@ -296,7 +296,12 @@ for ($i = 0; $i < $count; $i++) {
                                             'rl_type' => $pill['nav_type'],
                                             'active_doc' => $pill['nav_document'],
                                         ])) }}"
-                                        class="whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold transition hover:opacity-75
+                                        {{-- Every tag gets the same width (sized to fit the longest one,
+                                             "VENTURE EXIT") instead of shrink-wrapping its own text, so the
+                                             pills line up as an even set. min-width rather than width so a
+                                             wider font can still grow it instead of clipping the label. --}}
+                                        style="min-width: 7.5rem;"
+                                        class="whitespace-nowrap rounded-full border px-3 py-1 text-center text-xs font-semibold transition hover:opacity-75
                                                 {{ $pill['completed'] ? 'border-green-400 text-green-700 bg-green-50' : 'border-rose-200 text-rose-500 bg-rose-50' }}">
                                         {{ $pill['label'] }}
                                     </a>
@@ -360,6 +365,26 @@ for ($i = 0; $i < $count; $i++) {
             set notedBy(v) { if (this.activeType === 'MRL') this.mrlNotedBy = v; else this.tmrlNotedBy = v; },
             get notedByPosition() { return this.activeType === 'MRL' ? this.mrlNotedByPosition : this.tmrlNotedByPosition; },
             set notedByPosition(v) { if (this.activeType === 'MRL') this.mrlNotedByPosition = v; else this.tmrlNotedByPosition = v; },
+            // Every signatory name/position (all of MRL, TMRL, SRL and TRL are
+            // posted on each save) plus the TRL overview contact number: a bad
+            // one blocks the whole save instead of being stored.
+            formProblem() {
+                const list = [];
+                [['MRL', 'mrl'], ['TMRL', 'tmrl'], ['SRL', 'srl']].forEach(([label, k]) => {
+                    ['Evaluated', 'Reviewed', 'Noted'].forEach(role => {
+                        const base = k + role + 'By';
+                        list.push([`${label} ${role} by name`, this[base], 'name']);
+                        list.push([`${label} ${role} by position`, this[base + 'Position'], 'name']);
+                    });
+                });
+                [['Prepared by', 'preparedBy'], ['TRL Noted by', 'trlNotedBy'], ['Approved by', 'approvedBy']].forEach(([label, base]) => {
+                    list.push([`${label} name`, this[base], 'name']);
+                    list.push([`${label} position`, this[base + 'Position'], 'name']);
+                });
+                list.push(['TRL Overview contact information', this.trlOverview ? this.trlOverview.contact_info : '', 'phone']);
+
+                return window.LyncFormat.firstProblem(list);
+            },
             preparedBy: @js($overviewPreparedBy),
             preparedByPosition: @js($overviewPreparedByPosition),
             trlNotedBy: @js($overviewTrlNotedBy),
@@ -729,7 +754,7 @@ for ($i = 0; $i < $count; $i++) {
                 </div>
 
                 <form method="POST" action="{{ route('admin.assessment-hub.assessments.update', $selectedStartup) }}" id="assessment-form"
-                    @submit="$store.navigation.hasUnsavedChanges = false">
+                    @submit="const problem = formProblem(); if (problem) { $event.preventDefault(); $store.toast.error('Cannot save yet', problem); } else { $store.navigation.hasUnsavedChanges = false }">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="stage" value="{{ $selectedStage }}">
@@ -847,7 +872,7 @@ for ($i = 0; $i < $count; $i++) {
 
                                         <div>
                                             <p class="mb-1.5 text-sm font-semibold text-gray-700">Contact Information</p>
-                                            <input type="text" x-model="trlOverview.contact_info"
+                                            <input type="text" x-model="trlOverview.contact_info" data-ph-mobile maxlength="13" inputmode="tel"
                                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                                         </div>
 
@@ -1081,9 +1106,9 @@ for ($i = 0; $i < $count; $i++) {
                     <div x-show="activeType === 'TRL'" x-cloak class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Prepared By:</p>
-                            <input type="text" x-model="preparedBy" placeholder="Input Name"
+                            <input type="text" x-model="preparedBy" data-person-name placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <input type="text" x-model="preparedByPosition" placeholder="Position"
+                            <input type="text" x-model="preparedByPosition" data-person-name placeholder="Position"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                         </div>
 
@@ -1097,9 +1122,9 @@ for ($i = 0; $i < $count; $i++) {
 
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Approved by:</p>
-                            <input type="text" x-model="approvedBy"
+                            <input type="text" x-model="approvedBy" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <textarea x-model="approvedByPosition" rows="2"
+                            <textarea x-model="approvedByPosition" data-person-name rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                         </div>
                     </div>
@@ -1107,30 +1132,30 @@ for ($i = 0; $i < $count; $i++) {
                     <div x-show="activeType === 'MRL' || activeType === 'TMRL'" x-cloak class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
-                            <input type="text" x-model="evaluatedBy" placeholder="Input Name"
+                            <input type="text" x-model="evaluatedBy" data-person-name placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             @if ($isPostAssessment)
-                            <input type="text" x-model="evaluatedByPosition" placeholder="Position"
+                            <input type="text" x-model="evaluatedByPosition" data-person-name placeholder="Position"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                             @else
-                            <textarea x-model="evaluatedByPosition" rows="2"
+                            <textarea x-model="evaluatedByPosition" data-person-name rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                             @endif
                         </div>
 
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
-                            <input type="text" x-model="reviewedBy" placeholder="Input Name"
+                            <input type="text" x-model="reviewedBy" data-person-name placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <input type="text" x-model="reviewedByPosition"
+                            <input type="text" x-model="reviewedByPosition" data-person-name
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                         </div>
 
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
-                            <input type="text" x-model="notedBy" placeholder="Input name"
+                            <input type="text" x-model="notedBy" data-person-name placeholder="Input name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <textarea x-model="notedByPosition" rows="2"
+                            <textarea x-model="notedByPosition" data-person-name rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                         </div>
                     </div>

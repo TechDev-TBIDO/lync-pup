@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Startup;
 
+use App\Rules\PersonName;
+use App\Rules\PhMobile;
 use App\Support\SheetOptions;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -161,31 +163,53 @@ class UpdateInformationSheetRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            $this->guardScheduledEvaluationFields($validator);
+            $this->guardFilledFieldsStayFilled($validator);
             $this->guardEducationalBackgroundConsistency($validator);
         });
     }
 
     /**
-     * Once this startup has a scheduled evaluation, fields that already
-     * hold a value can be replaced but not cleared — see
-     * InformationSheet::blankedFields() and Startup::hasScheduledEvaluation().
+     * "Once filled, never blank" - a required field that already holds a saved
+     * answer can be replaced but not cleared. A final Submit always enforces
+     * it. A draft Save is free to clear fields only while the sheet has never
+     * been submitted (the founder is still working on it); once it has been
+     * submitted - or an evaluation is scheduled - every later edit, draft
+     * Save included, can replace an answer but not blank it. See
+     * InformationSheet::blankedFields().
      */
-    private function guardScheduledEvaluationFields(Validator $validator): void
+    private function guardFilledFieldsStayFilled(Validator $validator): void
     {
         $startup = $this->user()->startup;
         $sheet = $startup?->informationSheet;
 
-        if (! $sheet || ! $startup->hasScheduledEvaluation()) {
+        if (! $sheet) {
             return;
         }
 
+        if ($this->isDraftSave() && ! $sheet->submission_date && ! $startup->hasScheduledEvaluation()) {
+            return;
+        }
+
+        // Only the required fields. height_m / weight_kg are the derived
+        // values behind the height/weight boxes, so a blanked box is caught
+        // here under the field the page anchors its error to.
+        $required = collect($this->strictRules())
+            ->filter(fn ($fieldRules) => in_array('required', $fieldRules, true))
+            ->keys()
+            ->all();
+
         $data = collect($validator->getData())->except(['_token', '_method'])->all();
 
-        foreach ($sheet->blankedFields($data) as $field) {
+        foreach ($sheet->blankedFields($data, $required) as $field) {
+            // A Submit that leaves it blank already failed 'required' - one
+            // message per field is enough.
+            if ($validator->errors()->has($field)) {
+                continue;
+            }
+
             $validator->errors()->add(
                 $field,
-                'This field cannot be cleared once an evaluation has been scheduled — please keep or replace the existing value.'
+                "This field was already filled in, so it can't be left blank - keep the current answer or replace it with a new one."
             );
         }
     }
@@ -303,6 +327,7 @@ class UpdateInformationSheetRequest extends FormRequest
         $properName = fn (int $max) => [
             'required', 'string', 'max:'.$max,
             'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu',
+            new PersonName,
         ];
 
         // Same shape as above, but N/A is a real answer here - not everyone
@@ -310,6 +335,7 @@ class UpdateInformationSheetRequest extends FormRequest
         $name = fn (int $max) => [
             'required', 'string', 'max:'.$max,
             'regex:/^(n\/a|[\p{L}][\p{L}\s\.\-\x{2019}\']*)$/iu',
+            new PersonName,
         ];
 
         // A Philippine government/business ID number: digits and hyphens
@@ -675,7 +701,7 @@ class UpdateInformationSheetRequest extends FormRequest
             // The picker is capped at the same bounds (see $dobMin / $dobMax in the
             // view). Repeated here because a request can arrive without it.
             'date_of_birth' => ['required', 'date', 'before:2010-01-01', 'after:1900-01-01'],
-            'mobile_no' => ['required', 'string', 'max:20', 'regex:/^(\+63|0)9\d{2}[ -]?\d{3}[ -]?\d{4}$/'],
+            'mobile_no' => ['required', 'string', 'max:13', new PhMobile],
             'founder_email' => ['required', 'email', 'max:150'],
 
             'secondary_school' => $schoolName(150),
@@ -785,7 +811,6 @@ class UpdateInformationSheetRequest extends FormRequest
             'date_of_birth.after' => 'Please enter a valid date of birth.',
 
             'mobile_no.required' => 'Please enter your mobile number.',
-            'mobile_no.regex' => 'Please enter a valid mobile number (e.g., 09171234567).',
             'founder_email.required' => 'Please enter your email address.',
             'founder_email.email' => 'Please enter a valid email address.',
 

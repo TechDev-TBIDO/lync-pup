@@ -114,8 +114,17 @@ class LoginRequest extends FormRequest
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
+        // The message below bakes the number in as plain text, which would sit
+        // frozen on the page. Flashing the raw seconds alongside it lets the
+        // login view swap that text for a live countdown (auth/login.blade.php)
+        // that clears itself once the wait is over. Flash data only survives
+        // the redirect back, so a reload still drops both, as before.
+        session()->flash('lockout_seconds', $seconds);
+
+        // Surfaced under the Password field (same as "Incorrect Password"):
+        // that's where the blocked attempt came from, so it's where the eye is.
         throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
+            'password' => trans('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),

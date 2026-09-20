@@ -77,6 +77,16 @@ class InformationSheetController extends Controller
 
         $data = $request->validated();
 
+        // Belt and braces for the request-level guard: on a Submit, or on any
+        // edit once the sheet has been submitted (or an evaluation is
+        // scheduled), a filled column is never overwritten with a blank,
+        // whichever path got us here. Only a draft Save on a sheet that has
+        // never been submitted stays free to clear a field the founder means
+        // to retype.
+        if (! $request->isDraftSave() || $sheet->submission_date || $startup->hasScheduledEvaluation()) {
+            $data = $sheet->withoutBlanking($data);
+        }
+
         // A draft Save just persists whatever's filled in — it never touches
         // approval_status/submission_date, so it can't accidentally re-open
         // an Approved/Rejected sheet or restart the evaluation countdown.

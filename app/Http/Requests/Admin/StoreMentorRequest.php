@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\PersonName;
+use App\Rules\PhMobile;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 
@@ -23,8 +25,8 @@ class StoreMentorRequest extends FormRequest
             // be grouped by "identity fields first", or a lower field's
             // error (e.g. Honorifics) wins the toast even though First Name
             // is what the user actually sees blank at the top of the form.
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
+            'first_name' => ['required', 'string', 'max:100', new PersonName],
+            'last_name' => ['required', 'string', 'max:100', new PersonName],
             'honorific' => ['required', 'string', 'in:Mr.,Ms.,Mrs.,Dr.,Prof.,Atty.,Engr.'],
             'specialization' => ['required', 'string', 'in:Engineering,Business,Marketing,Legal,Finance,Technology,Others'],
             'specialization_other' => ['nullable', 'required_if:specialization,Others', 'string', 'max:150'],
@@ -34,11 +36,8 @@ class StoreMentorRequest extends FormRequest
             // want: something@something.tld, matching the field's
             // "example@email.com" placeholder.
             'contact_email' => ['nullable', 'email', 'max:150', 'regex:/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/'],
-            // Matches the "09XX-XXX-XXXX" placeholder: exactly 11 digits,
-            // starting with 09 (PH mobile format). Replaces the old bare
-            // 'digits:11', which would have accepted any 11-digit string
-            // (e.g. one starting with 00) with no real format guarantee.
-            'contact_number' => ['nullable', 'regex:/^09\d{9}$/'],
+            // Strict PH mobile: exactly 09XXXXXXXXX or +639XXXXXXXXX (PhMobile rule).
+            'contact_number' => ['nullable', new PhMobile],
             'mentor_photo' => [
                 'nullable',
                 'max:20480', // 20MB raw upload cap; gets compressed to ~2MB on save
@@ -86,7 +85,6 @@ class StoreMentorRequest extends FormRequest
             'specialization_other.required_if' => 'Please type the specific expertise.',
             'contact_email.email' => 'Please enter a valid email address, e.g. example@email.com.',
             'contact_email.regex' => 'Please enter a valid email address, e.g. example@email.com.',
-            'contact_number.regex' => 'Please enter a valid mobile number in the format 09XX-XXX-XXXX.',
             'mentor_photo.max' => 'Photo must be 20MB or smaller.',
         ];
     }

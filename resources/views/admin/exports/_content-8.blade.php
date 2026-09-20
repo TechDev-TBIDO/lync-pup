@@ -1,5 +1,9 @@
 @php
     $data = $document?->data ?? [];
+    // The "Others" text only prints when its box is ticked; leftover text from an unticked box is ignored.
+    $othersText = fn (string $group) => data_get($data, "$group.others_checked")
+        ? trim((string) data_get($data, "$group.others_text", ''))
+        : '';
     $v = fn ($val) => $val !== null && $val !== '' ? e($val) : '&nbsp;';
     $categories = \App\Support\ActiveAssessmentForms::document8RatingCategories();
 
@@ -24,18 +28,21 @@
             @foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_8_PLATFORM_COMPATIBILITY as $option)
                 <span class="checkbox">{{ data_get($data, "platform_compatibility.$option") ? 'X' : '' }}</span> {{ $option }}<br>
             @endforeach
+            <span class="checkbox">{{ data_get($data, "platform_compatibility.others_checked") ? 'X' : '' }}</span> Others: <span style="text-decoration: underline;">{!! ($t = $othersText('platform_compatibility')) !== '' ? e($t) : str_repeat('&nbsp;', 16) !!}</span><br>
         </td>
         <td width="33%">
             <div class="field-row"><span class="field-label">Current Development Status:</span></div>
             @foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_8_DEVELOPMENT_STATUS as $option)
                 <span class="checkbox">{{ data_get($data, "development_status.$option") ? 'X' : '' }}</span> {{ $option }}<br>
             @endforeach
+            <span class="checkbox">{{ data_get($data, "development_status.others_checked") ? 'X' : '' }}</span> Others: <span style="text-decoration: underline;">{!! ($t = $othersText('development_status')) !== '' ? e($t) : str_repeat('&nbsp;', 16) !!}</span><br>
         </td>
         <td width="33%">
             <div class="field-row"><span class="field-label">IP Status:</span></div>
             @foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_8_IP_STATUS as $option)
                 <span class="checkbox">{{ data_get($data, "ip_status.$option") ? 'X' : '' }}</span> {{ $option }}<br>
             @endforeach
+            <span class="checkbox">{{ data_get($data, "ip_status.others_checked") ? 'X' : '' }}</span> Others: <span style="text-decoration: underline;">{!! ($t = $othersText('ip_status')) !== '' ? e($t) : str_repeat('&nbsp;', 16) !!}</span><br>
         </td>
     </tr>
 </table>

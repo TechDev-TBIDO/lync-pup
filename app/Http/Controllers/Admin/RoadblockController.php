@@ -27,6 +27,22 @@ class RoadblockController extends Controller
             ->where('type', NewRoadblockSubmitted::class)
             ->update(['read_at' => now()]);
 
+        // Per-card red dots: which Pending cards arrived since this admin last
+        // opened the page. Deliberately NOT read off the notification above —
+        // opening the dashboard's "New roadblock submitted" card marks that
+        // notification read and THEN redirects here, so by the time this
+        // runs it would already be gone and the cards would never get a dot
+        // for anyone arriving that way. A per-module "last opened" timestamp
+        // (see User::moduleSeenAt()) doesn't care how the admin got here.
+        $admin = auth()->user();
+        $visitedAt = now();
+        $newRoadblockIds = Roadblock::where('status', 'Pending')
+            ->where('created_at', '>', $admin->moduleSeenAt('roadblocks'))
+            ->pluck('roadblock_id')
+            ->map(fn ($id) => (int) $id) // driver may hand ids back as strings; the view compares strictly
+            ->all();
+        $admin->markModuleSeen('roadblocks', $visitedAt);
+
         // The app-wide selected cohort (see ResolveSelectedCohort) — every
         // stage table below narrows to just this cohort's roadblocks when
         // one is selected, instead of always mixing every cohort together.
@@ -104,6 +120,7 @@ class RoadblockController extends Controller
                 ->latest()
                 ->get(),
             'pending' => $pending,
+            'newRoadblockIds' => $newRoadblockIds,
             'upcoming' => $upcoming,
             'scheduledToday' => $scheduledToday,
             'assessment' => $assessment,

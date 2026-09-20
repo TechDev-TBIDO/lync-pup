@@ -283,6 +283,11 @@
                                 {{ $roadblock->display_category }}
                             </span>
 
+                            {{-- New since the admin's last visit (see RoadblockController::index()) --}}
+                            @if (in_array($roadblock->roadblock_id, $newRoadblockIds ?? [], true))
+                            <x-new-dot size="md" class="absolute left-3 top-3 ring-2 ring-white" />
+                            @endif
+
                         </div>
 
                         <div class="flex flex-1 flex-col p-3 sm:p-4">

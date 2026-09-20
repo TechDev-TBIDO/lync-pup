@@ -554,16 +554,20 @@ class WordDocumentExporter
             }
         }
 
-        $processor->setValue('evaluated_by', $vc($assessment?->evaluated_by));
-        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->evaluated_by_position ?? ''));
+        // SRL's own signatory block (srl_evaluated_by / srl_reviewed_by / srl_noted_by + positions) —
+        // the same columns the SRL tab on screen writes to. This used to read the old shared
+        // evaluated_by/reviewed_by/noted_by columns (which MRL and TMRL stopped using), so
+        // whatever an admin typed on the SRL tab never reached the Word document.
+        $processor->setValue('evaluated_by', $vc($assessment?->srl_evaluated_by));
+        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->srl_evaluated_by_position ?? ''));
         $processor->setValue('evaluated_by_position_1', $v($evaluatedPositionLines[0] ?? ''));
         $processor->setValue('evaluated_by_position_2', $v($evaluatedPositionLines[1] ?? ''));
 
-        $processor->setValue('reviewed_by', $vc($assessment?->reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->reviewed_by_position));
+        $processor->setValue('reviewed_by', $vc($assessment?->srl_reviewed_by));
+        $processor->setValue('reviewed_by_position', $v($assessment?->srl_reviewed_by_position));
 
-        $processor->setValue('noted_by', $vc($assessment?->noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->noted_by_position ?? ''));
+        $processor->setValue('noted_by', $vc($assessment?->srl_noted_by));
+        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->srl_noted_by_position ?? ''));
         $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
         $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
 
@@ -806,14 +810,15 @@ class WordDocumentExporter
             }
         }
 
-        $processor->setValue('evaluated_by', $vc($assessment?->evaluated_by));
-        $processor->setValue('evaluated_by_position', $v($assessment?->evaluated_by_position));
+        // SRL's own signatory block — same columns the SRL tab on screen writes to (see Document 5).
+        $processor->setValue('evaluated_by', $vc($assessment?->srl_evaluated_by));
+        $processor->setValue('evaluated_by_position', $v($assessment?->srl_evaluated_by_position));
 
-        $processor->setValue('reviewed_by', $vc($assessment?->reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->reviewed_by_position));
+        $processor->setValue('reviewed_by', $vc($assessment?->srl_reviewed_by));
+        $processor->setValue('reviewed_by_position', $v($assessment?->srl_reviewed_by_position));
 
-        $processor->setValue('noted_by', $vc($assessment?->noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->noted_by_position ?? ''));
+        $processor->setValue('noted_by', $vc($assessment?->srl_noted_by));
+        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->srl_noted_by_position ?? ''));
         $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
         $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
 
@@ -1049,6 +1054,22 @@ class WordDocumentExporter
         foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_8_IP_STATUS as $i => $option) {
             $processor->setValue('ip_check_' . ($i + 1), $cbCheck((bool) data_get($data, "ip_status.$option")));
         }
+
+        // The "Others:" line under each of the three checklists. The form stores the typed text as
+        // <group>.others_text with <group>.others_checked beside it; the text is only printed when
+        // that Others box is actually ticked (leftover text from an unticked box must not leak into
+        // the document). It fills the template's ${pc_others} / ${ds_others} / ${ip_others}
+        // placeholders, which sit in an underlined run. Otherwise the line stays a blank underlined
+        // gap (non-breaking spaces) so it can still be filled in by hand.
+        $others = function (string $group, int $blankLength) use ($data): string {
+            $checked = filter_var(data_get($data, "$group.others_checked"), FILTER_VALIDATE_BOOLEAN);
+            $text = $checked ? trim((string) data_get($data, "$group.others_text", '')) : '';
+
+            return $text !== '' ? $text : str_repeat("\u{00A0}", $blankLength);
+        };
+        $processor->setValue('pc_others', $others('platform_compatibility', 19));
+        $processor->setValue('ds_others', $others('development_status', 17));
+        $processor->setValue('ip_others', $others('ip_status', 23));
 
         $categories = \App\Support\ActiveAssessmentForms::document8RatingCategories();
         $categoryAverages = [];

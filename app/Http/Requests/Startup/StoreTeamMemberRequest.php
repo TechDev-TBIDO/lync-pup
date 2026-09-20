@@ -61,7 +61,6 @@ class StoreTeamMemberRequest extends FormRequest
             'full_name.regex' => 'Format: Surname, Firstname — letters only, no numbers.',
             'designation.required' => 'Please enter the designation.',
             'phone.required' => 'Please enter the phone number.',
-            'phone.regex' => 'Format: 09XXXXXXXXX or +639XXXXXXXXX, digits only.',
             'address.required' => 'Please enter the address.',
             'address.regex' => 'Please enter a valid address.',
             'address.min' => 'Please enter the complete address.',

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Startup;
 
+use App\Rules\PersonName;
+use App\Rules\PhMobile;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -44,10 +46,16 @@ class UpdateStartupProfileRequest extends FormRequest
             // migration 000048), so it's a normal Profile field - no lock
             // to check here.
             'business_description' => ['required', 'string', 'min:50'],
-            'first_name' => ['required', 'string', 'max:100'],
-            'middle_name' => ['nullable', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'contact_phone' => ['required', 'string', 'max:13', 'regex:/^(09\d{9}|\+639\d{9})$/'],
+            'first_name' => ['required', 'string', 'max:100', new PersonName],
+            'middle_name' => ['nullable', 'string', 'max:100', new PersonName],
+            'last_name' => ['required', 'string', 'max:100', new PersonName],
+            'contact_phone' => ['required', 'string', 'max:13', new PhMobile],
+            // Profile Core Team roster: existing rows keyed by id, plus new
+            // rows. Each is a person's name - letters and / - ' . , only.
+            'team_members' => ['nullable', 'array'],
+            'team_members.*' => ['nullable', 'string', 'max:255', new PersonName],
+            'new_team_members' => ['nullable', 'array'],
+            'new_team_members.*' => ['nullable', 'string', 'max:255', new PersonName],
             'website' => ['nullable', 'url', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
             'startup_photo' => [
@@ -102,7 +110,6 @@ class UpdateStartupProfileRequest extends FormRequest
     {
         return [
             'contact_phone.required' => 'A phone number is required to complete your Startup Profile.',
-            'contact_phone.regex' => 'Enter a valid Philippine mobile number, for example 09171234567 or +639171234567.',
             'location.required' => 'An address is required to complete your Startup Profile.',
             'startup_photo.required' => 'A startup photo is required to complete your Startup Profile.',
             'business_description.min' => 'Your business description must be at least 50 characters.',
@@ -118,6 +125,8 @@ class UpdateStartupProfileRequest extends FormRequest
             'first_name' => 'first name',
             'middle_name' => 'middle name',
             'last_name' => 'last name',
+            'team_members.*' => 'team member name',
+            'new_team_members.*' => 'team member name',
         ];
     }
 }

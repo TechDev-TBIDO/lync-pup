@@ -190,7 +190,24 @@
         // front, the moment this page loads — see the x-init below —
         // purely as a heads-up, never as something to get past before
         // saving.
+        formProblem() {
+            const list = [];
+            ['evaluated', 'reviewed', 'noted'].forEach(k => {
+                const label = k.charAt(0).toUpperCase() + k.slice(1);
+                list.push([`${label} by name`, this.ve[k + '_by_name'], 'name']);
+                list.push([`${label} by position`, this.ve[k + '_by_position'], 'name']);
+            });
+
+            return window.LyncFormat.firstProblem(list);
+        },
         trySubmit(event) {
+            const problem = this.formProblem();
+            if (problem) {
+                event.preventDefault();
+                this.$store.toast.error('Cannot save yet', problem);
+                return;
+            }
+
             // Submission is actually going through (full page reload) —
             // same as the other assessment forms' @submit reset, so the
             // beforeunload guard doesn't fire a native 'leave site?' prompt
@@ -390,25 +407,25 @@
             <div class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
                 <div>
                     <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
-                    <input type="text" x-model="ve.evaluated_by_name" placeholder="Input Name"
+                    <input type="text" x-model="ve.evaluated_by_name" data-person-name placeholder="Input Name"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                    <input type="text" x-model="ve.evaluated_by_position"
+                    <input type="text" x-model="ve.evaluated_by_position" data-person-name
                         class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                 </div>
 
                 <div>
                     <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
-                    <input type="text" x-model="ve.reviewed_by_name" placeholder="Input Name"
+                    <input type="text" x-model="ve.reviewed_by_name" data-person-name placeholder="Input Name"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                    <input type="text" x-model="ve.reviewed_by_position"
+                    <input type="text" x-model="ve.reviewed_by_position" data-person-name
                         class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                 </div>
 
                 <div>
                     <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
-                    <input type="text" x-model="ve.noted_by_name" placeholder="Input Name"
+                    <input type="text" x-model="ve.noted_by_name" data-person-name placeholder="Input Name"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                    <input type="text" x-model="ve.noted_by_position"
+                    <input type="text" x-model="ve.noted_by_position" data-person-name
                         class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                 </div>
             </div>

@@ -200,7 +200,8 @@ class InformationSheetController extends Controller
         // Approval only locks the founder out (see Startup\InformationSheetController)
         // — an admin can still revise a sheet after it's approved, e.g. to fix a
         // typo the founder reported after the fact.
-        $data = $request->validated();
+        // A filled column is never overwritten with a blank (see InformationSheet::withoutBlanking()).
+        $data = $sheet->withoutBlanking($request->validated());
 
         // Admin edits are corrections made on the founder's behalf, so they
         // must not re-date the founder's declaration. Only fill it when the

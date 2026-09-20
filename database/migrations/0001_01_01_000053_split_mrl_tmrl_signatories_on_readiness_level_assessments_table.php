@@ -21,9 +21,10 @@ return new class extends Migration
      * from here on, editing MRL's block no longer touches TMRL's (and vice
      * versa). The old shared columns are left in place (not dropped): a
      * couple of Word-export code paths still read them for other purposes
-     * (SRL's own export oddly already reads these same shared columns —
-     * a separate, pre-existing quirk this migration deliberately leaves
-     * alone), so removing them is a separate decision, not this one's.
+     * (SRL's Word export used to read these same shared columns — a
+     * quirk this migration left alone; that export now reads the srl_*
+     * columns instead), so removing them is a separate decision, not
+     * this one's.
      */
     public function up(): void
     {

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Listeners\AssignLatestCohortOnVerification;
 use App\Models\Cohort;
+use App\Models\Startup;
 use App\Models\VersionHistory;
 use App\Notifications\NewRoadblockSubmitted;
 use Illuminate\Auth\Events\Verified;
@@ -72,6 +73,15 @@ class AppServiceProvider extends ServiceProvider
             if ($user && $user->isAdmin()) {
                 $badges['admin.roadblocks.index'] = $user->unreadNotifications()
                     ->where('type', NewRoadblockSubmitted::class)
+                    ->exists();
+
+                // Founder Registrations: any sign-up that arrived since this
+                // admin last opened that page (same "new since your last
+                // visit" rule as the per-row dots there — see
+                // Admin\FounderApplicationController::index()).
+                $badges['admin.founder-applications.index'] = Startup::query()
+                    ->whereHas('user', fn ($q) => $q->where('role', 'Startup'))
+                    ->where('created_at', '>', $user->moduleSeenAt('founder_registrations'))
                     ->exists();
 
                 $currentSignature = Cache::get('risk_monitoring_signature');

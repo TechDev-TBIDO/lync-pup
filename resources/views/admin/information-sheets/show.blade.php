@@ -454,6 +454,15 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     }
                     $numHtml = $number ? "<span class='font-semibold'>{$number}.</span> " : '';
                     $placeholder = $type === 'date' ? '' : ($hints[$name] ?? '');
+                    // Client-side character guard (partials/input-guards): person
+                    // names/positions keep letters and / - ' . , only; the mobile
+                    // number is exactly 09XXXXXXXXX or +639XXXXXXXXX. The server
+                    // enforces the same via App\Rules\PersonName / PhMobile.
+                    $guard = match (true) {
+                    in_array($name, ['surname', 'first_name', 'middle_name', 'name_extension', 'portfolio_manager', 'endorsed_by'], true) => 'data-person-name',
+                    $name === 'mobile_no' => 'data-ph-mobile inputmode="tel" maxlength="13"',
+                    default => '',
+                    };
                     $star = $required ? " <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span>" : '';
                     $upperClass = in_array($name, $upperFields, true) ? 'uppercase placeholder:normal-case' : '';
                     $requiredAttr = $required ? ' required' : '';
@@ -468,7 +477,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 :readonly=\"!editing\"
                                 class='w-full border rounded px-3 py-1.5 text-sm read-only:bg-gray-50 read-only:text-gray-500'
                                 @click=\"if(!editing){ lastClickedInput=\$el.name }\" @input=\"dirty=true\">"
-                    : "<textarea name=\"{$name}\" rows=\"1\" form=\"info-sheet-form\"{$requiredAttr}
+                    : "<textarea name=\"{$name}\" rows=\"1\" form=\"info-sheet-form\"{$requiredAttr} {$guard}
                                 :readonly=\"!editing\" placeholder=\"{$placeholder}\"
                                 x-init=\"autoGrow(\$el)\"
                                 @keydown.enter.prevent
@@ -883,13 +892,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     :class="isRemoving('{{ $rowKey }}') && 'js-skip'">
                                     @csrf @method('PATCH')
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
-                                        <textarea name="full_name" placeholder="Name" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->full_name }}</textarea>
+                                        <textarea name="full_name" data-person-name placeholder="Name" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->full_name }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
-                                        <textarea name="designation" placeholder="Designation" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->designation }}</textarea>
+                                        <textarea name="designation" data-person-name placeholder="Designation" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->designation }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
-                                        <textarea name="phone" placeholder="Phone" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->phone }}</textarea>
+                                        <textarea name="phone" data-ph-mobile maxlength="13" inputmode="tel" placeholder="Phone" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->phone }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
                                         <textarea name="address" placeholder="Address" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->address ?? '' }}</textarea>
@@ -950,13 +959,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         class="js-subform js-addform flex items-stretch text-sm">
                                         @csrf
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
-                                            <textarea name="full_name" placeholder="Name" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="full_name" data-person-name placeholder="Name" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
-                                            <textarea name="designation" placeholder="Designation" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="designation" data-person-name placeholder="Designation" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
-                                            <textarea name="phone" placeholder="Phone" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="phone" data-ph-mobile maxlength="13" inputmode="tel" placeholder="Phone" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
                                             <textarea name="address" placeholder="Address" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
@@ -1586,11 +1595,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 @csrf
                                 @method('PATCH')
                                 <div class="border-r border-gray-200">
-                                    <input type="text" name="name" value="{{ $reference->name }}"
+                                    <input type="text" name="name" data-person-name value="{{ $reference->name }}"
                                         placeholder="Name" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
                                 </div>
                                 <div class="border-r border-gray-200">
-                                    <input type="text" name="contact" value="{{ $reference->contact }}"
+                                    <input type="text" name="contact" data-ph-mobile maxlength="13" inputmode="tel" value="{{ $reference->contact }}"
                                         placeholder="Contact" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
                                 </div>
                                 <div class="border-r border-gray-200">
@@ -1636,11 +1645,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     class="js-subform js-addform grid grid-cols-4 flex-1 text-sm">
                                     @csrf
                                     <div class="border-r border-gray-200">
-                                        <textarea name="name" placeholder="Name"
+                                        <textarea name="name" data-person-name placeholder="Name"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                     <div class="border-r border-gray-200">
-                                        <textarea name="contact" placeholder="Contact"
+                                        <textarea name="contact" data-ph-mobile maxlength="13" inputmode="tel" placeholder="Contact"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                     <div class="border-r border-gray-200">
