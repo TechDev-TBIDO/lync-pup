@@ -19,6 +19,11 @@ class AssessmentHubController extends Controller
 {
     public function index(Request $request): View
     {
+        // Moves any Scheduled meeting whose end time has passed into Pending
+        // Review before the lists below are built. The app has no scheduler,
+        // so this is done lazily on load — same as Roadblock Management.
+        AssessmentMeeting::promoteEndedMeetingsToPendingReview();
+
         // The app-wide selected cohort (see ResolveSelectedCohort) — every
         // startup-scoped list on this page narrows to just this cohort when
         // one is selected, instead of always mixing every cohort together.
@@ -412,17 +417,31 @@ class AssessmentHubController extends Controller
         // ============ Assessment tab: Meetings ============
         // Scoped to the same $assessableStartups (Approved only) as the rest
         // of the Assessment tab — nothing to schedule an RLS assessment
-        // meeting about before a startup has even been accepted. The three
-        // sub-nav filters (Today/Upcoming/Archive) are purely date-derived
-        // (see AssessmentMeeting) rather than a stored status, so a
-        // rescheduled row simply reappears under whichever tab its new date
-        // now falls into.
+        // meeting about before a startup has even been accepted.
+        //
+        // Today/Upcoming hold Scheduled meetings that haven't ended yet;
+        // everything else is Archive, split by its stored status into the
+        // Pending Review / Resolved / Failed stages (see AssessmentMeeting) —
+        // the same lifecycle Roadblock Management's Archive has. A
+        // rescheduled row goes back to Scheduled and reappears under
+        // whichever of Today/Upcoming its new date falls into.
         $allAssessmentMeetings = AssessmentMeeting::with('startup')
             ->whereIn('startup_id', $assessableStartups->pluck('startup_id'))
             ->get();
         $meetingsToday = $allAssessmentMeetings->filter->isToday()->sortBy('start_time')->values();
         $meetingsUpcoming = $allAssessmentMeetings->filter->isUpcoming()->sortBy(['meeting_date', 'start_time'])->values();
-        $meetingsArchive = $allAssessmentMeetings->filter->isArchived()->sortByDesc('meeting_date')->values();
+        $meetingsPendingReview = $allAssessmentMeetings->filter->isInReview()
+            ->sortByDesc(fn ($m) => $m->meeting_date->format('Y-m-d').' '.$m->start_time)->values();
+        $meetingsResolved = $allAssessmentMeetings->filter->isResolved()->sortByDesc('resolved_at')->values();
+        $meetingsFailed = $allAssessmentMeetings->filter->isFailed()->sortByDesc('failed_at')->values();
+        $meetingsArchive = $meetingsPendingReview->concat($meetingsResolved)->concat($meetingsFailed)->values();
+
+        // One page-wide activity log for the Meetings nav (there's no single
+        // startup/stage to scope it to, unlike the per-stage score history).
+        $meetingVersionHistory = VersionHistory::where('context', 'Assessment Meetings')
+            ->with('user')
+            ->latest()
+            ->get();
 
         return view('admin.assessment-hub.index', [
             'pendingStartups' => $pendingStartups,
@@ -438,6 +457,10 @@ class AssessmentHubController extends Controller
             'meetingsToday' => $meetingsToday,
             'meetingsUpcoming' => $meetingsUpcoming,
             'meetingsArchive' => $meetingsArchive,
+            'meetingsPendingReview' => $meetingsPendingReview,
+            'meetingsResolved' => $meetingsResolved,
+            'meetingsFailed' => $meetingsFailed,
+            'meetingVersionHistory' => $meetingVersionHistory,
             'selectedStartup' => $selectedStartup,
             'selectedStage' => $selectedStage,
             'currentAssessment' => $currentAssessment,

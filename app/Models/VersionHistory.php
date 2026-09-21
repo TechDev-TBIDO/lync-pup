@@ -67,6 +67,13 @@ class VersionHistory extends Model
         'resolve_roadblock' => 'Resolved Roadblock',
         'fail_roadblock' => 'Marked Roadblock Failed',
         'recover_roadblock' => 'Recovered Roadblock',
+
+        // Assessment Hub > Meetings (context 'Assessment Meetings' —
+        // page-wide feed across every startup's assessment meetings; kept
+        // apart from the per-stage score history on purpose).
+        'resolve_assessment_meeting' => 'Resolved Assessment Meeting',
+        'fail_assessment_meeting' => 'Marked Assessment Meeting Failed',
+        'recover_assessment_meeting' => 'Recovered Assessment Meeting',
     ];
 
     public function startup()

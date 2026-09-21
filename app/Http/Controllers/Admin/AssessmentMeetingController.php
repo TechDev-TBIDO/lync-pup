@@ -7,12 +7,15 @@ use App\Http\Requests\Admin\StoreAssessmentMeetingRequest;
 use App\Http\Requests\Admin\UpdateAssessmentMeetingRequest;
 use App\Models\AssessmentMeeting;
 use App\Models\User;
+use App\Models\VersionHistory;
 use App\Notifications\AssessmentMeetingCancelled;
 use App\Notifications\AssessmentMeetingScheduled;
+use App\Notifications\AssessmentMeetingStatusUpdated;
 use Illuminate\Http\RedirectResponse;
 
 /**
- * The Assessment Hub's "Meetings" sub-nav (Today/Upcoming/Archive) — see
+ * The Assessment Hub's "Meetings" sub-nav (Today/Upcoming/Archive, with the
+ * Archive split into Pending Review/Resolved/Failed stages) — see
  * AssessmentMeeting's own class doc for what these are and how they differ
  * from the Information Sheet's EvaluationSchedule.
  */
@@ -31,9 +34,23 @@ class AssessmentMeetingController extends Controller
 
     public function update(UpdateAssessmentMeetingRequest $request, AssessmentMeeting $assessmentMeeting): RedirectResponse
     {
+        // Same rule as Roadblock's assign(): a Resolved meeting is closed
+        // out, so it has to be Recovered before it can be moved.
+        if ($assessmentMeeting->isResolved()) {
+            return back()->with('error', 'This meeting is already resolved. Recover it first before rescheduling.');
+        }
+
         $originalStartupId = $assessmentMeeting->startup_id;
 
-        $assessmentMeeting->update($request->validated());
+        $assessmentMeeting->update([
+            ...$request->validated(),
+            // Reschedule from any stage (Scheduled, or a Failed one in the
+            // Archive) puts the meeting back to a clean Scheduled state at
+            // its new date/time — it then lands under Today/Upcoming.
+            'status' => AssessmentMeeting::STATUS_SCHEDULED,
+            'resolved_at' => null,
+            'failed_at' => null,
+        ]);
 
         // The admin can also point a meeting at a different startup while
         // editing it. The original startup's meeting is effectively gone, so
@@ -49,6 +66,107 @@ class AssessmentMeetingController extends Controller
         return redirect()
             ->route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => 'Meetings'])
             ->with('status', 'Meeting rescheduled.');
+    }
+
+    /**
+     * Resolved / Failed / Recover are the admin's own judgment about whether
+     * the meeting itself happened — a plain one-click POST with no
+     * confirmation or remarks, same as Roadblock Management's. They
+     * deliberately never read or write ReadinessLevelAssessment/
+     * AssessmentDocument: scoring a stage stays its own action in the
+     * Documents nav.
+     */
+    public function resolve(AssessmentMeeting $assessmentMeeting): RedirectResponse
+    {
+        if (! $assessmentMeeting->isInReview()) {
+            return back()->with('error', 'This meeting can only be resolved once it has taken place.');
+        }
+
+        $assessmentMeeting->update([
+            'status' => AssessmentMeeting::STATUS_RESOLVED,
+            'resolved_at' => now(),
+            'failed_at' => null,
+        ]);
+
+        $this->closeOut($assessmentMeeting, AssessmentMeeting::STATUS_RESOLVED, 'resolve_assessment_meeting');
+
+        return $this->archiveRedirect('resolved')->with('status', 'Meeting marked resolved.');
+    }
+
+    public function fail(AssessmentMeeting $assessmentMeeting): RedirectResponse
+    {
+        if (! $assessmentMeeting->isInReview()) {
+            return back()->with('error', 'This meeting can only be marked failed once it has taken place.');
+        }
+
+        $assessmentMeeting->update([
+            'status' => AssessmentMeeting::STATUS_FAILED,
+            'failed_at' => now(),
+            'resolved_at' => null,
+        ]);
+
+        $this->closeOut($assessmentMeeting, AssessmentMeeting::STATUS_FAILED, 'fail_assessment_meeting');
+
+        return $this->archiveRedirect('failed')->with('status', 'Meeting marked failed.');
+    }
+
+    public function recover(AssessmentMeeting $assessmentMeeting): RedirectResponse
+    {
+        if (! $assessmentMeeting->isResolved()) {
+            return back()->with('error', 'Only a resolved meeting can be recovered.');
+        }
+
+        // Back to Pending Review, not Scheduled — the meeting already took
+        // place, so this goes straight back to awaiting a Resolved/Failed
+        // decision. Logged but not announced to the founder: it's an admin
+        // correction, not a new outcome.
+        $assessmentMeeting->update([
+            'status' => AssessmentMeeting::STATUS_PENDING_REVIEW,
+            'resolved_at' => null,
+        ]);
+
+        $this->recordHistory($assessmentMeeting, 'recover_assessment_meeting');
+
+        return $this->archiveRedirect('pending')->with('status', 'Meeting recovered to Pending Review.');
+    }
+
+    /**
+     * Shared tail of resolve()/fail(): takes the founder's now-stale unread
+     * "meeting scheduled" card down, tells them the outcome, and logs it.
+     */
+    protected function closeOut(AssessmentMeeting $meeting, string $status, string $historyAction): void
+    {
+        $this->retireMeetingCards($meeting, $meeting->startup_id, cancelled: false);
+
+        $this->founderFor($meeting->startup_id)
+            ?->notify(new AssessmentMeetingStatusUpdated($meeting, $status));
+
+        $this->recordHistory($meeting, $historyAction);
+    }
+
+    protected function recordHistory(AssessmentMeeting $meeting, string $action): void
+    {
+        VersionHistory::record(
+            $meeting->startup,
+            'Assessment Meetings',
+            $action,
+            $meeting->startup?->company_name
+        );
+    }
+
+    /**
+     * Lands the admin on the Archive stage the meeting just moved to, the
+     * same way Roadblock Management redirects to ?tab=archive&stage=... —
+     * instead of leaving them on a stage it no longer appears in.
+     */
+    protected function archiveRedirect(string $stage): RedirectResponse
+    {
+        return redirect()->route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'stage' => 'Meetings',
+            'meeting_tab' => 'archive',
+            'meeting_stage' => $stage,
+        ]);
     }
 
     /**

@@ -10,8 +10,15 @@ use Illuminate\Support\Carbon;
  * A scheduled meeting between an admin and an already-approved startup,
  * ahead of filling in one of that startup's Assessment stages (Pre/Active/
  * Post-Assessment or Venture Exit) — see the Assessment Hub's "Meetings"
- * sub-nav. Purely logistical: scheduling, rescheduling, or deleting one of
- * these never touches ReadinessLevelAssessment/AssessmentDocument scores.
+ * sub-nav. Purely logistical: scheduling, rescheduling, resolving, failing,
+ * or deleting one of these never touches ReadinessLevelAssessment/
+ * AssessmentDocument scores — whether the meeting itself happened is the
+ * admin's separate call, exactly like Roadblock's Resolved/Failed.
+ *
+ * Status lifecycle (mirrors Roadblock): Scheduled -> Pending Review (on its
+ * own, once the meeting's end time passes) -> Resolved or Failed (manual).
+ * Resolved can be Recovered back to Pending Review; Failed can be
+ * Rescheduled, which puts it back to Scheduled.
  */
 class AssessmentMeeting extends Model
 {
@@ -28,14 +35,40 @@ class AssessmentMeeting extends Model
         'modality',
         'link',
         'notes',
+        'status',
+        'resolved_at',
+        'failed_at',
     ];
 
     protected function casts(): array
     {
         return [
             'meeting_date' => 'date',
+            'resolved_at' => 'datetime',
+            'failed_at' => 'datetime',
         ];
     }
+
+    public const STATUS_SCHEDULED = 'Scheduled';
+    public const STATUS_PENDING_REVIEW = 'Pending Review';
+    public const STATUS_RESOLVED = 'Resolved';
+    public const STATUS_FAILED = 'Failed';
+
+    public const STATUSES = [
+        self::STATUS_SCHEDULED,
+        self::STATUS_PENDING_REVIEW,
+        self::STATUS_RESOLVED,
+        self::STATUS_FAILED,
+    ];
+
+    /**
+     * Mirrors the column's database default so a freshly built (not yet
+     * reloaded) instance already reads as Scheduled instead of null — the
+     * status helpers below treat anything but 'Scheduled' as archived.
+     */
+    protected $attributes = [
+        'status' => self::STATUS_SCHEDULED,
+    ];
 
     /**
      * Short code for the Meetings table's "Document" column — the stage
@@ -83,29 +116,83 @@ class AssessmentMeeting extends Model
     }
 
     /**
-     * The Meetings sub-nav's three tabs are purely date-derived — there is
-     * no status column to drift out of sync with reality. Reschedule edits
-     * meeting_date/start_time/end_time in place, so a row simply moves
-     * itself between these three the next time the page loads.
+     * True once the meeting is awaiting the admin's Resolved/Failed call —
+     * either it's already been promoted to the real "Pending Review" status,
+     * or (transitionally, before the next sweep catches it) it's still
+     * "Scheduled" but its end time has already passed. Same idea as
+     * Roadblock::isInAssessment().
+     */
+    public function isInReview(): bool
+    {
+        return $this->status === self::STATUS_PENDING_REVIEW
+            || ($this->status === self::STATUS_SCHEDULED && $this->hasEnded());
+    }
+
+    public function isResolved(): bool
+    {
+        return $this->status === self::STATUS_RESOLVED;
+    }
+
+    public function isFailed(): bool
+    {
+        return $this->status === self::STATUS_FAILED;
+    }
+
+    protected function hasEnded(): bool
+    {
+        return $this->ends_at !== null && $this->ends_at->isPast();
+    }
+
+    /**
+     * Sweep every Scheduled meeting whose end time has passed and move it to
+     * "Pending Review", so the status always reflects reality by the time
+     * anyone loads a page that lists meetings. The app has no cron/job
+     * scheduler, so — same as Roadblock::promoteEndedMeetingsToPendingReview()
+     * — this runs lazily at the top of the controllers that list these.
+     */
+    public static function promoteEndedMeetingsToPendingReview(): void
+    {
+        $idsToPromote = static::where('status', self::STATUS_SCHEDULED)
+            ->get(['assessment_meeting_id', 'meeting_date', 'end_time'])
+            ->filter(fn (self $m) => $m->ends_at && $m->ends_at->isPast())
+            ->pluck('assessment_meeting_id');
+
+        if ($idsToPromote->isNotEmpty()) {
+            static::whereIn('assessment_meeting_id', $idsToPromote)
+                ->update(['status' => self::STATUS_PENDING_REVIEW]);
+        }
+    }
+
+    /**
+     * The Meetings sub-nav's Today/Upcoming tabs only ever hold meetings that
+     * are still genuinely Scheduled and haven't ended yet — anything that has
+     * ended (or has since been Resolved/Failed) belongs to Archive instead.
+     * Reschedule edits meeting_date/start_time/end_time in place and puts the
+     * status back to Scheduled, so a row moves itself between these the next
+     * time the page loads.
      */
     public function isToday(): bool
     {
-        return $this->meeting_date->isToday();
+        return ! $this->isArchived() && $this->meeting_date->isToday();
     }
 
     public function isUpcoming(): bool
     {
-        return $this->meeting_date->isFuture() && ! $this->meeting_date->isToday();
+        return ! $this->isArchived()
+            && $this->meeting_date->isFuture()
+            && ! $this->meeting_date->isToday();
     }
 
     /**
-     * The meeting's date has come and gone with nothing done about it — the
-     * Meetings sub-nav's "Archive" tab. Reschedule (pick a new date/time) or
-     * Delete (remove the stale record) are the only actions offered there.
+     * The meeting is no longer live: its time has passed (Pending Review, or
+     * Scheduled-but-not-yet-swept) or it has already been closed out as
+     * Resolved/Failed. This is the Meetings sub-nav's "Archive" tab — where
+     * the admin's Stage dropdown (Pending Review / Resolved / Failed) picks
+     * which of those to show.
      */
     public function isArchived(): bool
     {
-        return $this->meeting_date->isPast() && ! $this->meeting_date->isToday();
+        return $this->status !== self::STATUS_SCHEDULED || $this->hasEnded();
     }
 
     /**

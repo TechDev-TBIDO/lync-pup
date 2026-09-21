@@ -178,6 +178,11 @@ for ($i = 0; $i < $count; $i++) {
 
             @if ($selectedStartup && in_array($selectedStage, ['Pre-Assessment', 'Active-Assessment', 'Post-Assessment', 'Venture Exit'], true))
                 <x-version-history-panel :entries="$stageVersionHistory ?? collect()" />
+            @elseif ($onMeetings)
+                {{-- Page-wide log of Resolved/Failed/Recover actions on
+                     meetings (context 'Assessment Meetings'), same idea as
+                     Roadblock Management's Edit History. --}}
+                <x-version-history-panel :entries="$meetingVersionHistory ?? collect()" align="left" />
             @endif
         </div>
 

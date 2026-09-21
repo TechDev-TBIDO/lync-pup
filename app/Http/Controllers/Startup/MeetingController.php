@@ -15,6 +15,7 @@ class MeetingController extends Controller
     public function index(): View
     {
         Roadblock::promoteEndedMeetingsToPendingReview();
+        AssessmentMeeting::promoteEndedMeetingsToPendingReview();
 
         $startup = Auth::user()->startup;
 
@@ -64,10 +65,10 @@ class MeetingController extends Controller
 
         $assessmentMeetings = AssessmentMeeting::where('startup_id', $startup->startup_id)
             ->get()
-            // Same day-based rule as the mentorship/evaluation rows above —
-            // once a meeting's date has passed with nothing done about it,
-            // it's the admin's Meetings > Archive tab's concern (reschedule
-            // or delete), not something still worth showing the founder.
+            // Same rule as the mentorship rows above: once a meeting's time
+            // has passed (Pending Review) or the admin has closed it out
+            // (Resolved/Failed) it's the admin's Meetings > Archive tab's
+            // concern, not something still worth showing the founder.
             ->reject->isArchived()
             ->map(function (AssessmentMeeting $meeting) {
                 return [

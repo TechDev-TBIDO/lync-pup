@@ -165,6 +165,9 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
     Route::post('/assessment-hub/meetings', [AssessmentMeetingController::class, 'store'])->name('assessment-hub.meetings.store');
     Route::put('/assessment-hub/meetings/{assessmentMeeting}', [AssessmentMeetingController::class, 'update'])->name('assessment-hub.meetings.update');
     Route::delete('/assessment-hub/meetings/{assessmentMeeting}', [AssessmentMeetingController::class, 'destroy'])->name('assessment-hub.meetings.destroy');
+    Route::post('/assessment-hub/meetings/{assessmentMeeting}/resolve', [AssessmentMeetingController::class, 'resolve'])->name('assessment-hub.meetings.resolve');
+    Route::post('/assessment-hub/meetings/{assessmentMeeting}/fail', [AssessmentMeetingController::class, 'fail'])->name('assessment-hub.meetings.fail');
+    Route::post('/assessment-hub/meetings/{assessmentMeeting}/recover', [AssessmentMeetingController::class, 'recover'])->name('assessment-hub.meetings.recover');
     Route::patch('/version-history/{versionHistory}', [VersionHistoryController::class, 'update'])->name('version-history.update');
     Route::delete('/version-history/{versionHistory}', [VersionHistoryController::class, 'destroy'])->name('version-history.destroy');
 
