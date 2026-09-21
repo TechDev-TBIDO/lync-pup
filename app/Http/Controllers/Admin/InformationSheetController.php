@@ -25,6 +25,7 @@ use App\Models\VersionHistory;
 use App\Support\ReadinessRubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
@@ -193,8 +194,17 @@ class InformationSheetController extends Controller
             ->with('status', 'Information sheet rejected. The founder has 10 days to revise and resubmit it.');
     }
 
-    public function update(UpdateInformationSheetRequest $request, Startup $startup): RedirectResponse
+    public function update(UpdateInformationSheetRequest $request, Startup $startup): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
 
         // Approval only locks the founder out (see Startup\InformationSheetController)
@@ -218,15 +228,33 @@ class InformationSheetController extends Controller
     }
 
     // Team Members
-    public function storeTeamMember(StoreTeamMemberRequest $request, Startup $startup): RedirectResponse
+    public function storeTeamMember(StoreTeamMemberRequest $request, Startup $startup): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $startup->teamMembers()->create($request->validated());
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Team member added.');
     }
 
-    public function updateTeamMember(UpdateTeamMemberRequest $request, TeamMember $teamMember): RedirectResponse
+    public function updateTeamMember(UpdateTeamMemberRequest $request, TeamMember $teamMember): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $teamMember->update($request->validated());
 
         return redirect()->route('admin.information-sheet.show', $teamMember->startup)->with('status', 'Team member updated.');
@@ -241,16 +269,34 @@ class InformationSheetController extends Controller
     }
 
     // Incubation Involvement
-    public function storeIncubation(StoreIncubationInvolvementRequest $request, Startup $startup): RedirectResponse
+    public function storeIncubation(StoreIncubationInvolvementRequest $request, Startup $startup): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
         $sheet->incubationInvolvements()->create($request->validated());
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Incubation involvement added.');
     }
 
-    public function updateIncubation(UpdateIncubationInvolvementRequest $request, IncubationInvolvement $incubationInvolvement): RedirectResponse
+    public function updateIncubation(UpdateIncubationInvolvementRequest $request, IncubationInvolvement $incubationInvolvement): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $incubationInvolvement->update($request->validated());
 
         return redirect()->route('admin.information-sheet.show', $incubationInvolvement->informationSheet->startup)->with('status', 'Updated.');
@@ -265,16 +311,34 @@ class InformationSheetController extends Controller
     }
 
     // L&D Interventions
-    public function storeLd(StoreLdInterventionRequest $request, Startup $startup): RedirectResponse
+    public function storeLd(StoreLdInterventionRequest $request, Startup $startup): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
         $sheet->ldInterventions()->create($request->validated());
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'L&D intervention added.');
     }
 
-    public function updateLd(UpdateLdInterventionRequest $request, LdIntervention $ldIntervention): RedirectResponse
+    public function updateLd(UpdateLdInterventionRequest $request, LdIntervention $ldIntervention): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $ldIntervention->update($request->validated());
 
         return redirect()->route('admin.information-sheet.show', $ldIntervention->informationSheet->startup)->with('status', 'Updated.');
@@ -289,16 +353,34 @@ class InformationSheetController extends Controller
     }
 
     // References
-    public function storeReference(StoreStartupReferenceRequest $request, Startup $startup): RedirectResponse
+    public function storeReference(StoreStartupReferenceRequest $request, Startup $startup): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
         $sheet->references()->create($request->validated());
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Reference added.');
     }
 
-    public function updateReference(UpdateStartupReferenceRequest $request, StartupReference $reference): RedirectResponse
+    public function updateReference(UpdateStartupReferenceRequest $request, StartupReference $reference): RedirectResponse|Response
     {
+        // Validation-only pass used by the page's all-or-nothing Save (see
+        // submitInfoSheetForms in admin/information-sheets/show.blade.php): every
+        // row is dry-run first so ALL rows' errors come back together, and
+        // nothing is persisted until every section validates. Runs after the
+        // form request's own validation, so an invalid field still fails it.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $reference->update($request->validated());
 
         return redirect()->route('admin.information-sheet.show', $reference->informationSheet->startup)->with('status', 'Updated.');

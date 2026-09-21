@@ -9,6 +9,7 @@ use App\Models\Coordinator;
 use App\Models\Mentor;
 use App\Models\Roadblock;
 use App\Models\VersionHistory;
+use App\Notifications\MentorshipCancelled;
 use App\Notifications\MentorshipScheduled;
 use App\Notifications\NewRoadblockSubmitted;
 use App\Notifications\RoadblockStatusUpdated;
@@ -213,7 +214,39 @@ class RoadblockController extends Controller
         // filterable) as "Deleted by Admin".
         $roadblock->update(['status' => 'Deleted by Admin']);
 
+        // The founder was told "Mentorship session scheduled" when this was
+        // assigned — tell them it's now off, and take that earlier card down
+        // so a still-unread one can't keep advertising a meeting that no
+        // longer exists.
+        $this->retireMentorshipCards($roadblock, notifyFounder: true);
+
         return back()->with('status', 'Roadblock deleted.');
+    }
+
+    /**
+     * Shared by unassign() and destroy(). Always removes the founder's still-
+     * unread "Mentorship session scheduled" card(s) for this roadblock (found
+     * via the roadblock_id MentorshipScheduled stamps into its payload — see
+     * assign()), and, when a scheduled session was actually cancelled, sends a
+     * "Mentorship session cancelled" card in its place. An already-read card
+     * isn't on the dashboard any more, so it's left alone.
+     */
+    protected function retireMentorshipCards(Roadblock $roadblock, bool $notifyFounder): void
+    {
+        $user = $roadblock->startup?->user;
+
+        if (! $user) {
+            return;
+        }
+
+        $user->unreadNotifications()
+            ->where('type', MentorshipScheduled::class)
+            ->where('data->roadblock_id', $roadblock->roadblock_id)
+            ->delete();
+
+        if ($notifyFounder) {
+            $user->notify(new MentorshipCancelled($roadblock->fresh(['mentor', 'coordinator'])));
+        }
     }
 
     public function resolve(Roadblock $roadblock)
@@ -274,7 +307,14 @@ class RoadblockController extends Controller
         // Was a hard delete — switched to a status change (same reasoning as
         // unassign() above) so the founder's Archive still shows what
         // happened to their submission instead of it just disappearing.
+        $wasScheduled = $roadblock->status === 'Scheduled';
+
         $roadblock->update(['status' => 'Deleted by Admin']);
+
+        // Same stale-card problem as unassign() when the roadblock still had
+        // a scheduled session; for any other status there's no session to
+        // announce as cancelled, but a leftover unread card is still cleared.
+        $this->retireMentorshipCards($roadblock, notifyFounder: $wasScheduled);
 
         return back()->with('status', 'Roadblock deleted.');
     }

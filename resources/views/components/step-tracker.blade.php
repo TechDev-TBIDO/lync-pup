@@ -9,8 +9,14 @@
     // that entirely and are guaranteed to render regardless.
     $total = count($steps);
     $segments = max($total - 1, 1);
-    $doneCount = collect($steps)->filter(fn ($s) => $s['state'] === 'done')->count();
-    $progressPct = $total > 1 ? min($doneCount, $segments) / $segments * 100 : 0;
+    // The bar runs up to the CURRENT step's circle (or the whole way once
+    // nothing is current, i.e. the last step is done). Keyed off the current
+    // step's position rather than a count of "done" steps so a roadmap with
+    // skipped stages (see the 'skipped' state below) still lands on the right
+    // circle.
+    $currentIndex = collect($steps)->values()->search(fn ($s) => $s['state'] === 'current');
+    $reached = $currentIndex === false ? $segments : $currentIndex;
+    $progressPct = $total > 1 ? min($reached, $segments) / $segments * 100 : 0;
 @endphp
 
 {{-- --cap is the caption width. The tracker reserves half of it as padding on
@@ -37,6 +43,15 @@
                                 <path d="M4 10.5l4 4 8-9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </div>
+                    @elseif ($step['state'] === 'skipped')
+                        {{-- Bypassed by the admin, with a later step already done:
+                             a cross instead of a check so it reads as "skipped",
+                             not "completed". --}}
+                        <div class="flex shrink-0 items-center justify-center rounded-full bg-white text-[#6D0D23]" style="width: 36px; height: 36px; border: 1.5px solid #6D0D23;" title="Skipped" aria-label="{{ $step['label'] }} skipped">
+                            <svg style="width: 15px; height: 15px;" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                            </svg>
+                        </div>
                     @elseif ($step['state'] === 'current')
                         <div class="flex shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-gray-900" style="width: 36px; height: 36px; border: 1.5px solid #9CA3AF;">
                             {{ $step['number'] }}
@@ -50,6 +65,9 @@
                     <p class="mt-1 shrink-0 text-center text-xs font-medium leading-snug xl:text-sm {{ $step['state'] === 'upcoming' ? 'text-gray-400' : 'text-gray-700' }}"
                         style="width: var(--cap);">
                         {{ $step['label'] }}
+                        @if ($step['state'] === 'skipped')
+                            <span class="block text-[11px] font-normal text-gray-400">Skipped</span>
+                        @endif
                     </p>
                 </div>
             @endforeach

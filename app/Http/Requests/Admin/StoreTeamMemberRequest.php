@@ -2,29 +2,21 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Rules\PersonName;
-use App\Rules\PhMobile;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Startup\StoreTeamMemberRequest as FounderStoreTeamMemberRequest;
 
-class StoreTeamMemberRequest extends FormRequest
+/**
+ * A Core Team row on the admin Information Sheet page.
+ *
+ * Holds the reviewer to exactly the same column rules and messages the
+ * founder's own row is held to (see Startup\StoreTeamMemberRequest and SheetRowRules), so
+ * a row that could not be saved from the founder's page cannot be saved from
+ * here either - and the inline errors read the same on both pages. Only who
+ * may make the request differs.
+ */
+class StoreTeamMemberRequest extends FounderStoreTeamMemberRequest
 {
     public function authorize(): bool
     {
         return $this->user()?->isAdmin() ?? false;
-    }
-
-    public function rules(): array
-    {
-        return [
-            'full_name' => ['required', 'string', 'max:150', new PersonName],
-            'designation' => ['nullable', 'string', 'max:100', new PersonName],
-            'phone' => ['nullable', 'string', 'max:13', new PhMobile],
-            'address' => ['nullable', 'string', 'max:255'],
-            'date_of_birth' => ['nullable', 'date'],
-            'email' => ['nullable', 'email', 'max:150'],
-            'citizenship' => ['nullable', 'string', 'max:100'],
-            'sex' => ['nullable', 'string', 'max:20'],
-            'civil_status' => ['nullable', 'string', 'max:30'],
-        ];
     }
 }

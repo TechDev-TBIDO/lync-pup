@@ -129,6 +129,14 @@ class DashboardController extends Controller
      * is no "current stage" field on Startup anywhere; it's entirely
      * presence-of-rows-driven (ReadinessLevelAssessment per stage,
      * AssessmentDocument per stage+document_number).
+     *
+     * Each step is judged on its own merits, and the tracker (see
+     * stepsWithSkips()) then shows a stage the admin bypassed as "skipped"
+     * rather than freezing on it:
+     *  - Pre/Post RL Documents need all four RL types (TRL/MRL/TMRL/SRL)
+     *    scored, not just one.
+     *  - Venture Exit needs an Exit Status of Graduated or Completed — a
+     *    saved but otherwise blank exit form doesn't count.
      */
     protected function graduationSteps(Startup $startup): array
     {
@@ -140,17 +148,18 @@ class DashboardController extends Controller
             ->where('stage', 'Active-Assessment')
             ->whereIn('document_number', [6, 7, 8])
             ->count();
-        $ventureExitSubmitted = AssessmentDocument::where('startup_id', $startup->startup_id)
+        $exitDocument = AssessmentDocument::where('startup_id', $startup->startup_id)
             ->where('stage', 'Venture Exit')
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
-            ->exists();
+            ->first();
+        $exited = in_array(data_get($exitDocument?->data, 'exit_status'), ['Graduated', 'Completed'], true);
 
-        return $this->stepsWithState([
+        return $this->stepsWithSkips([
             'Active Startup' => $startup->status === 'Active',
-            'Pre RL Documents' => $preRl && $preRl->overall_score !== null,
+            'Pre RL Documents' => (bool) $preRl?->isFullyScored(),
             'Active Documents' => $activeDocsCount >= 3,
-            'Post RL Documents' => $postRl && $postRl->overall_score !== null,
-            'Venture Exit' => $ventureExitSubmitted,
+            'Post RL Documents' => (bool) $postRl?->isFullyScored(),
+            'Venture Exit' => $exited,
         ]);
     }
 
@@ -184,6 +193,44 @@ class DashboardController extends Controller
             }
 
             $steps[] = ['label' => $label, 'state' => $state, 'number' => $number];
+        }
+
+        return $steps;
+    }
+
+    /**
+     * Like stepsWithState(), but not forced to be strictly linear — for the
+     * Graduation Roadmap, where an admin can legitimately skip a stage (e.g.
+     * go straight to Active Assessment without a Pre-Assessment).
+     *
+     * A step that is done is "done" wherever it sits. An unfinished step that
+     * comes BEFORE the furthest finished one is "skipped" (it was bypassed,
+     * and the tracker shouldn't stay parked on it). The first unfinished step
+     * after the furthest finished one is "current", everything beyond it
+     * "upcoming". With nothing finished yet, the first step is current.
+     */
+    protected function stepsWithSkips(array $doneMap): array
+    {
+        $labels = array_keys($doneMap);
+        $furthestDone = -1;
+
+        foreach (array_values($doneMap) as $i => $isDone) {
+            if ($isDone) {
+                $furthestDone = $i;
+            }
+        }
+
+        $steps = [];
+
+        foreach ($labels as $i => $label) {
+            $state = match (true) {
+                (bool) $doneMap[$label] => 'done',
+                $i < $furthestDone => 'skipped',
+                $i === $furthestDone + 1 => 'current',
+                default => 'upcoming',
+            };
+
+            $steps[] = ['label' => $label, 'state' => $state, 'number' => $i + 1];
         }
 
         return $steps;

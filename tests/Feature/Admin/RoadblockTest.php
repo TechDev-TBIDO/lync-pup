@@ -6,6 +6,8 @@ use App\Models\Mentor;
 use App\Models\Roadblock;
 use App\Models\Startup;
 use App\Models\User;
+use App\Notifications\MentorshipCancelled;
+use App\Notifications\MentorshipScheduled;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -104,6 +106,101 @@ class RoadblockTest extends TestCase
             'roadblock_id' => $roadblock->roadblock_id,
             'status' => 'Deleted by Admin',
         ]);
+    }
+
+    /**
+     * Deleting a scheduled assignment must not leave the founder with a stale
+     * "Mentorship session scheduled" card: it is cleared, and a "cancelled"
+     * card takes its place so they know what happened.
+     */
+    public function test_delete_assignment_replaces_the_scheduled_card_with_a_cancelled_one(): void
+    {
+        $admin = $this->adminUser();
+        $mentor = Mentor::factory()->create();
+        $roadblock = $this->pendingRoadblock();
+        $founder = $roadblock->startup->user;
+
+        // Real assign() so the founder gets the real "scheduled" card.
+        $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), [
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->addDay()->toDateString(),
+            'meeting_start_time' => '08:00',
+            'meeting_end_time' => '10:00',
+            'meeting_platform' => 'Google Meet',
+            'meeting_link' => 'https://meet.google.com/abc-defg-hij',
+        ]);
+
+        $this->assertSame(1, $founder->unreadNotifications()->where('type', MentorshipScheduled::class)->count());
+
+        $this->actingAs($admin)->delete(route('admin.roadblocks.unassign', $roadblock));
+
+        $this->assertSame(0, $founder->unreadNotifications()->where('type', MentorshipScheduled::class)->count());
+
+        $cancelled = $founder->unreadNotifications()->where('type', MentorshipCancelled::class)->get();
+        $this->assertCount(1, $cancelled);
+        $this->assertSame('Mentorship session cancelled', $cancelled->first()->data['title']);
+        $this->assertSame($roadblock->roadblock_id, $cancelled->first()->data['roadblock_id']);
+        $this->assertSame('startup.submissions.index', $cancelled->first()->data['route']);
+    }
+
+    public function test_delete_assignment_leaves_other_roadblocks_scheduled_cards_alone(): void
+    {
+        $admin = $this->adminUser();
+        $mentor = Mentor::factory()->create();
+        $roadblock = $this->pendingRoadblock();
+        $founder = $roadblock->startup->user;
+        $other = Roadblock::factory()->create(['startup_id' => $roadblock->startup_id, 'status' => 'Pending']);
+
+        // Different hours: the same mentor/startup can't be double-booked.
+        foreach ([[$roadblock, '08:00', '09:00'], [$other, '10:00', '11:00']] as [$rb, $start, $end]) {
+            $this->actingAs($admin)->put(route('admin.roadblocks.assign', $rb), [
+                'mentor_id' => $mentor->mentor_id,
+                'meeting_date' => now()->addDay()->toDateString(),
+                'meeting_start_time' => $start,
+                'meeting_end_time' => $end,
+                'meeting_platform' => 'Google Meet',
+                'meeting_link' => 'https://meet.google.com/abc-defg-hij',
+            ]);
+        }
+
+        $this->actingAs($admin)->delete(route('admin.roadblocks.unassign', $roadblock));
+
+        $remaining = $founder->unreadNotifications()->where('type', MentorshipScheduled::class)->get();
+        $this->assertCount(1, $remaining);
+        $this->assertSame($other->roadblock_id, $remaining->first()->data['roadblock_id']);
+    }
+
+    public function test_deleting_a_scheduled_roadblock_via_destroy_also_notifies_the_founder(): void
+    {
+        $admin = $this->adminUser();
+        $mentor = Mentor::factory()->create();
+        $roadblock = $this->pendingRoadblock();
+        $founder = $roadblock->startup->user;
+
+        $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), [
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->addDay()->toDateString(),
+            'meeting_start_time' => '08:00',
+            'meeting_end_time' => '10:00',
+            'meeting_platform' => 'Google Meet',
+            'meeting_link' => 'https://meet.google.com/abc-defg-hij',
+        ]);
+
+        $this->actingAs($admin)->delete(route('admin.roadblocks.destroy', $roadblock));
+
+        $this->assertSame(0, $founder->unreadNotifications()->where('type', MentorshipScheduled::class)->count());
+        $this->assertSame(1, $founder->unreadNotifications()->where('type', MentorshipCancelled::class)->count());
+    }
+
+    public function test_deleting_a_never_scheduled_roadblock_sends_no_cancellation(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $founder = $roadblock->startup->user;
+
+        $this->actingAs($admin)->delete(route('admin.roadblocks.destroy', $roadblock));
+
+        $this->assertSame(0, $founder->notifications()->where('type', MentorshipCancelled::class)->count());
     }
 
     public function test_scheduled_roadblock_moves_to_assessment_after_meeting_passes(): void

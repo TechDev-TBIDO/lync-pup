@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\AssignCoordinatorRequest;
 use App\Models\Coordinator;
 use App\Models\Startup;
 use App\Models\VersionHistory;
+use App\Notifications\CoordinatorAssigned;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -15,7 +16,13 @@ class CoordinatorAssignmentController extends Controller
 {
     public function store(AssignCoordinatorRequest $request, Startup $startup): RedirectResponse
     {
-        DB::transaction(function () use ($request, $startup) {
+        // Who (if anyone) held the slot before this request — read before the
+        // transaction below marks it Completed. Decides between an
+        // "assigned" and a "changed" card, and whether anything changed at all.
+        $previousCoordinatorId = $startup->activeCoordinatorAssignment?->coordinator_id;
+        $coordinator = null;
+
+        DB::transaction(function () use ($request, $startup, &$coordinator) {
             $startup->coordinatorAssignments()->where('assignment_status', 'Active')
                 ->update(['assignment_status' => 'Completed']);
 
@@ -43,6 +50,10 @@ class CoordinatorAssignmentController extends Controller
             $startup->informationSheet?->update(['portfolio_manager' => $coordinator->name]);
         });
 
+        // Outside the transaction so a founder is never told about an
+        // assignment that ended up rolled back.
+        $this->notifyFounder($startup, $coordinator, $previousCoordinatorId);
+
         // The Startup Profile card grid's 3-dot "Edit Coordinator" reuses
         // this same component/route (see coordinator-assign-modal.blade.php)
         // but wants to land back on that filtered/paginated list, not always
@@ -55,5 +66,32 @@ class CoordinatorAssignmentController extends Controller
 
         return redirect($redirectTo)
             ->with('status', 'Portfolio Coordinator assigned successfully.');
+    }
+
+    /**
+     * Tells the founder who their Portfolio Coordinator is. Re-picking the
+     * coordinator they already have changes nothing for them, so it stays
+     * quiet; a genuine change while the earlier card is still unread updates
+     * that card rather than stacking a second one.
+     */
+    protected function notifyFounder(Startup $startup, Coordinator $coordinator, int|string|null $previousCoordinatorId): void
+    {
+        $user = $startup->user;
+
+        if (! $user || (int) $previousCoordinatorId === (int) $coordinator->coordinator_id) {
+            return;
+        }
+
+        $notification = new CoordinatorAssigned($coordinator, reassigned: $previousCoordinatorId !== null);
+
+        $existing = $user->unreadNotifications()
+            ->where('type', CoordinatorAssigned::class)
+            ->first();
+
+        if ($existing) {
+            $existing->forceFill(['data' => $notification->toDatabase($user)])->save();
+        } else {
+            $user->notify($notification);
+        }
     }
 }

@@ -32,8 +32,13 @@
             // on this page (scopeOnboarding: not yet ready for evaluation), and
             // leaving it out of the summary made Total look wrong instead of
             // just under-explained.
+            //
+            // Total Startup's list is the per-cohort breakdown plus a final
+            // "Applicants" line (same number as the Applicant card below) — added
+            // in the view rather than to $cohortBreakdown itself so that variable
+            // stays a pure per-cohort breakdown.
             $stats = [
-            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => $cohortBreakdown],
+            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => collect($cohortBreakdown)->push(['count' => $totals['applicant'], 'label' => 'Applicants'])],
             ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#BFDBFE]', 'bg' => 'bg-[#F8FBFF]', 'note' => $pct($totals['active'], $totals['total']).'% startup are active'],
             ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['needsCoordinator'], $totals['total']).'% startup needs assigned coordinator'],
             ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $pct($totals['pending'], $totals['total']).'% startup is under evaluation'],
@@ -126,17 +131,19 @@
 
             <div class="border-b border-gray-300 mb-8">
                 <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap">
-                    {{-- Query param key stays 'onboarding' (matches
+                    {{-- Order follows the summary cards above (Total, Active, Assign
+                         Coordinator, Pending, Applicant), so Applicant is last.
+                         Query param key stays 'onboarding' (matches
                          StartupProfileController::index()'s tab switch and
                          Startup::scopeOnboarding()) — only the displayed
                          label changed to "Applicant", since nothing in this
                          tab has actually been accepted yet. --}}
                     @foreach ([
                     'all' => 'All',
-                    'onboarding' => 'Applicant',
                     'active' => 'Active',
                     'assign-coordinator' => 'Assign Coordinator',
                     'pending' => 'Pending',
+                    'onboarding' => 'Applicant',
                     ] as $key => $label)
 
                     <a
@@ -182,6 +189,6 @@
                  startup-card.blade.php. It's a toast (the admin layout's shared
                  Alpine 'toast' store) rather than a blocking modal. The flash is
                  one-time, so a reload or Back doesn't replay it. --}}
-            <div x-data x-init="$store.toast.success('Startup Deleted', @js(session('startup_deleted') . ' have been successfully deleted.'))"></div>
+            <div x-data x-init="$store.toast.success('Startup Deleted', @js(session('startup_deleted') . ' has been successfully deleted.'))"></div>
             @endif
 </x-layouts.admin>

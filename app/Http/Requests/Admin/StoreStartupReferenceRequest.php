@@ -2,24 +2,21 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Rules\PersonName;
-use App\Rules\PhMobile;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Startup\StoreStartupReferenceRequest as FounderStoreStartupReferenceRequest;
 
-class StoreStartupReferenceRequest extends FormRequest
+/**
+ * A Reference row on the admin Information Sheet page.
+ *
+ * Holds the reviewer to exactly the same column rules and messages the
+ * founder's own row is held to (see Startup\StoreStartupReferenceRequest and SheetRowRules), so
+ * a row that could not be saved from the founder's page cannot be saved from
+ * here either - and the inline errors read the same on both pages. Only who
+ * may make the request differs.
+ */
+class StoreStartupReferenceRequest extends FounderStoreStartupReferenceRequest
 {
     public function authorize(): bool
     {
         return $this->user()?->isAdmin() ?? false;
-    }
-
-    public function rules(): array
-    {
-        return [
-            'name' => ['required', 'string', 'max:150', new PersonName],
-            'contact' => ['nullable', 'string', 'max:13', new PhMobile],
-            'email' => ['nullable', 'email', 'max:150'],
-            'address' => ['nullable', 'string', 'max:255'],
-        ];
     }
 }

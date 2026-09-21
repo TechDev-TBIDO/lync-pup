@@ -139,7 +139,7 @@
         },
         // Whether the form already has anything worth clearing — checked
         // against what Clear Form actually wipes (see clearAll() below), not
-        // against "changed since the page loaded". Clear Form used to enable
+        // against 'changed since the page loaded'. Clear Form used to enable
         // only while isDirty(), so a Venture Exit form that was already
         // filled in and saved, and hadn't been touched again this visit,
         // couldn't be cleared at all.

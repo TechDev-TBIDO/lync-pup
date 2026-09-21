@@ -229,10 +229,14 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
 
         syncInput() {
             this.$refs.fileInput.files = this.dt.files;
+            // A blob: URL for every file (not just images) so each one can be
+            // opened/previewed before submitting. The previous batch is
+            // released first so URLs don't pile up.
+            this.files.forEach(f => f.url && URL.revokeObjectURL(f.url));
             this.files = Array.from(this.dt.files).map(file => ({
                 name: file.name,
                 isImage: file.type.startsWith('image/'),
-                url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+                url: URL.createObjectURL(file),
             }));
         },
 
@@ -242,6 +246,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             this.showOtherSuggestions = false;
             this.description = '';
             this.dt = new DataTransfer();
+            this.files.forEach(f => f.url && URL.revokeObjectURL(f.url));
             this.files = [];
             this.$refs.fileInput.files = this.dt.files;
             this.errors = {};
@@ -597,10 +602,31 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                                         </template>
                                         <span x-text="file.name" class="truncate text-sm text-gray-700"></span>
                                     </div>
-                                    <button type="button" @click="removeFile(index)" aria-label="Remove file"
-                                        class="ml-3 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-rose-50 hover:text-rose-900 focus:outline-none">
-                                        {!! $xIcon() !!}
-                                    </button>
+                                    <span class="ml-3 flex flex-shrink-0 items-center gap-2">
+                                        {{-- View before submitting — same as the saved files on a
+                                             submitted roadblock: images open in the on-page
+                                             lightbox, everything else in a new tab. --}}
+                                        <button type="button" x-show="file.isImage" x-cloak
+                                            @click="previewImageUrl = file.url" aria-label="View image" title="View image"
+                                            class="text-[#6D0D23] transition hover:opacity-70 focus:outline-none">
+                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                        </button>
+                                        <a :href="file.url" target="_blank" rel="noopener" x-show="!file.isImage" x-cloak
+                                            aria-label="View file" title="View file"
+                                            class="text-[#6D0D23] transition hover:opacity-70 focus:outline-none">
+                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                        </a>
+                                        <button type="button" @click="removeFile(index)" aria-label="Remove file"
+                                            class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-rose-50 hover:text-rose-900 focus:outline-none">
+                                            {!! $xIcon() !!}
+                                        </button>
+                                    </span>
                                 </li>
                             </template>
                         </ul>

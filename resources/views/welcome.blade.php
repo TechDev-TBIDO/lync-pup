@@ -435,7 +435,12 @@
                     100% 100%,
                     0 100%);
         }
-    </style>
+        /* Journey badge (Development -> Completed -> Graduated). Development keeps the
+       plain white pill; the two exit states get their own colour so they read as
+       distinct at a glance on the card's top-right corner. */
+    .stage-badge--completed { background: #fef3c7; color: #92400e; }
+    .stage-badge--graduated { background: #dcfce7; color: #166534; }
+</style>
     <main class="hero-arch relative isolate overflow-hidden bg-white pb-16 pt-10">
         <div id="cohorts" class="mx-auto max-w-6xl scroll-mt-8 px-4 sm:px-6 lg:px-8">
             <div class="reveal text-center">
@@ -497,7 +502,7 @@
                                          and badge/initial sizes step down on mobile now that 2 cards
                                          share a row. --}}
                                     <div class="{{ $paletteBg[$startup['palette_index']] }} startup-banner relative flex h-16 items-center justify-center overflow-hidden sm:h-28">
-                                        <span class="absolute right-1.5 top-1.5 z-10 rounded-full bg-white px-1.5 py-0.5 text-[8px] font-semibold text-gray-700 sm:right-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px]">
+                                        <span class="absolute right-1.5 top-1.5 z-10 rounded-full px-1.5 py-0.5 text-[8px] font-semibold sm:right-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px] {{ $startup['stage_key'] === 'development' ? 'bg-white text-gray-700' : 'stage-badge--'.$startup['stage_key'] }}">
                                             {{ $startup['stage_label'] }}
                                         </span>
                                         @if ($startup['photo_url'])
@@ -669,6 +674,8 @@
 
     {{-- ==================== STARTUP DETAIL MODAL ==================== --}}
     <div x-show="modalOpen" x-cloak
+        x-effect="setScrollLock(modalOpen)"
+        style="overscroll-behavior: contain;"
         class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
         @keydown.escape.window="closeStartup()">
         {{-- max-w-3xl -> max-w-4xl: was cramping the radar chart + score
@@ -722,7 +729,7 @@
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <h2 class="text-lg font-extrabold" x-text="activeStartup.name"></h2>
-                                    <span class="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-gray-700" x-text="activeStartup.stage_label"></span>
+                                    <span class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold" :class="activeStartup.stage_key === 'development' ? 'bg-white text-gray-700' : 'stage-badge--' + activeStartup.stage_key" x-text="activeStartup.stage_label"></span>
                                 </div>
                                 {{-- Sector/cohort line moved here, right under the name — next to
                                      the profile photo instead of spanning the full banner width
@@ -954,6 +961,23 @@
 
                 expandCohort(cohortId) {
                     this.expandedCohorts.push(cohortId);
+                },
+
+                // While the detail modal is open only the modal scrolls - the page behind it is
+                // frozen. The scrollbar's width is added back as padding so the page doesn't
+                // jump sideways when the scrollbar disappears (and back again on close).
+                setScrollLock(locked) {
+                    const root = document.documentElement;
+                    if (locked) {
+                        const gap = window.innerWidth - root.clientWidth;
+                        root.style.overflow = 'hidden';
+                        document.body.style.overflow = 'hidden';
+                        if (gap > 0) root.style.paddingRight = gap + 'px';
+                    } else {
+                        root.style.overflow = '';
+                        document.body.style.overflow = '';
+                        root.style.paddingRight = '';
+                    }
                 },
 
                 openStartup(startup) {

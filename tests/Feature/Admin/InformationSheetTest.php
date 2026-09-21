@@ -6,6 +6,7 @@ use App\Models\Cohort;
 use App\Models\EvaluationSchedule;
 use App\Models\InformationSheet;
 use App\Models\Startup;
+use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -96,6 +97,7 @@ class InformationSheetTest extends TestCase
             'cohort_no' => 'Cohort 1',
             'endorsed_by' => 'Maria Reyes',
             'endorsement_date' => now()->toDateString(),
+            'director_approval_date' => now()->toDateString(),
         ], $overrides);
     }
 
@@ -349,5 +351,212 @@ class InformationSheetTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee('Schedule an evaluation for this startup before deciding.');
+    }
+
+    // ---- Endorsement block: Date of Approval required, Portfolio Manager optional
+
+    public function test_date_of_approval_is_required(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+
+        $response = $this->actingAs($admin)->patchJson(
+            route('admin.information-sheet.update', $startup),
+            $this->validInformationSheetPayload(['director_approval_date' => ''])
+        );
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['director_approval_date']);
+    }
+
+    public function test_portfolio_manager_is_not_required(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+
+        $response = $this->actingAs($admin)->patch(
+            route('admin.information-sheet.update', $startup),
+            $this->validInformationSheetPayload(['portfolio_manager' => ''])
+        );
+
+        $response->assertSessionDoesntHaveErrors('portfolio_manager');
+        $response->assertRedirect(route('admin.information-sheet.show', $startup));
+    }
+
+    // ---- Row tables: wiring + founder-strength rules -------------------------
+
+    protected function validTeamRow(array $overrides = []): array
+    {
+        return array_merge([
+            'full_name' => 'Dela Cruz, Juan, Santos, Jr.',
+            'designation' => 'Chief Executive Officer',
+            'phone' => '09171234567',
+            'address' => '123 Rizal St., Brgy. San Antonio, Quezon City',
+            'date_of_birth' => '1995-05-15',
+            'email' => 'juan.delacruz@gmail.com',
+            'citizenship' => 'Filipino',
+            'sex' => 'MALE',
+            'civil_status' => 'SINGLE',
+        ], $overrides);
+    }
+
+    public function test_the_page_wires_every_row_table_to_a_registered_route(): void
+    {
+        // The row forms only exist (and only join Save) when their route is
+        // registered - the view used to ask for names like admin.team-members.store
+        // that were never registered, so every row table was silently inert.
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+        $member = TeamMember::create(['startup_id' => $startup->startup_id] + $this->validTeamRow());
+
+        $response = $this->actingAs($admin)->get(route('admin.information-sheet.show', $startup));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.information-sheet.team-members.store', $startup), false);
+        $response->assertSee(route('admin.information-sheet.team-members.update', $member), false);
+        $response->assertSee(route('admin.information-sheet.team-members.destroy', $member), false);
+        $response->assertSee(route('admin.information-sheet.incubation.store', $startup), false);
+        $response->assertSee(route('admin.information-sheet.ld.store', $startup), false);
+        $response->assertSee(route('admin.information-sheet.references.store', $startup), false);
+    }
+
+    public function test_admin_can_add_and_update_a_complete_team_member_row(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+
+        $this->actingAs($admin)
+            ->post(route('admin.information-sheet.team-members.store', $startup), $this->validTeamRow())
+            ->assertRedirect();
+
+        $member = $startup->teamMembers()->firstOrFail();
+        $this->assertSame('Dela Cruz, Juan, Santos, Jr.', $member->full_name);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.information-sheet.team-members.update', $member), $this->validTeamRow(['designation' => 'Chief Technology Officer']))
+            ->assertRedirect();
+
+        $this->assertSame('Chief Technology Officer', $member->fresh()->designation);
+    }
+
+    public function test_a_team_member_row_needs_every_column_just_like_the_founders(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('admin.information-sheet.team-members.store', $startup), ['full_name' => 'Dela Cruz, Juan']);
+
+        $response->assertStatus(422)->assertJsonValidationErrors([
+            'designation', 'phone', 'address', 'date_of_birth', 'email', 'citizenship', 'sex', 'civil_status',
+        ]);
+        $this->assertSame(0, $startup->teamMembers()->count());
+    }
+
+    public function test_the_other_row_tables_are_held_to_the_founders_rules_too(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.information-sheet.incubation.store', $startup), ['organization_name_address' => 'PUP Technology Business Incubator, Manila'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['date_from', 'date_to', 'number_of_hours', 'incubation_program_focus']);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.information-sheet.ld.store', $startup), ['title' => 'Pitching Bootcamp'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['date_from', 'date_to', 'number_of_hours', 'conducted_sponsored_by']);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.information-sheet.references.store', $startup), ['name' => 'Reyes, Ana'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['contact', 'email', 'address']);
+    }
+
+    // ---- Save-all dry run ---------------------------------------------------
+    // The page's Save posts every section (main form + each row) first with
+    // _dry_run=1 so ALL rows' errors come back together, and only persists once
+    // every section validates. See submitInfoSheetForms() in show.blade.php.
+
+    public function test_dry_run_on_a_new_team_member_row_validates_without_creating_it(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+
+        $response = $this->actingAs($admin)->post(
+            route('admin.information-sheet.team-members.store', $startup),
+            $this->validTeamRow(['_dry_run' => '1'])
+        );
+
+        $response->assertNoContent();
+        $this->assertSame(0, $startup->teamMembers()->count());
+    }
+
+    public function test_dry_run_still_reports_validation_errors_for_a_row(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('admin.information-sheet.team-members.store', $startup), $this->validTeamRow([
+                'full_name' => '',
+                'email' => 'not-an-email',
+                '_dry_run' => '1',
+            ]));
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['full_name', 'email']);
+        $this->assertSame(0, $startup->teamMembers()->count());
+    }
+
+    public function test_dry_run_on_an_existing_team_member_row_does_not_update_it(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+        $member = TeamMember::create(['startup_id' => $startup->startup_id] + $this->validTeamRow());
+
+        $response = $this->actingAs($admin)->patch(
+            route('admin.information-sheet.team-members.update', $member),
+            $this->validTeamRow(['full_name' => 'Reyes, Ana', '_dry_run' => '1'])
+        );
+
+        $response->assertNoContent();
+        $this->assertSame('Dela Cruz, Juan, Santos, Jr.', $member->fresh()->full_name);
+    }
+
+    public function test_every_invalid_row_reports_its_own_errors_independently(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+        $first = TeamMember::create(['startup_id' => $startup->startup_id] + $this->validTeamRow());
+        $second = TeamMember::create(['startup_id' => $startup->startup_id] + $this->validTeamRow(['full_name' => 'Reyes, Ana']));
+
+        // Same shape the page produces: one dry-run request per row, none of
+        // them stopping the next, so both rows' problems are known at once.
+        foreach ([$first, $second] as $member) {
+            $this->actingAs($admin)
+                ->patchJson(route('admin.information-sheet.team-members.update', $member), $this->validTeamRow([
+                    'full_name' => '',
+                    '_dry_run' => '1',
+                ]))
+                ->assertStatus(422)
+                ->assertJsonValidationErrors(['full_name']);
+        }
+
+        $this->assertSame('Dela Cruz, Juan, Santos, Jr.', $first->fresh()->full_name);
+        $this->assertSame('Reyes, Ana', $second->fresh()->full_name);
+    }
+
+    public function test_dry_run_on_the_main_form_validates_without_saving(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+
+        $response = $this->actingAs($admin)->patch(
+            route('admin.information-sheet.update', $startup),
+            $this->validInformationSheetPayload(['surname' => 'Changed', '_dry_run' => '1'])
+        );
+
+        $response->assertNoContent();
+        $this->assertNotSame('Changed', $startup->informationSheet->fresh()->surname);
     }
 }

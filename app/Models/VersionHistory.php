@@ -31,6 +31,7 @@ class VersionHistory extends Model
     public const ACTION_LABELS = [
         'set_evaluation' => 'Set Evaluation',
         'reschedule_evaluation' => 'Rescheduled Evaluation',
+        'delete_evaluation' => 'Deleted Evaluation',
         'approve_information_sheet' => 'Approved Information Sheet',
         'reject_information_sheet' => 'Rejected Information Sheet',
         'update_information_sheet' => 'Edited Information Sheet',

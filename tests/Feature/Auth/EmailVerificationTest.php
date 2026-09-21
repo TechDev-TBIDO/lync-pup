@@ -116,6 +116,13 @@ class EmailVerificationTest extends TestCase
         $this->assertGuest();
         $response->assertRedirect(route('register', absolute: false));
 
+        // The Back arrow uses this same action: the registration form comes
+        // back pre-filled (never the password).
+        $response->assertSessionHasInput('name', $user->name);
+        $response->assertSessionHasInput('email', $user->email);
+        $response->assertSessionHasInput('company_name', $startup->company_name);
+        $response->assertSessionMissing('_old_input.password');
+
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
         $this->assertDatabaseMissing('startups', ['startup_id' => $startup->startup_id]);
     }

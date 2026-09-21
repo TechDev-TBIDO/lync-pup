@@ -95,10 +95,10 @@
     $approveUrl = $url('admin.information-sheet.approve', $startup);
     $rejectUrl = $url('admin.information-sheet.reject', $startup);
 
-    $teamStoreUrl = $url('admin.team-members.store', $startup);
-    $incStoreUrl = $url('admin.incubation.store', $startup);
-    $ldStoreUrl = $url('admin.ld.store', $startup);
-    $refStoreUrl = $url('admin.references.store', $startup);
+    $teamStoreUrl = $url('admin.information-sheet.team-members.store', $startup);
+    $incStoreUrl = $url('admin.information-sheet.incubation.store', $startup);
+    $ldStoreUrl = $url('admin.information-sheet.ld.store', $startup);
+    $refStoreUrl = $url('admin.information-sheet.references.store', $startup);
     @endphp
 
     {{-- Page header. The back arrow lives here as well as in the action row, so the reviewer
@@ -189,6 +189,27 @@
     newRows: { team: [], inc: [], ld: [], ref: [] },
     nextRowId: 1,
 
+    // How many Core Team rows are saved, so the last remaining one can be
+    // protected from the x without another trip to the server - Core Team
+    // always keeps at least one entry (same rule as the founder's page).
+    savedCounts: {
+        team: {{ $startup->teamMembers?->count() ?? 0 }},
+    },
+
+    // Rows that would still exist after this save: what loaded, minus anything
+    // marked for removal, plus any blank rows just added.
+    remainingRows(section) {
+        return (this.savedCounts[section] ?? 0)
+            - this.removalCount(section + '-')
+            + this.newRows[section].length;
+    },
+
+    // The x is refused when it would empty the table. A row that is already
+    // marked stays clickable, otherwise it could never be undone.
+    canRemoveRow(section, key) {
+        return this.isRemoving(key) || this.remainingRows(section) > 1;
+    },
+
     addRow(section) {
         this.newRows[section].push({ id: this.nextRowId++ });
     },
@@ -236,10 +257,38 @@
     },
 
     async saveAll() {
+        // One clear, right here - nothing below clears again. The client-side
+        // check and the server dry run both paint into the page, and a second
+        // clear in between would wipe out whichever ran first, so every
+        // problem (blank or badly formatted, client- or server-caught) shows
+        // up together on the very first click.
+        window.clearInfoSheetFieldErrors();
+
+        // Blank required fields, incomplete rows, and Core Team keeping at
+        // least one entry - caught instantly, same as the founder's page.
+        const clientProblems = window.validateInfoSheetForms(this.$root);
+
         this.saving = true;
 
         try {
-            const result = await window.submitInfoSheetForms(this.$root);
+            // The server dry run always runs too, even when the client already
+            // found something wrong - only the persist step is skipped in that
+            // case (dryRunOnly), so a format error the browser can't check
+            // still shows up alongside the blank-field ones on this click.
+            const result = await window.submitInfoSheetForms(this.$root, {
+                dryRunOnly: clientProblems > 0,
+            });
+
+            if (clientProblems > 0) {
+                this.saving = false;
+                Alpine.store('toast').error(
+                    'Save Failed',
+                    clientProblems === 1
+                        ? '1 field needs fixing - see the message on the form.'
+                        : clientProblems + ' fields need fixing - see the messages on the form.'
+                );
+                return;
+            }
 
             // Clear the guard before anything navigates, or beforeunload prompts
             // on a save the user just confirmed.
@@ -271,14 +320,22 @@
             console.error('Info sheet save failed:', e);
 
             const shown = e?.validation && typeof e.validation === 'object'
-                ? window.showInfoSheetFieldErrors(e.validation, e.form)
+                ? window.showInfoSheetFieldErrors(e.validation)
                 : false;
+
+            // Total across the client-side pass and the server one, so a mixed
+            // case (a blank field AND a badly formatted one elsewhere) reports
+            // an accurate count instead of just the server's half of it.
+            const serverProblems = e?.validation ? Object.keys(e.validation).length : (shown ? 1 : 0);
+            const totalProblems = clientProblems + serverProblems;
 
             Alpine.store('toast').error(
                 'Save Failed',
-                shown
-                    ? (e?.message || 'Please fix the highlighted fields.')
-                    : (e?.message || 'Something went wrong while saving. Please try again.')
+                totalProblems > 1
+                    ? totalProblems + ' fields need fixing - see the messages on the form.'
+                    : shown
+                        ? (e?.message || 'Please fix the highlighted fields.')
+                        : (e?.message || 'Something went wrong while saving. Please try again.')
             );
         }
     },
@@ -471,9 +528,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     // Long answers wrap onto a second line instead of scrolling out of
                     // sight: everything except a date picker is an auto-growing
                     // textarea. Enter is swallowed so these stay single-value fields.
+                    // The birth-year bounds are for the date of birth only - the
+                    // endorsement and approval dates are current dates, and a 2009 cap
+                    // would keep the picker from ever offering them.
+                    $dateBounds = $name === 'date_of_birth' ? "min=\"{$dobMin}\" max=\"{$dobMax}\"" : '';
                     $control = $type === 'date'
                     ? "<input type=\"date\" name=\"{$name}\" value=\"".e($value)."\" form=\"info-sheet-form\"{$requiredAttr}
-                                min=\"{$dobMin}\" max=\"{$dobMax}\"
+                                {$dateBounds}
                                 :readonly=\"!editing\"
                                 class='w-full border rounded px-3 py-1.5 text-sm read-only:bg-gray-50 read-only:text-gray-500'
                                 @click=\"if(!editing){ lastClickedInput=\$el.name }\" @input=\"dirty=true\">"
@@ -883,8 +944,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             @forelse ($startup->teamMembers as $member)
                             @php
                             $rowKey = 'team-' . $member->getKey();
-                            $rowUpdateUrl = $url('admin.team-members.update-details', $member);
-                            $rowDeleteUrl = $url('admin.team-members.destroy', $member);
+                            $rowUpdateUrl = $url('admin.information-sheet.team-members.update', $member);
+                            $rowDeleteUrl = $url('admin.information-sheet.team-members.destroy', $member);
                             @endphp
                             <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
                                 <form method="POST" action="{{ $rowUpdateUrl }}"
@@ -938,7 +999,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 <div class="w-10 flex-shrink-0 flex items-center justify-center">
                                     @if ($rowDeleteUrl)
                                     <button type="button" x-show="editing" x-cloak
-                                        @click="toggleRemoval('{{ $rowKey }}')"
+                                        @click="canRemoveRow('team', '{{ $rowKey }}') && toggleRemoval('{{ $rowKey }}')" :disabled="! canRemoveRow('team', '{{ $rowKey }}')" :class="! canRemoveRow('team', '{{ $rowKey }}') && 'text-gray-300 cursor-not-allowed hover:text-gray-300'" :title="canRemoveRow('team', '{{ $rowKey }}') ? 'Remove entry' : 'At least one entry is required'"
                                         title="Remove entry"
                                         aria-label="Remove entry"
                                         class="text-red-600 hover:text-red-800 text-base leading-none">
@@ -994,7 +1055,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     {{-- Same gutter as saved rows so the columns don't shift --}}
                                     <div class="w-10 flex-shrink-0 flex items-center justify-center">
                                         <button type="button"
-                                            @click="discardRow('team', row.id)"
+                                            @click="remainingRows('team') > 1 && discardRow('team', row.id)" :disabled="! (remainingRows('team') > 1)" :class="! (remainingRows('team') > 1) && 'text-gray-300 cursor-not-allowed hover:text-gray-300'" :title="remainingRows('team') > 1 ? 'Discard entry' : 'At least one entry is required'"
                                             title="Discard entry"
                                             aria-label="Discard entry"
                                             class="text-red-600 hover:text-red-800 text-base leading-none">
@@ -1015,6 +1076,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             + Add Entry
                         </button>
                         @endif
+                        <span data-table-error="team" class="hidden text-xs font-medium" style="color:#dc2626"></span>
 
                         <span x-show="removalCount('team-') > 0" x-cloak class="text-xs text-gray-500">
                             <span x-text="removalCount('team-')"></span> marked for removal on save.
@@ -1062,8 +1124,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             @forelse ($sheet?->incubationInvolvements ?? [] as $item)
                             @php
                             $rowKey = 'inc-' . $item->id;
-                            $rowUpdateUrl = $url('admin.incubation.update', $item);
-                            $rowDeleteUrl = $url('admin.incubation.destroy', $item);
+                            $rowUpdateUrl = $url('admin.information-sheet.incubation.update', $item);
+                            $rowDeleteUrl = $url('admin.information-sheet.incubation.destroy', $item);
                             @endphp
                             <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
                                 <form method="POST" action="{{ $rowUpdateUrl }}"
@@ -1213,8 +1275,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             @forelse ($sheet?->ldInterventions ?? [] as $item)
                             @php
                             $rowKey = 'ld-' . $item->id;
-                            $rowUpdateUrl = $url('admin.ld.update', $item);
-                            $rowDeleteUrl = $url('admin.ld.destroy', $item);
+                            $rowUpdateUrl = $url('admin.information-sheet.ld.update', $item);
+                            $rowDeleteUrl = $url('admin.information-sheet.ld.destroy', $item);
                             @endphp
                             <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
                                 <form method="POST" action="{{ $rowUpdateUrl }}"
@@ -1585,8 +1647,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         @forelse ($sheet?->references ?? [] as $reference)
                         @php
                         $rowKey = 'ref-' . $reference->id;
-                        $rowUpdateUrl = $url('admin.references.update', $reference);
-                        $rowDeleteUrl = $url('admin.references.destroy', $reference);
+                        $rowUpdateUrl = $url('admin.information-sheet.references.update', $reference);
+                        $rowDeleteUrl = $url('admin.information-sheet.references.destroy', $reference);
                         @endphp
                         <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
                             <form method="POST" action="{{ $rowUpdateUrl }}"
@@ -1756,13 +1818,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     <div class="border border-gray-200 rounded-md p-4 bg-white">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                             <div>
-                                {!! $selectField('portfolio_manager', 'PORTFOLIO MANAGER', $portfolioManagerOptions) !!}
+                                {{-- Optional: a startup can be endorsed before a Portfolio Coordinator is assigned. --}}
+                                {!! $selectField('portfolio_manager', 'PORTFOLIO MANAGER', $portfolioManagerOptions, false) !!}
                                 {!! $selectField('cohort_no', 'COHORT NO.', $cohortNoOptions) !!}
                                 {!! $field('endorsed_by', 'ENDORSED BY') !!}
                                 {!! $field('endorsement_date', 'DATE', null, 'date') !!}
                             </div>
                             <div>
-                                {!! $field('director_approval_date', 'DATE OF APPROVAL', null, 'date', false) !!}
+                                {!! $field('director_approval_date', 'DATE OF APPROVAL', null, 'date') !!}
                             </div>
                         </div>
                     </div>
@@ -2031,10 +2094,25 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 slot.textContent = '';
                 slot.classList.add('hidden');
             });
+
+            document.querySelectorAll('[data-table-error]').forEach((slot) => {
+                slot.textContent = '';
+                slot.classList.add('hidden');
+            });
         };
 
-        window.showInfoSheetFieldErrors = function (errors, sourceForm) {
-            let first = null;
+        // `errors` is the aggregated map built by submitInfoSheetForms():
+        //     { 'full_name@3': { field: 'full_name', messages: [...], form: <row's form> }, ... }
+        // one entry per (field, row), so every row's problems are painted in the
+        // same pass instead of one Save attempt per row.
+        window.showInfoSheetFieldErrors = function (errors) {
+            // Every flagged element/slot goes in here instead of just remembering
+            // whichever error happened to be processed first — the main form and
+            // every Core Team / Incubation / L&D / Reference row report from
+            // separate requests, so "first processed" is not reliably "first on
+            // the page". Sorting by actual position afterward is what guarantees
+            // the scroll lands on the topmost error.
+            const candidates = [];
 
             const flag = (el) => {
                 el.style.borderColor = INFO_SHEET_ERROR_BORDER;
@@ -2042,7 +2120,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 el.setAttribute('data-field-invalid', '');
             };
 
-            Object.entries(errors || {}).forEach(([field, messages]) => {
+            Object.values(errors || {}).forEach((entry) => {
+                const field = entry.field;
+                const messages = entry.messages;
+                const sourceForm = entry.form;
                 const text = Array.isArray(messages) ? messages[0] : messages;
 
                 // Row tables (23, 32, 34) keep their message under the table.
@@ -2054,7 +2135,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     const box = document.querySelector('[data-packed-box="' + field + '"]');
                     if (box) flag(box);
 
-                    if (! first) first = box || slot;
+                    candidates.push(box || slot);
                     return;
                 }
 
@@ -2064,7 +2145,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 // so a document-wide "[name=...]" lookup below would always land
                 // on the FIRST row's field, regardless of which row actually
                 // failed. sourceForm is the one specific form that produced this
-                // error, passed in by whoever called this function.
+                // error.
                 let control = (sourceForm && sourceForm.elements) ? sourceForm.elements[field] : null;
 
                 if (control && control.length !== undefined && ! control.tagName) {
@@ -2097,6 +2178,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 }
                 if (! control) return;
 
+                // One line per field: if this control already carries a message
+                // (e.g. two rules failed on it), keep the first and don't stack
+                // a second note underneath.
+                if (control.hasAttribute('data-field-invalid')) {
+                    candidates.push(control);
+                    return;
+                }
+
                 flag(control);
 
                 const note = document.createElement('p');
@@ -2106,15 +2195,22 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 note.textContent = text;
                 control.insertAdjacentElement('afterend', note);
 
-                if (! first) first = control;
+                candidates.push(control);
             });
 
-            if (first) {
-                first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (typeof first.focus === 'function') first.focus({ preventScroll: true });
+            // Topmost on the page wins, regardless of which row's request
+            // happened to report its error first.
+            const topmost = candidates.reduce((top, el) => {
+                if (! top) return el;
+                return el.getBoundingClientRect().top < top.getBoundingClientRect().top ? el : top;
+            }, null);
+
+            if (topmost) {
+                topmost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof topmost.focus === 'function') topmost.focus({ preventScroll: true });
             }
 
-            return !! first;
+            return candidates.length > 0;
         };
 
         // The unit toggle behind items 5 and 6. Keeps the box to digits only and
@@ -2156,10 +2252,185 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
             };
         };
 
-        window.submitInfoSheetForms = async function(root) {
+        window.validateInfoSheetForms = function (root) {
             root = root || document;
 
-            window.clearInfoSheetFieldErrors();
+            // No clear here - saveAll() clears once, up front, before calling
+            // this AND submitInfoSheetForms(). Clearing again here used to
+            // wipe out whatever submitInfoSheetForms()'s dry run had just
+            // painted (or vice versa), which is how a badly-formatted field's
+            // error and a blank-field error ended up unable to show together.
+            let count = 0;
+            let first = null;
+
+            const blank = (el) => (el.value || '').trim() === '';
+
+            // "Type N/A" only makes sense for the free-text boxes that
+            // actually accept it. A date or email input cannot hold N/A -
+            // the server rejects it there too - so those get wording that
+            // matches what they actually accept. Core Team is a further
+            // exception: none of its columns accept N/A at all (see
+            // StoreTeamMemberRequest / SheetRowRules), so suggesting it
+            // there would just be wrong. And on the main sheet itself, a
+            // handful of Section I fields dropped N/A as a valid answer
+            // (see UpdateInformationSheetRequest's $properName, $address,
+            // $citizenshipByBirth and $place closures) - surname and first
+            // name always did, height/weight/mobile/email never accepted it
+            // to begin with (their own type/format already rules it out),
+            // and residential/permanent address, citizenship by birth and
+            // place of birth just joined them. Everything else on the main
+            // sheet (middle name, GSIS/Pag-IBIG/PhilHealth/SSS, dual
+            // citizenship, the Educational Background table, etc.) still
+            // genuinely accepts N/A, so those keep the fallback wording.
+            const noNAFields = [
+                'surname', 'first_name', 'height_input', 'weight_input',
+                'residential_address', 'permanent_address',
+                'citizenship_by_birth', 'place_of_birth', 'mobile_no',
+                'sex', 'civil_status',
+            ];
+
+            const requiredMessage = (el, fallback) => {
+                if (el.type === 'date') return 'Select a date.';
+                if (el.type === 'email') return 'Enter a valid email address.';
+                if (el.closest('form')?.getAttribute('action')?.includes('team-members')) return 'Required.';
+                if (noNAFields.includes(el.name)) return 'This field is required.';
+                return fallback;
+            };
+
+            const flag = (input, message) => {
+                // The segmented controls submit through a hidden input, which has
+                // nowhere to show a message. The visible wrapper that feeds it
+                // marks itself as the anchor.
+                // closest(), not querySelector(): every Core Team row carries a
+                // field called "sex", so a global lookup would flag row one.
+                const el = input.type === 'hidden'
+                    ? (input.closest('[data-field-anchor]') || input)
+                    : input;
+
+                el.style.borderColor = INFO_SHEET_ERROR_BORDER;
+                el.style.boxShadow = INFO_SHEET_ERROR_RING;
+                el.setAttribute('data-field-invalid', '');
+
+                const note = document.createElement('p');
+                note.setAttribute('data-field-error', input.name || 'row');
+                note.className = 'mt-1 text-xs';
+                note.style.color = '#dc2626';
+                note.textContent = message;
+                el.insertAdjacentElement('afterend', note);
+
+                count++;
+                if (! first) first = el;
+            };
+
+            // 1. The main sheet. Items 23, 31 and 34 are optional, and their
+            //    hidden packed textareas carry no `required`, so they fall out
+            //    of this loop on their own.
+            const mainForm = document.getElementById('info-sheet-form');
+
+            if (mainForm) {
+                const seen = new Set();
+
+                Array.from(mainForm.elements).forEach((el) => {
+                    if (! el.name || seen.has(el.name)) return;
+                    if (! el.required) return;
+                    seen.add(el.name);
+                    if (! blank(el)) return;
+
+                    flag(el, requiredMessage(el, 'This field is required. Enter N/A if it does not apply.'));
+                });
+            }
+
+            // 2. Table rows. Every column of a row must be answered. A row that
+            //    is completely blank is dropped before saving rather than
+            //    flagged, matching the skip in submitInfoSheetForms() - with
+            //    one exception: Core Team. A blank Core Team row is left
+            //    sitting in the table on purpose (it's one of the 4 starter
+            //    rows, or one the founder added and hasn't gotten to yet),
+            //    and the founder always has a one-click way to say "I don't
+            //    want this row" - the x button (discardRow()/toggleRemoval())
+            //    - so silently dropping an untouched blank row instead of
+            //    flagging it would let an incomplete team pass review with
+            //    no error at all. Incubation, L&D and References stay
+            //    optional, so a blank "add new" row there is still skipped.
+            const rowIsBlank = (form) => Array.from(form.elements)
+                .filter((el) => el.name && ! ['_token', '_method'].includes(el.name))
+                .every(blank);
+
+            // Tracked so loop 3 below can tell whether a Core Team row
+            // already got its own per-field messages here - if so, the
+            // generic "needs at least one entry" line underneath would just
+            // be repeating what every cell in that row already says.
+            let teamRowFlagged = false;
+
+            Array.from(root.querySelectorAll('form.js-subform')).forEach((form) => {
+                if (form.classList.contains('js-deleteform')) return;
+                if (form.classList.contains('js-skip')) return;
+
+                const isTeamForm = form.action.includes('team-members');
+
+                if (! isTeamForm && form.classList.contains('js-addform') && rowIsBlank(form)) return;
+
+                Array.from(form.elements).forEach((el) => {
+                    if (! el.name || ['_token', '_method'].includes(el.name)) return;
+                    if (! blank(el)) return;
+                    if (isTeamForm) teamRowFlagged = true;
+                    flag(el, requiredMessage(el, 'Required. Type N/A if it does not apply.'));
+                });
+            });
+
+            // 3. Core Team keeps at least one row - a startup always has at
+            //    least its founder. Sections III, IV and 35 are optional and may
+            //    be left empty.
+            //
+            //    Loop 2 above now flags every blank Core Team row's fields
+            //    individually (it no longer skips them the way it still does
+            //    for Incubation/L&D/References), so in the normal case a
+            //    blank starter row already stops the save on its own. This
+            //    check is the backstop for the one case loop 2 can't catch:
+            //    every row - saved or new - actually removed via
+            //    toggleRemoval()/discardRow(), leaving nothing in the DOM
+            //    for loop 2 to even iterate over. Row COUNT alone
+            //    (remaining.team) still isn't enough for that: a discarded
+            //    new row is gone entirely, but a removed *saved* row is
+            //    still counted by remainingRows() until the save actually
+            //    goes through (see canRemoveRow()) - so counting only the
+            //    NON-blank, NON-removed forms still on the page is what
+            //    correctly tells the two apart.
+            const teamForms = Array.from(root.querySelectorAll('form.js-subform'))
+                .filter((f) => f.action.includes('team-members') && ! f.classList.contains('js-skip'));
+            const teamFilled = teamForms.some((f) => ! rowIsBlank(f));
+
+            // Don't pile this generic line on top of the per-field messages
+            // loop 2 already put on every cell of every blank row - only the
+            // "everything got removed, nothing left to flag" case actually
+            // needs it.
+            if (! teamFilled && ! teamRowFlagged) {
+                const slot = document.querySelector('[data-table-error="team"]');
+
+                if (slot) {
+                    slot.textContent = 'Core Team Formation needs at least one entry.';
+                    slot.classList.remove('hidden');
+
+                    count++;
+                    if (! first) first = slot;
+                }
+            }
+
+            if (first) {
+                first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof first.focus === 'function') first.focus({ preventScroll: true });
+            }
+
+            return count;
+        };
+
+        window.submitInfoSheetForms = async function(root, opts) {
+            root = root || document;
+            const dryRunOnly = !!(opts && opts.dryRunOnly);
+
+            // No clear here - saveAll() clears once, up front, before calling
+            // validateInfoSheetForms() AND this, so neither wipes out what the
+            // other just painted.
 
             const isBlank = (form) => {
                 const data = new FormData(form);
@@ -2185,20 +2456,21 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 return true;
             });
 
-            // Deletes go last, so a failed update can't leave a row already destroyed.
-            forms.sort((a, b) => {
-                const aDel = a.classList.contains('js-deleteform') ? 1 : 0;
-                const bDel = b.classList.contains('js-deleteform') ? 1 : 0;
-                return aDel - bDel;
-            });
+            // Deletes still go last, so a failed update can't leave a row already
+            // destroyed - but everything else (the main sheet, every Core Team /
+            // Incubation / L&D / Reference row) is submitted in the same pass
+            // below, so a problem in row 3 shows up next to a problem in row 1
+            // instead of waiting for a second Save attempt to reveal it.
+            const nonDeleteForms = forms.filter((form) => ! form.classList.contains('js-deleteform'));
+            const deleteForms = forms.filter((form) => form.classList.contains('js-deleteform'));
 
-            let created = 0;
-            let removed = 0;
+            const submitOne = async (form, dryRun = false) => {
+                const data = new FormData(form);
+                if (dryRun) data.append('_dry_run', '1');
 
-            for (const form of forms) {
                 const response = await fetch(form.action, {
                     method: 'POST',
-                    body: new FormData(form),
+                    body: data,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     },
@@ -2208,34 +2480,96 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     const error = new Error('Request to ' + form.action + ' failed with status ' + response.status);
                     error.status = response.status;
                     error.action = form.action;
-                    // Which row's own form this came from, so the field can be
-                    // looked up inside it: Core Team / Incubation / L&D /
-                    // Reference rows all reuse the same field names (full_name,
-                    // phone...), so a document-wide "[name=...]" lookup would
-                    // always land on the first row regardless of which row this
-                    // error actually belongs to.
-                    error.form = form;
 
                     // Laravel returns validation errors as JSON on an XHR request.
                     if (response.status === 422) {
                         try {
                             const body = await response.json();
                             error.validation = body.errors || null;
-
-                            const count = Object.keys(body.errors || {}).length;
-                            error.message = count
-                                ? (count === 1
-                                    ? Object.values(body.errors)[0][0]
-                                    : `${count} fields need fixing — see the messages on the form.`)
-                                : (body.message || error.message);
                         } catch (ignored) {}
                     }
 
                     throw error;
                 }
 
-                if (form.classList.contains('js-addform')) created++;
-                if (form.classList.contains('js-deleteform')) removed++;
+                return form;
+            };
+
+            // Runs every non-delete form through submitOne, collecting every
+            // validation problem in one pass instead of stopping at the first.
+            // Used for the dry run (nothing persisted) and for the real save.
+            const attemptAll = async (dryRun) => {
+                // Keyed by field + the row's position in nonDeleteForms, not just
+                // the field name or the form action: every Core Team / Incubation
+                // / L&D / Reference row reuses the same field names (full_name,
+                // phone...), and every unsaved "add new" row in a table posts to
+                // the exact same create URL, so neither of those is unique per
+                // row. The position is - and it also gives showInfoSheetFieldErrors
+                // the exact <form> to look the control up in.
+                const combinedValidation = {};
+                let firstHardError = null;
+                let created = 0;
+
+                for (const [formIndex, form] of nonDeleteForms.entries()) {
+                    try {
+                        const saved = await submitOne(form, dryRun);
+                        if (! dryRun && saved.classList.contains('js-addform')) created++;
+                    } catch (error) {
+                        if (error.status === 422 && error.validation) {
+                            Object.entries(error.validation).forEach(([field, messages]) => {
+                                combinedValidation[field + '@' + formIndex] = { field, messages, form };
+                            });
+                        } else if (! firstHardError) {
+                            firstHardError = error;
+                        }
+                    }
+                }
+
+                const problemCount = Object.keys(combinedValidation).length;
+
+                if (problemCount > 0) {
+                    const firstEntry = Object.values(combinedValidation)[0];
+                    const firstMessage = Array.isArray(firstEntry.messages) ? firstEntry.messages[0] : firstEntry.messages;
+
+                    const error = new Error(
+                        problemCount === 1
+                            ? firstMessage
+                            : `${problemCount} fields need fixing — see the messages on the form.`
+                    );
+                    error.validation = combinedValidation;
+                    throw error;
+                }
+
+                if (firstHardError) {
+                    throw firstHardError;
+                }
+
+                return created;
+            };
+
+            // Phase 1 — dry run every section. Nothing persists; this only asks
+            // the server "would this be valid?" for every section at once. If
+            // anything would fail, this throws and nothing below runs, so a typo
+            // in one row can no longer leave a correct edit elsewhere saved on
+            // its own.
+            await attemptAll(true);
+
+            // The client-side check already found something wrong elsewhere on
+            // the sheet: this dry run was only there to add the server-side
+            // problems to the same click. Nothing persists.
+            if (dryRunOnly) {
+                return { created: 0, removed: 0 };
+            }
+
+            // Phase 2 — everything validated clean, so it's safe to persist.
+            const created = await attemptAll(false);
+
+            // Phase 3 — only reached once every create/update persisted.
+            let removed = 0;
+
+            for (const form of deleteForms) {
+                await submitOne(form);
+                removed++;
             }
 
             return {

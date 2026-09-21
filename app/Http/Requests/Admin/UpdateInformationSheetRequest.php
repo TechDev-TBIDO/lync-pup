@@ -670,14 +670,16 @@ class UpdateInformationSheetRequest extends FormRequest
             'solution_offered' => ['nullable', 'string'],
 
             // Declaration & Endorsement (TBIDO-side fields — never editable by the founder)
-            'portfolio_manager' => array_merge($words(150), [new PersonName]),
+            // Optional: a startup can be endorsed before a Portfolio Coordinator
+            // has been assigned. When one is given it is still held to the
+            // same letters-only shape as any other name.
+            'portfolio_manager' => ['nullable', 'string', 'max:150', 'regex:/^(n\/a|[\p{L}][\p{L}\s\.\-\x{2019}\']*)$/iu', new PersonName],
             'cohort_no' => $cohortCode(20),
             'endorsed_by' => array_merge($words(150), [new PersonName]),
             'endorsement_date' => ['required', 'date'],
 
-            // Filled in after the director signs the printed copy, so it stays
-            // optional while everything else on the form is required.
-            'director_approval_date' => ['nullable', 'date'],
+            // Required like the rest of the endorsement block.
+            'director_approval_date' => ['required', 'date'],
         ];
     }
 
@@ -797,11 +799,12 @@ class UpdateInformationSheetRequest extends FormRequest
             $messages[$key.'_highest_level_unit.regex'] = "The {$label} level or units can only contain letters, numbers and . - / ( ) ' punctuation.";
         }
 
-        $messages['portfolio_manager.required'] = 'Enter the assigned portfolio manager.';
         $messages['cohort_no.required'] = 'Enter the cohort number, for example Cohort 3.';
         $messages['endorsed_by.required'] = 'Enter who endorsed this startup.';
         $messages['endorsement_date.required'] = 'Select the endorsement date.';
         $messages['endorsement_date.date'] = 'Enter the endorsement date as a valid date.';
+        $messages['director_approval_date.required'] = 'Select the date of approval.';
+        $messages['director_approval_date.date'] = 'Enter the date of approval as a valid date.';
 
         // Fallback for anything not named above.
         $messages['required'] = 'This field is required. Enter N/A if it does not apply.';
@@ -831,6 +834,7 @@ class UpdateInformationSheetRequest extends FormRequest
             'non_academic_distinctions' => 'non-academic distinctions',
             'membership_associations' => 'membership in associations',
             'cohort_no' => 'cohort no.',
+            'director_approval_date' => 'date of approval',
         ];
     }
 }

@@ -66,17 +66,17 @@
         }">
         <div class="w-full max-w-md">
 
-            {{-- A plain link to /login here would hit it while STILL
-                 authenticated (this page requires auth) — the 'guest'
-                 middleware on /login then bounces an already-logged-in
-                 user off to route('dashboard') instead, which 403s for a
-                 Startup account (Admin-only route) rather than showing
-                 login. Logging out first, via the same action the "Sign
-                 Out" button already uses, guarantees this always lands
-                 cleanly on the real login form. --}}
-            <form method="POST" action="{{ route('logout') }}" class="mb-6">
+            {{-- Back returns to the page the founder just came from: the
+                 registration form. /register sits behind the 'guest'
+                 middleware, so a plain link would bounce this still-logged-in
+                 (but unverified) user away — instead this posts to the
+                 existing "change email" action (RegisteredUserController::
+                 cancel), which logs out, drops the unverified Pending account
+                 (so the same email can be re-used) and redirects to
+                 /register with name / email / venture name pre-filled. --}}
+            <form method="POST" action="{{ route('verification.change-email') }}" class="mb-6">
                 @csrf
-                <button type="submit" class="inline-flex text-gray-500 hover:text-gray-800" aria-label="Back to login">
+                <button type="submit" class="inline-flex text-gray-500 hover:text-gray-800" aria-label="Back to registration">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>

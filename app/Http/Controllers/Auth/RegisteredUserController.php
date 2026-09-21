@@ -95,6 +95,14 @@ class RegisteredUserController extends Controller
             $user->delete();
         }
 
-        return redirect()->route('register');
+        // Back to the form they just filled in, with what they typed still
+        // there (never the password) so this reads as "going back" rather
+        // than starting over.
+        return redirect()->route('register')->withInput([
+            'name' => $user?->name,
+            'email' => $user?->email,
+            'company_name' => $user?->startup?->company_name,
+            'terms' => '1',
+        ]);
     }
 }

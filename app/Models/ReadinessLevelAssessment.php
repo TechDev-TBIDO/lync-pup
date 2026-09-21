@@ -78,6 +78,22 @@ class ReadinessLevelAssessment extends Model
     }
 
     /**
+     * True only once all four RL types (TRL, MRL, TMRL, SRL) have a score —
+     * a stage with just one or two of them filled in is still in progress.
+     * Drives the founder dashboard's "Pre/Post RL Documents" roadmap steps.
+     */
+    public function isFullyScored(): bool
+    {
+        foreach (ReadinessRubric::TYPES as $type) {
+            if ($this->scoreFor($type) === null) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Recomputes every *_score column from its matching *_progress column
      * (via ReadinessRubric::scoreFromProgress) and overall_score as their
      * average — called right before saving, so the stored score columns

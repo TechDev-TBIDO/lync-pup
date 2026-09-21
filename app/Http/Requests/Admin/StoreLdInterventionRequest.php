@@ -2,23 +2,21 @@
 
 namespace App\Http\Requests\Admin;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Startup\StoreLdInterventionRequest as FounderStoreLdInterventionRequest;
 
-class StoreLdInterventionRequest extends FormRequest
+/**
+ * An L&D Intervention row on the admin Information Sheet page.
+ *
+ * Holds the reviewer to exactly the same column rules and messages the
+ * founder's own row is held to (see Startup\StoreLdInterventionRequest and SheetRowRules), so
+ * a row that could not be saved from the founder's page cannot be saved from
+ * here either - and the inline errors read the same on both pages. Only who
+ * may make the request differs.
+ */
+class StoreLdInterventionRequest extends FounderStoreLdInterventionRequest
 {
     public function authorize(): bool
     {
         return $this->user()?->isAdmin() ?? false;
-    }
-
-    public function rules(): array
-    {
-        return [
-            'title' => ['required', 'string', 'max:255'],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
-            'number_of_hours' => ['nullable', 'string', 'max:20'],
-            'conducted_sponsored_by' => ['nullable', 'string', 'max:255'],
-        ];
     }
 }

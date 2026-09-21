@@ -64,7 +64,15 @@
     snapshot() {
         const fields = [];
         this.$el.querySelectorAll('input[name], textarea[name], select[name]').forEach((el) => {
-            if (el.type === 'file') return;
+            // A file input's .value is just a fake path, so it can't be compared
+            // like the others - but files chosen in the Supporting Documents
+            // uploader ARE an unsaved change (they only upload on Save), and
+            // without counting them the Save button stayed disabled after
+            // picking a file. Identified by name/size/last-modified instead.
+            if (el.type === 'file') {
+                fields.push([el.name, Array.from(el.files || []).map((f) => f.name + ':' + f.size + ':' + f.lastModified).join('|')]);
+                return;
+            }
             fields.push([el.name, el.value]);
         });
         return JSON.stringify({ fields, removed: [...this.pendingRemoval].sort() });
@@ -82,14 +90,14 @@
     // Core Team must have at least one entry (see validateInfoSheetForms()'s
     // needs-at-least-one-entry rule), and an empty None-listed-yet
     // message gave a founder nothing to actually click into or highlight red
-    // when that rule fails. Starting with 4 blank, ready-to-fill rows already
-    // in edit mode - same idea as Educational Background always showing its
-    // 4 rows - fixes both: there's something to type into immediately, and
+    // when that rule fails. Starting with ONE blank, ready-to-fill row already
+    // in edit mode fixes both: there's something to type into immediately, and
     // something for the blank-required-field check to flag if left empty.
+    // (It used to seed four; the founder adds more with "+ Add Entry".)
     // Only seeded when the startup has no real team members saved yet; once
     // at least one is saved, this never seeds again.
-    newRows: { team: {{ $startup->teamMembers->isEmpty() ? '[{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]' : '[]' }}, inc: [], ld: [], ref: [] },
-    nextRowId: {{ $startup->teamMembers->isEmpty() ? 5 : 1 }},
+    newRows: { team: {{ $startup->teamMembers->isEmpty() ? '[{ id: 1 }]' : '[]' }}, inc: [], ld: [], ref: [] },
+    nextRowId: {{ $startup->teamMembers->isEmpty() ? 2 : 1 }},
 
     addRow(section) {
         this.newRows[section].push({ id: this.nextRowId++ });
@@ -335,6 +343,14 @@ pendingRemoval: [],
 
         $watch('editing', value => {
             if (!value) newRows = { team: [], inc: [], ld: [], ref: [] };
+
+            // Leaving edit mode clears the starter row above, and a save with
+            // no new rows doesn't reload the page - so with no team member
+            // saved yet, clicking Edit again would otherwise show no Core Team
+            // row at all. Put the single blank one back.
+            if (value && savedCounts.team === 0 && newRows.team.length === 0) {
+                newRows.team = [{ id: nextRowId++ }];
+            }
         });
 
         // Baseline for the dirty comparison: captured once at load, and
@@ -1709,35 +1725,68 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                      index.blade.php): up to 5 files, 5MB each client-side (server
                      allows up to 10MB — see StoreInformationSheetFilesRequest),
                      images/PDF/Word/Excel/CSV. --}}
-                <div class="mt-6">
+                <div class="mt-6" x-data="{ previewImageUrl: null }">
                     <p class="text-xs font-semibold text-gray-700 mb-2">ADD SUPPORTING DOCUMENTS</p>
 
                     @if (($sheet?->files ?? collect())->isNotEmpty())
-                    <div class="mb-4 space-y-2 max-w-md">
+                    <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
                         @foreach ($sheet->files as $file)
                         @php $rowKey = 'doc-' . $file->information_sheet_file_id; @endphp
-                        <div class="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2" x-show="!isRemoving('{{ $rowKey }}')">
-                            <a href="{{ $file->url }}" target="_blank" rel="noopener" class="truncate text-sm text-[#11386A] hover:underline">{{ $file->original_filename }}</a>
+                        {{-- Same row as a saved Supporting File on a submitted roadblock:
+                             name, View (images in an on-page lightbox, everything else in a
+                             new tab) and Download; the x is the info sheet's own deferred
+                             removal, only while editing. --}}
+                        <div class="flex min-w-0 items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2 sm:justify-start sm:gap-8" x-show="!isRemoving('{{ $rowKey }}')">
+                            <span class="truncate text-sm font-medium text-[#6D0D23]">{{ $file->original_filename }}</span>
 
-                            {{-- Deferred DELETE: same pattern as the row-tables above —
-                                 only joins the save queue once :class adds js-subform. --}}
-                            <form method="POST" action="{{ route('startup.information-sheet.files.destroy', $file) }}"
-                                class="js-deleteform hidden"
-                                :class="isRemoving('{{ $rowKey }}') ? 'js-subform' : ''">
-                                @csrf
-                                @method('DELETE')
-                            </form>
+                            <span class="flex flex-shrink-0 items-center gap-3 text-[#6D0D23]">
+                                @if ($file->is_image)
+                                <button type="button" @click="previewImageUrl = @js($file->url)" aria-label="Preview image" title="View image"
+                                    class="transition hover:opacity-70 focus:outline-none">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                </button>
+                                @else
+                                <a href="{{ $file->url }}" target="_blank" rel="noopener" aria-label="Preview file" title="View file"
+                                    class="transition hover:opacity-70 focus:outline-none">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                </a>
+                                @endif
 
-                            <button type="button" x-show="editing" x-cloak
-                                @click="toggleRemoval('{{ $rowKey }}')"
-                                title="Remove file" aria-label="Remove file"
-                                class="text-red-600 hover:text-red-800 text-base leading-none flex-shrink-0">
-                                &times;
-                            </button>
+                                <a href="{{ $file->url }}" download="{{ $file->original_filename }}" aria-label="Download file" title="Download"
+                                    class="transition hover:opacity-70 focus:outline-none">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 3v12" />
+                                    <path d="M7 11l5 5 5-5" />
+                                    <path d="M4 20h16" />
+                                </svg>
+                                </a>
+
+                                {{-- Deferred DELETE: same pattern as the row-tables above —
+                                     only joins the save queue once :class adds js-subform. --}}
+                                <form method="POST" action="{{ route('startup.information-sheet.files.destroy', $file) }}"
+                                    class="js-deleteform hidden"
+                                    :class="isRemoving('{{ $rowKey }}') ? 'js-subform' : ''">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
+
+                                <button type="button" x-show="editing" x-cloak
+                                    @click="toggleRemoval('{{ $rowKey }}')"
+                                    title="Remove file" aria-label="Remove file"
+                                    class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-rose-50 hover:text-rose-900 focus:outline-none">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                                </button>
+                            </span>
                         </div>
                         @endforeach
 
-                        <p class="text-xs text-gray-500" x-show="removalCount('doc-') > 0" x-cloak>
+                        <p class="w-full text-xs text-gray-500" x-show="removalCount('doc-') > 0" x-cloak>
                             <span x-text="removalCount('doc-')"></span> marked for removal on save.
                             <button type="button" @click="restoreRemovals('doc-')" class="underline hover:text-gray-700">Restore</button>
                         </p>
@@ -1774,13 +1823,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     const ext = file.name.split('.').pop().toLowerCase();
 
                                     if (this.remainingSlots() <= 0) {
-                                        this.fileError = `Only ${this.limits.maxFiles} supporting documents can be attached in total.`; return;
+                                        this.fileError = 'Maximum file limit reached.'; return;
                                     }
                                     if (!this.limits.accept.includes(ext)) {
                                         this.fileError = `${file.name} isn't a supported file type.`; return;
                                     }
                                     if (file.size > this.limits.maxBytes) {
-                                        this.fileError = `${file.name} exceeded the size limit (max 5MB).`; return;
+                                        this.fileError = `${file.name} is larger than 5MB.`; return;
                                     }
                                     if (existing.includes(file.name + file.size)) {
                                         this.fileError = `${file.name} is already attached.`; return;
@@ -1801,8 +1850,16 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 this.syncInput();
                             },
                             syncInput() {
+                                // Every entry carries a blob: URL so a chosen-but-not-yet-saved
+                                // file can be opened and checked before it is uploaded. The
+                                // previous batch is released first so URLs don't pile up.
+                                this.files.forEach(f => URL.revokeObjectURL(f.url));
                                 this.$refs.fileInput.files = this.dt.files;
-                                this.files = Array.from(this.dt.files).map(file => ({ name: file.name }));
+                                this.files = Array.from(this.dt.files).map(file => ({
+                                    name: file.name,
+                                    isImage: file.type.startsWith('image/'),
+                                    url: URL.createObjectURL(file),
+                                }));
                             },
                         }">
 
@@ -1860,17 +1917,47 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             @error('files.*') <p class="mt-2 max-w-md text-xs text-red-600">{{ $message }}</p> @enderror
 
                             <p class="mt-2 max-w-md text-xs text-gray-500"
-                                x-text="`Only ${limits.maxFiles} supporting documents total, 5MB each. Images, PDF, Word, or Excel. ${remainingSlots()} slot(s) left.`"></p>
+                                x-text="`Up to ${limits.maxFiles} files, 5MB each. Images, PDF, Word, or Excel.` + (existingCount > 0 ? ` ${remainingSlots()} slot(s) left.` : '')"></p>
 
                             <template x-if="files.length > 0">
                                 <ul class="mt-4 w-full max-w-md space-y-2">
                                     <template x-for="(file, index) in files" :key="index">
                                         <li class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                                            <span x-text="file.name" class="truncate text-sm text-gray-700"></span>
-                                            <button type="button" @click="removeFile(index)" aria-label="Remove file"
-                                                class="ml-3 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-rose-50 hover:text-rose-900 focus:outline-none">
-                                                &times;
-                                            </button>
+                                            <div class="flex min-w-0 items-center gap-3">
+                                                <template x-if="file.isImage">
+                                                    <img :src="file.url" class="h-9 w-9 flex-shrink-0 rounded object-cover">
+                                                </template>
+                                                <template x-if="!file.isImage">
+                                                    <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-rose-50
+                                                                 text-[10px] font-semibold text-rose-900"
+                                                        x-text="file.name.split('.').pop().toUpperCase()"></span>
+                                                </template>
+                                                <span x-text="file.name" class="truncate text-sm text-gray-700"></span>
+                                            </div>
+                                            <span class="ml-3 flex flex-shrink-0 items-center gap-2">
+                                                {{-- View before saving: images open in the on-page lightbox,
+                                                     everything else in a new tab (same as Submit Roadblock). --}}
+                                                <button type="button" x-show="file.isImage" x-cloak
+                                                    @click="previewImageUrl = file.url" aria-label="View image" title="View image"
+                                                    class="text-[#6D0D23] transition hover:opacity-70 focus:outline-none">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                                </button>
+                                                <a :href="file.url" target="_blank" rel="noopener" x-show="!file.isImage" x-cloak
+                                                    aria-label="View file" title="View file"
+                                                    class="text-[#6D0D23] transition hover:opacity-70 focus:outline-none">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                                </a>
+                                                <button type="button" @click="removeFile(index)" aria-label="Remove file"
+                                                    class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-rose-50 hover:text-rose-900 focus:outline-none">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                                                </button>
+                                            </span>
                                         </li>
                                     </template>
                                 </ul>
@@ -1879,6 +1966,18 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     </div>
 
                     <p x-show="!editing" class="text-xs text-gray-500">Optional. Founder may attach supporting documents here.</p>
+
+                    {{-- Image lightbox — same as Submit Roadblock's. --}}
+                    <template x-teleport="body">
+                        <div x-show="previewImageUrl" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 sm:p-6"
+                            @click.self="previewImageUrl = null" @keydown.escape.window="previewImageUrl = null">
+                            <button type="button" @click="previewImageUrl = null" aria-label="Close preview"
+                                class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none sm:right-5 sm:top-5">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                            </button>
+                            <img :src="previewImageUrl" class="max-h-full max-w-full rounded-lg object-contain">
+                        </div>
+                    </template>
                 </div>
 
                 {{-- 36. Declaration & Endorsement. Founder side only shows the
@@ -2465,8 +2564,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 // those earlier rows' errors just vanished. Only an already-
                 // saved row (PATCHing its own /team-members/{id}) had a
                 // genuinely unique action, so this only ever surfaced with
-                // multiple new rows at once - exactly the 4 blank Core Team
-                // starter rows this sheet now always shows. The row's actual
+                // multiple new rows at once - e.g. several blank Core Team
+                // rows added with "+ Add Entry". The row's actual
                 // position in nonDeleteForms is what's actually unique here,
                 // so that's what the key uses now.
                 const combinedValidation = {};
