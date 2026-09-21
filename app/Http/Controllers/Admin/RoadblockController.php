@@ -13,6 +13,8 @@ use App\Notifications\MentorshipCancelled;
 use App\Notifications\MentorshipScheduled;
 use App\Notifications\NewRoadblockSubmitted;
 use App\Notifications\RoadblockStatusUpdated;
+use App\Support\ChangeLog;
+use App\Support\HistoryFields;
 
 class RoadblockController extends Controller
 {
@@ -113,12 +115,14 @@ class RoadblockController extends Controller
         return view('admin.roadblocks.index', [
             // One shared, page-wide Edit History feed of every Assign &
             // Schedule/Edit/Resolve/Failed/Recover action across every
-            // startup's roadblocks — this page already lists every cohort's
-            // roadblocks together, so there's no single-record scope to
-            // narrow this feed to either.
+            // startup's roadblocks. Each entry is filed under its startup's
+            // cohort, so this narrows to the cohort selected on this page
+            // exactly like the stage tables above — or, under "All Cohorts",
+            // lists everything by time with each entry's cohort labelled.
             'roadblockVersionHistory' => VersionHistory::where('context', 'Roadblock Management')
+                ->forSelectedCohort()
                 ->with('user')
-                ->latest()
+                ->newestFirst()
                 ->get(),
             'pending' => $pending,
             'newRoadblockIds' => $newRoadblockIds,
@@ -151,7 +155,9 @@ class RoadblockController extends Controller
 
         $validated = $request->validated();
 
-        $roadblock->update([
+        // What this save actually changed (assignee, date, time, platform, ...)
+        // — read either side of the update by ChangeLog::track().
+        $changes = ChangeLog::track($roadblock, HistoryFields::roadblock(), fn () => $roadblock->update([
             ...$validated,
             // Explicitly set both every time (defaulting to null if absent from
             // $validated) so switching a roadblock from a mentor to a coordinator
@@ -162,7 +168,7 @@ class RoadblockController extends Controller
             'status' => 'Scheduled',
             'resolved_at' => null,
             'failed_at' => null,
-        ]);
+        ]));
 
         // Tells the founder a mentor and a slot now exist. This same action
         // also fires on a reassignment to a different mentor or a moved
@@ -187,10 +193,13 @@ class RoadblockController extends Controller
             }
         }
 
-        VersionHistory::record(
+        // An Edit that changes nothing isn't logged; an Assign & Schedule
+        // always changes at least the status (Pending -> Scheduled).
+        VersionHistory::recordChanges(
             $roadblock->startup,
             'Roadblock Management',
             $wasAlreadyScheduled ? 'reassign_roadblock' : 'assign_roadblock',
+            $changes,
             $roadblock->startup?->company_name
         );
 
@@ -255,11 +264,13 @@ class RoadblockController extends Controller
             return back()->with('error', 'This roadblock can only be resolved once its meeting has taken place.');
         }
 
+        $fromStatus = $roadblock->status;
+
         $roadblock->update(['status' => 'Resolved', 'resolved_at' => now()]);
 
         $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Resolved'));
 
-        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'resolve_roadblock', $roadblock->startup?->company_name);
+        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'resolve_roadblock', $roadblock->startup?->company_name, changes: ChangeLog::status($fromStatus, 'Resolved'));
 
         // Jump straight to the Resolved stage so the admin lands where the
         // roadblock actually went, instead of staying on Pending Review where
@@ -274,11 +285,13 @@ class RoadblockController extends Controller
             return back()->with('error', 'This roadblock can only be marked failed once its meeting has taken place.');
         }
 
+        $fromStatus = $roadblock->status;
+
         $roadblock->update(['status' => 'Failed', 'failed_at' => now()]);
 
         $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Failed'));
 
-        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'fail_roadblock', $roadblock->startup?->company_name);
+        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'fail_roadblock', $roadblock->startup?->company_name, changes: ChangeLog::status($fromStatus, 'Failed'));
 
         return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'failed'])
             ->with('status', 'Roadblock marked failed.');
@@ -296,7 +309,7 @@ class RoadblockController extends Controller
 
         $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Pending Review'));
 
-        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'recover_roadblock', $roadblock->startup?->company_name);
+        VersionHistory::record($roadblock->startup, 'Roadblock Management', 'recover_roadblock', $roadblock->startup?->company_name, changes: ChangeLog::status('Resolved', 'Pending Review'));
 
         return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'assessment'])
             ->with('status', 'Roadblock recovered to Pending Review.');

@@ -9,6 +9,8 @@ use App\Models\EvaluationSchedule;
 use App\Models\VersionHistory;
 use App\Notifications\EvaluationCancelled;
 use App\Notifications\EvaluationScheduled;
+use App\Support\ChangeLog;
+use App\Support\HistoryFields;
 use Illuminate\Http\RedirectResponse;
 
 class EvaluationScheduleController extends Controller
@@ -22,7 +24,12 @@ class EvaluationScheduleController extends Controller
         $evaluationSchedule = EvaluationSchedule::create($data);
 
         if ($evaluationSchedule->startup) {
-            VersionHistory::record($evaluationSchedule->startup, 'Information Sheet', 'set_evaluation');
+            VersionHistory::record(
+                $evaluationSchedule->startup,
+                'Information Sheet',
+                'set_evaluation',
+                changes: ChangeLog::initial($evaluationSchedule, HistoryFields::evaluationSchedule()),
+            );
         }
 
         $this->notifyFounder($evaluationSchedule, rescheduled: false);
@@ -36,10 +43,12 @@ class EvaluationScheduleController extends Controller
         $data['end_time'] = $this->endTimeFor($data['start_time']);
         $data['status'] = 'Scheduled';
 
-        $evaluationSchedule->update($data);
+        // What the reschedule really moved (date, time, modality, ...) — one
+        // that changes nothing isn't logged.
+        $changes = ChangeLog::track($evaluationSchedule, HistoryFields::evaluationSchedule(), fn () => $evaluationSchedule->update($data));
 
         if ($evaluationSchedule->startup) {
-            VersionHistory::record($evaluationSchedule->startup, 'Information Sheet', 'reschedule_evaluation');
+            VersionHistory::recordChanges($evaluationSchedule->startup, 'Information Sheet', 'reschedule_evaluation', $changes);
         }
 
         $this->notifyFounder($evaluationSchedule, rescheduled: true);
@@ -61,7 +70,18 @@ class EvaluationScheduleController extends Controller
         $evaluationSchedule->delete();
 
         if ($startup) {
-            VersionHistory::record($startup, 'Information Sheet', 'delete_evaluation');
+            // Says which booking went, since the row itself is gone.
+            $slot = collect([
+                $evaluationSchedule->evaluation_date?->format('M j, Y'),
+                $evaluationSchedule->start_time ? \Illuminate\Support\Carbon::parse($evaluationSchedule->start_time)->format('g:i A') : null,
+            ])->filter()->implode(', ');
+
+            VersionHistory::record(
+                $startup,
+                'Information Sheet',
+                'delete_evaluation',
+                changes: $slot === '' ? [] : ChangeLog::note("Evaluation removed ({$slot})"),
+            );
         }
 
         // Always take down a still-unread "Evaluation scheduled" card for

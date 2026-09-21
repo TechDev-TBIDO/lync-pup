@@ -71,8 +71,10 @@ class DashboardTest extends TestCase
         $cohort1 = Cohort::where('number', 1)->firstOrFail();
         $cohort2 = Cohort::where('number', 2)->firstOrFail();
 
-        Startup::factory()->create(['cohort_id' => $cohort1->cohort_id]);
-        Startup::factory()->create(['cohort_id' => $cohort2->cohort_id]);
+        // cohort_number is what the dashboard filters on; left to the factory it is
+        // random 1-5, which made this test fail whenever both draws missed cohort 1.
+        Startup::factory()->create(['cohort_id' => $cohort1->cohort_id, 'cohort_number' => $cohort1->number]);
+        Startup::factory()->create(['cohort_id' => $cohort2->cohort_id, 'cohort_number' => $cohort2->number]);
 
         $response = $this->actingAs($this->admin())->get(route('dashboard', ['cohort' => $cohort1->cohort_id]));
 

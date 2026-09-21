@@ -169,7 +169,6 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
     Route::post('/assessment-hub/meetings/{assessmentMeeting}/fail', [AssessmentMeetingController::class, 'fail'])->name('assessment-hub.meetings.fail');
     Route::post('/assessment-hub/meetings/{assessmentMeeting}/recover', [AssessmentMeetingController::class, 'recover'])->name('assessment-hub.meetings.recover');
     Route::patch('/version-history/{versionHistory}', [VersionHistoryController::class, 'update'])->name('version-history.update');
-    Route::delete('/version-history/{versionHistory}', [VersionHistoryController::class, 'destroy'])->name('version-history.destroy');
 
     Route::get('/exports/documents', [ExportController::class, 'documents'])->name('exports.documents');
     Route::get('/exports/{startup}/status', [ExportController::class, 'documentStatus'])->name('exports.status');

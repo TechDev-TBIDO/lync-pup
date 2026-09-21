@@ -254,7 +254,7 @@ class AssessmentHubController extends Controller
             ? VersionHistory::where('startup_id', $selectedStartup->startup_id)
                 ->where('context', $selectedStage)
                 ->with('user')
-                ->latest()
+                ->newestFirst()
                 ->get()
             : collect();
 
@@ -438,9 +438,13 @@ class AssessmentHubController extends Controller
 
         // One page-wide activity log for the Meetings nav (there's no single
         // startup/stage to scope it to, unlike the per-stage score history).
+        // Narrowed to the selected cohort like every list on this page —
+        // entries are filed under their startup's cohort — and, under "All
+        // Cohorts", shown by time with each entry's cohort labelled.
         $meetingVersionHistory = VersionHistory::where('context', 'Assessment Meetings')
+            ->forSelectedCohort()
             ->with('user')
-            ->latest()
+            ->newestFirst()
             ->get();
 
         return view('admin.assessment-hub.index', [

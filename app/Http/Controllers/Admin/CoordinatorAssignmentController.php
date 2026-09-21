@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\AssignCoordinatorRequest;
 use App\Models\Coordinator;
 use App\Models\Startup;
 use App\Models\VersionHistory;
+use App\Support\ChangeLog;
 use App\Notifications\CoordinatorAssigned;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -20,9 +21,12 @@ class CoordinatorAssignmentController extends Controller
         // transaction below marks it Completed. Decides between an
         // "assigned" and a "changed" card, and whether anything changed at all.
         $previousCoordinatorId = $startup->activeCoordinatorAssignment?->coordinator_id;
+        // By name, for the Edit History line ("Portfolio Coordinator: Ms. Ana
+        // Reyes → Ms. Ana Cruz") — never the ids.
+        $previousCoordinatorName = $startup->activeCoordinatorAssignment?->coordinator?->name;
         $coordinator = null;
 
-        DB::transaction(function () use ($request, $startup, &$coordinator) {
+        DB::transaction(function () use ($request, $startup, &$coordinator, $previousCoordinatorName) {
             $startup->coordinatorAssignments()->where('assignment_status', 'Active')
                 ->update(['assignment_status' => 'Completed']);
 
@@ -35,7 +39,15 @@ class CoordinatorAssignmentController extends Controller
             $coordinator = Coordinator::findOrFail($request->validated('coordinator_id'));
             $coordinator->increment('assigned_startups_count');
 
-            VersionHistory::record($startup, 'Startup Profile', 'assign_coordinator', "{$coordinator->name} → {$startup->company_name}");
+            // Re-picking the coordinator a startup already has changes nothing,
+            // so it isn't logged (same rule as the founder notification below).
+            VersionHistory::recordChanges(
+                $startup,
+                'Startup Profile',
+                'assign_coordinator',
+                ChangeLog::field('Portfolio Coordinator', $previousCoordinatorName, $coordinator->name),
+                "{$coordinator->name} → {$startup->company_name}",
+            );
 
             // The Information Sheet has its own "Portfolio Manager" field
             // (see admin/information-sheets/show.blade.php's

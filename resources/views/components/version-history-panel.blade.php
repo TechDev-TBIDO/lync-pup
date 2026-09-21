@@ -1,12 +1,23 @@
 {{--
     Version History — a read-only activity log (see VersionHistory model's
-    docblock). Rename only edits an entry's display label; Delete only
-    removes the log entry itself. Neither ever touches the underlying
-    InformationSheet/EvaluationSchedule/ReadinessLevelAssessment/
-    AssessmentDocument record the entry describes.
+    docblock). Rename only edits an entry's display label; it never touches
+    the underlying InformationSheet/EvaluationSchedule/
+    ReadinessLevelAssessment/AssessmentDocument record the entry describes.
+    There is no delete — entries can be relabelled, never removed.
 
-    $entries must already be ordered newest-first (->latest()) — the very
-    first one is what gets the "Current Version" badge.
+    $entries must already be ordered newest-first (->newestFirst()) — the
+    very first one is what gets the "Current Version" badge.
+
+    Each entry shows its heading ("Edited Mentor — Dr. Cruz"), then the list
+    of fields that save actually changed ("Expertise: Finance → Marketing"),
+    built when the entry was recorded (see App\Support\ChangeLog). Entries
+    from before that was captured simply have no list.
+
+    $showCohort: whether to tag each entry with the cohort it belongs to.
+    Defaults to on exactly when "All Cohorts" is selected — the callers
+    narrow $entries to the selected cohort themselves (VersionHistory::
+    forSelectedCohort()), so with one cohort selected every entry is from
+    that cohort and a tag would say nothing.
 --}}
 {{--
     $dark: true on a dark/colored background (e.g. the sidebar's cohort
@@ -37,9 +48,16 @@
     label="Cohort History" since that button covers only Cohort
     Management actions, not the whole page.
 --}}
-@props(['entries', 'dark' => false, 'align' => 'right', 'label' => 'Edit History'])
+@props(['entries', 'dark' => false, 'align' => 'right', 'label' => 'Edit History', 'showCohort' => null])
 
 @php
+    $showCohort ??= \App\Models\VersionHistory::selectedCohortNumber() === null;
+
+    // Past this many lines an entry collapses behind "Show N more", so one
+    // long tick-through of a checklist can't push the rest of the feed off
+    // the panel.
+    $visibleChanges = 5;
+
     // No per-user color exists anywhere else in the app yet — this is a
     // small, deterministic palette (user_id -> color) invented just for
     // this panel's actor dots.
@@ -78,6 +96,11 @@
             };
         },
         outside(e) {
+            // A click on something the panel itself just removed still counts
+            // as inside: choosing Rename Version swaps its row to the rename
+            // input, which detaches the button before this window listener
+            // runs — without this the whole panel snapped shut on Rename.
+            if (! e.target.isConnected) return;
             const panel = document.getElementById('{{ $panelId }}');
             if (this.$refs.trigger.contains(e.target) || (panel && panel.contains(e.target))) return;
             this.close();
@@ -138,13 +161,44 @@
                         <template x-if="renamingId !== {{ $entry->version_history_id }}">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-semibold text-gray-900">{{ $entry->display_label }}</p>
+                                    <p class="truncate text-sm font-semibold text-gray-900" title="{{ $entry->display_label }}">{{ $entry->display_label }}</p>
                                     @if ($i === 0)
                                         <p class="text-xs text-gray-400">Current Version</p>
                                     @endif
-                                    <div class="mt-1 flex items-center gap-1.5">
+
+                                    @php $changes = array_values(array_filter((array) $entry->field_changes, 'is_array')); @endphp
+                                    @if ($changes !== [])
+                                        <ul class="mt-1.5 space-y-0.5" x-data="{ all: false }" data-history-changes>
+                                            @foreach ($changes as $ci => $change)
+                                                <li @if ($ci >= $visibleChanges) x-show="all" x-cloak style="display:none;" @endif
+                                                    class="break-words text-xs leading-snug text-gray-600">
+                                                    @if (isset($change['text']))
+                                                        {{ $change['text'] }}
+                                                    @else
+                                                        <span class="font-medium text-gray-700">{{ $change['label'] ?? '' }}:</span>
+                                                        <span class="text-gray-500">{{ $change['from'] ?? '(blank)' }}</span>
+                                                        <span class="text-gray-400">&rarr;</span>
+                                                        <span class="font-medium text-gray-900">{{ $change['to'] ?? '(blank)' }}</span>
+                                                    @endif
+                                                </li>
+                                            @endforeach
+                                            @if (count($changes) > $visibleChanges)
+                                                <li>
+                                                    <button type="button" @click="all = ! all"
+                                                        class="text-[11px] font-semibold text-[#11386A] hover:underline"
+                                                        x-text="all ? 'Show less' : 'Show {{ count($changes) - $visibleChanges }} more'"></button>
+                                                </li>
+                                            @endif
+                                        </ul>
+                                    @endif
+
+                                    <div class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
                                         <span class="h-2 w-2 shrink-0 rounded-full" style="background: {{ $colorFor($entry->user_id) }}"></span>
                                         <span class="truncate text-xs text-gray-600">{{ $entry->user->name ?? 'Deleted User' }}</span>
+                                        <span class="text-xs text-gray-400">&middot; {{ $entry->created_at->format('g:i A') }}</span>
+                                        @if ($showCohort)
+                                            <span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600" data-history-cohort>{{ $entry->cohort_label ?? 'All Cohorts' }}</span>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -167,11 +221,6 @@
                                             @click="startRename({{ $entry->version_history_id }}, @js($entry->display_label))"
                                             class="block w-full px-3 py-2 text-left text-xs font-medium text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                             Rename Version
-                                        </button>
-                                        <button type="button"
-                                            @click="menuOpenId = null; open = false; $dispatch('open-delete-version-{{ $entry->version_history_id }}')"
-                                            class="block w-full border-t border-gray-100 px-3 py-2 text-left text-xs font-medium text-rose-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
-                                            Delete Version
                                         </button>
                                     </div>
                                 </div>
@@ -200,22 +249,4 @@
         </div>
     </div>
     </template>
-
-    {{-- Delete confirmations are rendered outside the collapsible panel
-         above (its own x-show visually collapses this whole subtree, which
-         would hide a nested fixed-overlay modal too) so they still show
-         correctly even after the dropdown panel itself has closed. --}}
-    @foreach ($entries as $entry)
-        <div x-data="{ confirmDelete: false }" @open-delete-version-{{ $entry->version_history_id }}.window="confirmDelete = true">
-            <x-confirm-action-modal
-                show="confirmDelete"
-                close="confirmDelete = false"
-                title="Delete History"
-                message="Are you sure you want to delete this history? This action is permanent and cannot be undone."
-                :action="route('admin.version-history.destroy', $entry)"
-                method="DELETE"
-                confirmLabel="Delete"
-                icon="trash" />
-        </div>
-    @endforeach
 </div>

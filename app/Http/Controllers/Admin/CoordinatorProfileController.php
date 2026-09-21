@@ -9,6 +9,8 @@ use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\Roadblock;
 use App\Models\VersionHistory;
+use App\Support\ChangeLog;
+use App\Support\HistoryFields;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -54,10 +56,12 @@ class CoordinatorProfileController extends Controller
             'coordinators' => $coordinators,
             // One shared, page-wide Edit History feed of every Add/Edit/
             // Delete Coordinator action together — same reasoning as
-            // MentorController::index()'s mentorVersionHistory.
+            // MentorController::index()'s mentorVersionHistory, including
+            // following the cohort selected on this page.
             'coordinatorVersionHistory' => VersionHistory::where('context', 'Coordinator Profile')
+                ->forSelectedCohort()
                 ->with('user')
-                ->latest()
+                ->newestFirst()
                 ->get(),
             'selectedCohortId' => $cohortId ? (int) $cohortId : null,
             'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
@@ -88,7 +92,13 @@ class CoordinatorProfileController extends Controller
 
         $coordinator = Coordinator::create($data);
 
-        VersionHistory::record(null, 'Coordinator Profile', 'create_coordinator', $coordinator->name);
+        VersionHistory::record(
+            null,
+            'Coordinator Profile',
+            'create_coordinator',
+            $coordinator->name,
+            changes: ChangeLog::initial($coordinator, HistoryFields::coordinator()),
+        );
 
         return redirect()->route('admin.coordinators.index')->with('status', 'Coordinator added successfully.');
     }
@@ -121,9 +131,11 @@ class CoordinatorProfileController extends Controller
             $data['coordinator_photo_path'] = $newPhotoPath;
         }
 
-        $coordinator->update($data);
+        // Which fields this save really changed (see ChangeLog) — a save that
+        // changes nothing isn't logged at all.
+        $changes = ChangeLog::track($coordinator, HistoryFields::coordinator(), fn () => $coordinator->update($data));
 
-        VersionHistory::record(null, 'Coordinator Profile', 'update_coordinator', $coordinator->name);
+        VersionHistory::recordChanges(null, 'Coordinator Profile', 'update_coordinator', $changes, $coordinator->name);
 
         return redirect()->route('admin.coordinators.index')->with('status', 'Coordinator updated successfully.');
     }

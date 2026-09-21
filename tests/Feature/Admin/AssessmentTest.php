@@ -617,16 +617,33 @@ class AssessmentTest extends TestCase
         $admin = User::factory()->create(['role' => 'Admin']);
         $startup = $this->approvedStartup();
 
+        $venturePill = function () use ($admin, $startup) {
+            $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', ['main' => 'assessment']));
+            $row = collect($response->viewData('overviewRows'))->firstWhere('startup.startup_id', $startup->startup_id);
+
+            return collect($row['pills'])->keyBy('label')['VENTURE EXIT'];
+        };
+
+        // Startup Name alone is not admin-entered content (a cleared form keeps
+        // it — see ActiveAssessmentForms::isVentureExitFilled()), so it must not
+        // make the pill read as done.
         $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update-documents', $startup), [
             'stage' => 'Venture Exit',
             'document_13' => json_encode(['startup_name' => $startup->company_name]),
         ]);
 
-        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', ['main' => 'assessment']));
-        $row = collect($response->viewData('overviewRows'))->firstWhere('startup.startup_id', $startup->startup_id);
-        $pillsByLabel = collect($row['pills'])->keyBy('label');
+        $this->assertFalse($venturePill()['completed']);
 
-        $this->assertTrue($pillsByLabel['VENTURE EXIT']['completed']);
+        // A real entry does.
+        $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update-documents', $startup), [
+            'stage' => 'Venture Exit',
+            'document_13' => json_encode([
+                'startup_name' => $startup->company_name,
+                'summary_of_progress' => 'Strong traction in pilot markets.',
+            ]),
+        ]);
+
+        $this->assertTrue($venturePill()['completed']);
     }
 
     public function test_venture_exit_lists_every_not_started_assessment_as_incomplete(): void

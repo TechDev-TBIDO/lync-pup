@@ -9,6 +9,8 @@ use App\Models\Cohort;
 use App\Models\Mentor;
 use App\Models\Roadblock;
 use App\Models\VersionHistory;
+use App\Support\ChangeLog;
+use App\Support\HistoryFields;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
@@ -65,10 +67,15 @@ class MentorController extends Controller
             'otherSpecializationSuggestions' => $otherSpecializationSuggestions,
             // One shared, page-wide Edit History feed of every Add/Edit/
             // Delete Mentor action together — a mentor isn't tied to one
-            // startup, so there's no per-record scope to narrow this to.
+            // startup, so it follows the cohort selected on this page
+            // instead: each entry is filed under whichever cohort was
+            // selected when the change was made (see VersionHistory::record()),
+            // and picking another cohort here shows only that cohort's
+            // entries. "All Cohorts" lists every one, labelled by cohort.
             'mentorVersionHistory' => VersionHistory::where('context', 'Mentor Profile')
+                ->forSelectedCohort()
                 ->with('user')
-                ->latest()
+                ->newestFirst()
                 ->get(),
             'selectedCohortId' => $cohortId ? (int) $cohortId : null,
             'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
@@ -98,7 +105,13 @@ class MentorController extends Controller
 
         $mentor = Mentor::create($data);
 
-        VersionHistory::record(null, 'Mentor Profile', 'create_mentor', $mentor->display_name);
+        VersionHistory::record(
+            null,
+            'Mentor Profile',
+            'create_mentor',
+            $mentor->display_name,
+            changes: ChangeLog::initial($mentor, HistoryFields::mentor()),
+        );
 
         return redirect()->route('admin.mentors.index')->with('status', 'Mentor added successfully.');
     }
@@ -130,9 +143,11 @@ class MentorController extends Controller
             $data['mentor_photo_path'] = $newPhotoPath;
         }
 
-        $mentor->update($data);
+        // Which fields this save really changed (see ChangeLog) — a save that
+        // changes nothing isn't logged at all.
+        $changes = ChangeLog::track($mentor, HistoryFields::mentor(), fn () => $mentor->update($data));
 
-        VersionHistory::record(null, 'Mentor Profile', 'update_mentor', $mentor->display_name);
+        VersionHistory::recordChanges(null, 'Mentor Profile', 'update_mentor', $changes, $mentor->display_name);
 
         return redirect()->route('admin.mentors.index')->with('status', 'Mentor updated successfully.');
     }

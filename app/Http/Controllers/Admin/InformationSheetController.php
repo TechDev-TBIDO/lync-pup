@@ -22,15 +22,27 @@ use App\Models\StartupReference;
 use App\Models\Startup;
 use App\Models\TeamMember;
 use App\Models\VersionHistory;
+use App\Support\ChangeLog;
+use App\Support\HistoryFields;
 use App\Support\ReadinessRubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class InformationSheetController extends Controller
 {
+    /**
+     * The Save button posts the sheet and then every table row (Core Team,
+     * Incubation, L&D, References) as its own request, back to back. Changes
+     * made by those requests are folded into the one "Edited Information
+     * Sheet" entry that Save started, if it is at most this many seconds old
+     * — see VersionHistory::recordChanges().
+     */
+    private const SAVE_MERGE_SECONDS = 30;
+
     public function show(Startup $startup): View
     {
         $startup->load([
@@ -47,7 +59,7 @@ class InformationSheetController extends Controller
         $versionHistory = VersionHistory::where('startup_id', $startup->startup_id)
             ->where('context', 'Information Sheet')
             ->with('user')
-            ->latest()
+            ->newestFirst()
             ->get();
 
         return view('admin.information-sheets.show', [
@@ -100,6 +112,12 @@ class InformationSheetController extends Controller
         // (the admin can revisit this action) doesn't re-notify the founder.
         $wasApproved = $startup->hasApprovedInformationSheet();
 
+        // For the Edit History entry: the decision fields (and the startup's
+        // cohort, which the optional override above can move) as they were.
+        $decisionFields = HistoryFields::informationSheetDecision();
+        $decisionBefore = ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields);
+        $cohortBefore = $startup->cohort_number;
+
         $startup->informationSheet()->update([
             'approval_status' => 'Approved',
             // Stamped so the evaluation roster can tell a sheet approved on the
@@ -131,7 +149,19 @@ class InformationSheetController extends Controller
             $startup->user?->notify(new InformationSheetApproved);
         }
 
-        VersionHistory::record($startup, 'Information Sheet', 'approve_information_sheet');
+        VersionHistory::record(
+            $startup,
+            'Information Sheet',
+            'approve_information_sheet',
+            changes: [
+                ...ChangeLog::diff($decisionBefore, ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields), $decisionFields),
+                ...ChangeLog::field(
+                    'Cohort',
+                    $cohortBefore ? "Cohort {$cohortBefore}" : null,
+                    $startup->cohort_number ? "Cohort {$startup->cohort_number}" : null,
+                ),
+            ],
+        );
 
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'approved'])
@@ -156,6 +186,9 @@ class InformationSheetController extends Controller
         $data = $request->validate([
             'evaluator_remarks' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        $decisionFields = HistoryFields::informationSheetDecision();
+        $decisionBefore = ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields);
 
         $startup->informationSheet()->update([
             'approval_status' => 'Rejected',
@@ -187,7 +220,12 @@ class InformationSheetController extends Controller
             ));
         }
 
-        VersionHistory::record($startup, 'Information Sheet', 'reject_information_sheet');
+        VersionHistory::record(
+            $startup,
+            'Information Sheet',
+            'reject_information_sheet',
+            changes: ChangeLog::diff($decisionBefore, ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields), $decisionFields),
+        );
 
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'rejected'])
@@ -220,9 +258,11 @@ class InformationSheetController extends Controller
             $data['date_accomplished'] = now();
         }
 
-        $sheet->update($data);
+        // Which of the sheet's fields this save really changed (see
+        // ChangeLog) — one that changes nothing isn't logged at all.
+        $changes = ChangeLog::track($sheet, HistoryFields::informationSheet(), fn () => $sheet->update($data));
 
-        VersionHistory::record($startup, 'Information Sheet', 'update_information_sheet');
+        $this->logSheetChanges($startup, $changes);
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Information Sheet updated.');
     }
@@ -239,7 +279,9 @@ class InformationSheetController extends Controller
             return response()->noContent();
         }
 
-        $startup->teamMembers()->create($request->validated());
+        $member = $startup->teamMembers()->create($request->validated());
+
+        $this->logSheetChanges($startup, ChangeLog::note('Core Team · Added '.$this->rowName($member->full_name)));
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Team member added.');
     }
@@ -255,7 +297,9 @@ class InformationSheetController extends Controller
             return response()->noContent();
         }
 
-        $teamMember->update($request->validated());
+        $changes = ChangeLog::track($teamMember, HistoryFields::teamMember(), fn () => $teamMember->update($request->validated()));
+
+        $this->logSheetChanges($teamMember->startup, ChangeLog::prefixed($changes, 'Core Team · '.$this->rowName($teamMember->full_name)));
 
         return redirect()->route('admin.information-sheet.show', $teamMember->startup)->with('status', 'Team member updated.');
     }
@@ -264,6 +308,8 @@ class InformationSheetController extends Controller
     {
         $startup = $teamMember->startup;
         $teamMember->delete();
+
+        $this->logSheetChanges($startup, ChangeLog::note('Core Team · Removed '.$this->rowName($teamMember->full_name)));
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Team member removed.');
     }
@@ -281,7 +327,9 @@ class InformationSheetController extends Controller
         }
 
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
-        $sheet->incubationInvolvements()->create($request->validated());
+        $row = $sheet->incubationInvolvements()->create($request->validated());
+
+        $this->logSheetChanges($startup, ChangeLog::note('Incubation Involvement · Added '.$this->rowName($row->organization_name_address)));
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Incubation involvement added.');
     }
@@ -297,7 +345,12 @@ class InformationSheetController extends Controller
             return response()->noContent();
         }
 
-        $incubationInvolvement->update($request->validated());
+        $changes = ChangeLog::track($incubationInvolvement, HistoryFields::incubationInvolvement(), fn () => $incubationInvolvement->update($request->validated()));
+
+        $this->logSheetChanges(
+            $incubationInvolvement->informationSheet->startup,
+            ChangeLog::prefixed($changes, 'Incubation Involvement · '.$this->rowName($incubationInvolvement->organization_name_address)),
+        );
 
         return redirect()->route('admin.information-sheet.show', $incubationInvolvement->informationSheet->startup)->with('status', 'Updated.');
     }
@@ -306,6 +359,8 @@ class InformationSheetController extends Controller
     {
         $startup = $incubationInvolvement->informationSheet->startup;
         $incubationInvolvement->delete();
+
+        $this->logSheetChanges($startup, ChangeLog::note('Incubation Involvement · Removed '.$this->rowName($incubationInvolvement->organization_name_address)));
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Removed.');
     }
@@ -323,7 +378,9 @@ class InformationSheetController extends Controller
         }
 
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
-        $sheet->ldInterventions()->create($request->validated());
+        $row = $sheet->ldInterventions()->create($request->validated());
+
+        $this->logSheetChanges($startup, ChangeLog::note('L&D Intervention · Added '.$this->rowName($row->title)));
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'L&D intervention added.');
     }
@@ -339,7 +396,12 @@ class InformationSheetController extends Controller
             return response()->noContent();
         }
 
-        $ldIntervention->update($request->validated());
+        $changes = ChangeLog::track($ldIntervention, HistoryFields::ldIntervention(), fn () => $ldIntervention->update($request->validated()));
+
+        $this->logSheetChanges(
+            $ldIntervention->informationSheet->startup,
+            ChangeLog::prefixed($changes, 'L&D Intervention · '.$this->rowName($ldIntervention->title)),
+        );
 
         return redirect()->route('admin.information-sheet.show', $ldIntervention->informationSheet->startup)->with('status', 'Updated.');
     }
@@ -348,6 +410,8 @@ class InformationSheetController extends Controller
     {
         $startup = $ldIntervention->informationSheet->startup;
         $ldIntervention->delete();
+
+        $this->logSheetChanges($startup, ChangeLog::note('L&D Intervention · Removed '.$this->rowName($ldIntervention->title)));
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Removed.');
     }
@@ -365,7 +429,9 @@ class InformationSheetController extends Controller
         }
 
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
-        $sheet->references()->create($request->validated());
+        $row = $sheet->references()->create($request->validated());
+
+        $this->logSheetChanges($startup, ChangeLog::note('Reference · Added '.$this->rowName($row->name)));
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Reference added.');
     }
@@ -381,7 +447,12 @@ class InformationSheetController extends Controller
             return response()->noContent();
         }
 
-        $reference->update($request->validated());
+        $changes = ChangeLog::track($reference, HistoryFields::startupReference(), fn () => $reference->update($request->validated()));
+
+        $this->logSheetChanges(
+            $reference->informationSheet->startup,
+            ChangeLog::prefixed($changes, 'Reference · '.$this->rowName($reference->name)),
+        );
 
         return redirect()->route('admin.information-sheet.show', $reference->informationSheet->startup)->with('status', 'Updated.');
     }
@@ -391,6 +462,38 @@ class InformationSheetController extends Controller
         $startup = $reference->informationSheet->startup;
         $reference->delete();
 
+        $this->logSheetChanges($startup, ChangeLog::note('Reference · Removed '.$this->rowName($reference->name)));
+
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Removed.');
+    }
+
+    /**
+     * Logs what a save changed on this startup's Information Sheet — the
+     * sheet's own fields, or one row of one of its tables — under the one
+     * "Edited Information Sheet" entry per Save (see SAVE_MERGE_SECONDS).
+     * Nothing is logged when nothing changed.
+     *
+     * @param  list<array<string, string|null>>  $changes
+     */
+    private function logSheetChanges(?Startup $startup, array $changes): void
+    {
+        VersionHistory::recordChanges(
+            $startup,
+            'Information Sheet',
+            'update_information_sheet',
+            $changes,
+            mergeWithinSeconds: self::SAVE_MERGE_SECONDS,
+        );
+    }
+
+    /**
+     * How a table row is named in the history ("Juan Dela Cruz"), cut short
+     * so a long organization name or title can't crowd the line.
+     */
+    private function rowName(?string $value): string
+    {
+        $value = ChangeLog::preview((string) $value);
+
+        return $value === '' ? 'a blank row' : Str::limit($value, 40);
     }
 }

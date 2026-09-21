@@ -75,9 +75,12 @@ class StartupProfileController extends Controller
             // One shared, page-wide Edit History feed of every Assign/Edit
             // Coordinator + Delete Startup action across every startup
             // (see VersionHistoryController for its rename/delete actions).
+            // Filed under each startup's own cohort, so it only lists this
+            // page's selected cohort (or every cohort, labelled, under "All").
             'startupVersionHistory' => VersionHistory::where('context', 'Startup Profile')
+                ->forSelectedCohort()
                 ->with('user')
-                ->latest()
+                ->newestFirst()
                 ->get(),
             'selectedCohortId' => $cohortId ? (int) $cohortId : null,
             'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")

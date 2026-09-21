@@ -8,11 +8,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * Manages Version History log entries themselves — renaming an entry's
- * display label, or deleting the entry outright. Neither action ever
- * touches the underlying record (InformationSheet, EvaluationSchedule,
+ * Manages Version History log entries themselves — the one thing an admin
+ * can do to an entry is rename its display label. That never touches the
+ * underlying record (InformationSheet, EvaluationSchedule,
  * ReadinessLevelAssessment, AssessmentDocument) the entry describes; this
  * is a read-only activity log, not a data-restoring versioning system.
+ *
+ * There is intentionally no delete: Edit History is the record of who
+ * changed what, so an entry can be relabelled but never removed.
  */
 class VersionHistoryController extends Controller
 {
@@ -29,12 +32,5 @@ class VersionHistoryController extends Controller
         ]);
 
         return back()->with('status', 'Version renamed.');
-    }
-
-    public function destroy(VersionHistory $versionHistory): RedirectResponse
-    {
-        $versionHistory->delete();
-
-        return back()->with('status', 'Version history entry deleted.');
     }
 }

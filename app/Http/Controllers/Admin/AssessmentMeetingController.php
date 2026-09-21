@@ -11,6 +11,7 @@ use App\Models\VersionHistory;
 use App\Notifications\AssessmentMeetingCancelled;
 use App\Notifications\AssessmentMeetingScheduled;
 use App\Notifications\AssessmentMeetingStatusUpdated;
+use App\Support\ChangeLog;
 use Illuminate\Http\RedirectResponse;
 
 /**
@@ -125,7 +126,12 @@ class AssessmentMeetingController extends Controller
             'resolved_at' => null,
         ]);
 
-        $this->recordHistory($assessmentMeeting, 'recover_assessment_meeting');
+        $this->recordHistory(
+            $assessmentMeeting,
+            'recover_assessment_meeting',
+            AssessmentMeeting::STATUS_RESOLVED,
+            AssessmentMeeting::STATUS_PENDING_REVIEW,
+        );
 
         return $this->archiveRedirect('pending')->with('status', 'Meeting recovered to Pending Review.');
     }
@@ -141,16 +147,19 @@ class AssessmentMeetingController extends Controller
         $this->founderFor($meeting->startup_id)
             ?->notify(new AssessmentMeetingStatusUpdated($meeting, $status));
 
-        $this->recordHistory($meeting, $historyAction);
+        // Resolve and Fail are only ever available once the meeting is in
+        // Pending Review, so that is always the status being left.
+        $this->recordHistory($meeting, $historyAction, AssessmentMeeting::STATUS_PENDING_REVIEW, $status);
     }
 
-    protected function recordHistory(AssessmentMeeting $meeting, string $action): void
+    protected function recordHistory(AssessmentMeeting $meeting, string $action, string $fromStatus, string $toStatus): void
     {
         VersionHistory::record(
             $meeting->startup,
             'Assessment Meetings',
             $action,
-            $meeting->startup?->company_name
+            $meeting->startup?->company_name,
+            changes: ChangeLog::status($fromStatus, $toStatus),
         );
     }
 

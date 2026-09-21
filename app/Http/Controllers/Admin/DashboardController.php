@@ -10,6 +10,7 @@ use App\Models\InformationSheet;
 use App\Models\ReadinessLevelAssessment;
 use App\Models\Roadblock;
 use App\Models\Startup;
+use App\Models\VersionHistory;
 use App\Support\ReadinessRubric;
 use App\Support\RiskEngine;
 use App\Support\VentureExitForm;
@@ -113,6 +114,16 @@ class DashboardController extends Controller
             // View::composer. $selectedCohort above is still used just
             // above here to scope this page's own stats.
             'readinessStage' => $readinessStage,
+            // The header's "Cohort History" panel: every Create/Edit/Archive/
+            // Delete Cohort action, each filed under the cohort it acted on —
+            // so it follows the cohort selected in the sidebar, or lists them
+            // all (labelled) under "All Cohorts". Passed from here because a
+            // View::composer on the layout can't reach the page's own slot.
+            'cohortHistory' => VersionHistory::where('context', 'Cohort Management')
+                ->forSelectedCohort()
+                ->with('user')
+                ->newestFirst()
+                ->get(),
             'totalStartups' => $totalStartups,
             'stats' => $this->buildStatCards($startupIds, $totalStartups, $approvedStartupIds),
             'incubationProgress' => $this->buildIncubationProgress($startupIds),

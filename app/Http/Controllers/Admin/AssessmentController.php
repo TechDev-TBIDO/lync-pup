@@ -11,6 +11,8 @@ use App\Notifications\ReadinessResultsReleased;
 use App\Notifications\WeeklyCheckInPosted;
 use App\Rules\PersonName;
 use App\Rules\PhMobile;
+use App\Support\ChangeLog;
+use App\Support\HistoryFields;
 use App\Support\ReadinessRubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -92,6 +94,17 @@ class AssessmentController extends Controller
             'stage' => $validated['stage'],
         ]);
 
+        // Everything about to be overwritten, read now so the Edit History
+        // entry can say what this save changed: the plain columns (date,
+        // signatories, scores), each RL type's ticked criteria, and the TRL
+        // overview.
+        $historyFields = HistoryFields::readinessAssessment();
+        $columnsBefore = ChangeLog::snapshot($assessment, $historyFields);
+        $progressBefore = collect(ReadinessRubric::TYPES)
+            ->mapWithKeys(fn ($type) => [$type => $assessment->progressFor($type)])
+            ->all();
+        $overviewBefore = $assessment->trl_overview;
+
         foreach (ReadinessRubric::TYPES as $type) {
             $key = strtolower($type).'_progress';
             $assessment->{$key} = isset($validated[$key]) ? json_decode($validated[$key], true) : [];
@@ -144,7 +157,29 @@ class AssessmentController extends Controller
             $startup->user?->notify(new ReadinessResultsReleased($validated['stage']));
         }
 
-        VersionHistory::record($startup, $validated['stage'], 'update_readiness_assessment');
+        $changes = [];
+
+        foreach (ReadinessRubric::TYPES as $type) {
+            $changes = [...$changes, ...ChangeLog::diffProgress(
+                $type,
+                $progressBefore[$type],
+                $assessment->progressFor($type),
+                ReadinessRubric::levels($type),
+            )];
+        }
+
+        $changes = [
+            ...$changes,
+            ...ChangeLog::diffTree(
+                is_array($overviewBefore) ? $overviewBefore : null,
+                is_array($assessment->trl_overview) ? $assessment->trl_overview : null,
+                fn (array $path) => HistoryFields::overviewLabel($path),
+            ),
+            ...ChangeLog::diff($columnsBefore, ChangeLog::snapshot($assessment, $historyFields), $historyFields),
+        ];
+
+        // A save that changed nothing isn't logged.
+        VersionHistory::recordChanges($startup, $validated['stage'], 'update_readiness_assessment', $changes);
 
         // Redirect back to the exact same RL type sub-tab the admin was on
         // (not just the same stage) — plain back() would land on the right
@@ -188,6 +223,8 @@ class AssessmentController extends Controller
             }
         }
 
+        $changes = [];
+
         foreach ([6, 7, 8, 13] as $documentNumber) {
             $key = 'document_'.$documentNumber;
 
@@ -197,15 +234,19 @@ class AssessmentController extends Controller
 
             $payload = json_decode($validated[$key], true);
 
+            // What this document held before the save, so the Edit History
+            // entry can list the fields that changed.
+            $existing = AssessmentDocument::where('startup_id', $startup->startup_id)
+                ->where('stage', $validated['stage'])
+                ->where('document_number', $documentNumber)
+                ->first();
+
             // Document 7 under Active-Assessment is the only one the founder
             // ever sees (it renders as the Weekly Update tab on their
             // Submission page), so it is the only one worth announcing.
             $isWeeklyCheckIns = $documentNumber === 7 && $validated['stage'] === 'Active-Assessment';
             $filledBefore = $isWeeklyCheckIns
-                ? $this->filledCheckInCount(AssessmentDocument::where('startup_id', $startup->startup_id)
-                    ->where('stage', $validated['stage'])
-                    ->where('document_number', $documentNumber)
-                    ->first()?->data)
+                ? $this->filledCheckInCount($existing?->data)
                 : 0;
 
             AssessmentDocument::updateOrCreate(
@@ -216,6 +257,18 @@ class AssessmentController extends Controller
                 ],
                 ['data' => $payload]
             );
+
+            $changes = [
+                ...$changes,
+                ...ChangeLog::prefixed(
+                    ChangeLog::diffTree(
+                        $existing?->data,
+                        is_array($payload) ? $payload : null,
+                        fn (array $path) => HistoryFields::documentLabel($documentNumber, $path),
+                    ),
+                    HistoryFields::DOCUMENT_NAMES[$documentNumber] ?? "Document {$documentNumber}",
+                ),
+            ];
 
             // Only a net-new check-in row is news. Editing a typo in an
             // existing row, or saving the document untouched from another tab,
@@ -229,7 +282,8 @@ class AssessmentController extends Controller
             }
         }
 
-        VersionHistory::record($startup, $validated['stage'], 'update_assessment_document');
+        // A save that changed nothing isn't logged.
+        VersionHistory::recordChanges($startup, $validated['stage'], 'update_assessment_document', $changes);
 
         // Same as update() above — echo back which document sub-tab (6/7/8)
         // was open so Active-Assessment doesn't snap back to Document 6 on

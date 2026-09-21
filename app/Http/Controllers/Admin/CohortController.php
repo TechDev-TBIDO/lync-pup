@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\StoreCohortRequest;
 use App\Http\Requests\Admin\UpdateCohortRequest;
 use App\Models\Cohort;
 use App\Models\VersionHistory;
+use App\Support\ChangeLog;
+use App\Support\HistoryFields;
 use Illuminate\Http\RedirectResponse;
 
 // No index() here — cohort management is now handled entirely through the
@@ -25,7 +27,17 @@ class CohortController extends Controller
             'status' => 'Active',
         ]);
 
-        VersionHistory::record(null, 'Cohort Management', 'create_cohort', $cohort->display_label);
+        // Filed under the cohort it created — a Cohort Management entry belongs
+        // to the cohort it acts on, not to whichever cohort happened to be
+        // selected while the admin was doing it.
+        VersionHistory::record(
+            null,
+            'Cohort Management',
+            'create_cohort',
+            $cohort->display_label,
+            changes: ChangeLog::initial($cohort, HistoryFields::cohort()),
+            cohortNumber: $cohort->number,
+        );
 
         return redirect()->back()->with('cohortAction', 'created');
     }
@@ -41,9 +53,9 @@ class CohortController extends Controller
             unset($data['start_date'], $data['end_date']);
         }
 
-        $cohort->update($data);
+        $changes = ChangeLog::track($cohort, HistoryFields::cohort(), fn () => $cohort->update($data));
 
-        VersionHistory::record(null, 'Cohort Management', 'update_cohort', $cohort->display_label);
+        VersionHistory::recordChanges(null, 'Cohort Management', 'update_cohort', $changes, $cohort->display_label, cohortNumber: $cohort->number);
 
         return redirect()->back()->with('cohortAction', 'updated');
     }
@@ -63,9 +75,9 @@ class CohortController extends Controller
             return redirect()->back();
         }
 
-        $cohort->update(['status' => 'Inactive']);
+        $changes = ChangeLog::track($cohort, HistoryFields::cohort(), fn () => $cohort->update(['status' => 'Inactive']));
 
-        VersionHistory::record(null, 'Cohort Management', 'archive_cohort', $cohort->display_label);
+        VersionHistory::record(null, 'Cohort Management', 'archive_cohort', $cohort->display_label, changes: $changes, cohortNumber: $cohort->number);
 
         return redirect()->back()->with('cohortAction', 'archived');
     }
@@ -78,10 +90,11 @@ class CohortController extends Controller
         // is untouched either way.
         $wasSelected = (int) session('selected_cohort_id') === $cohort->cohort_id;
         $cohortLabel = $cohort->display_label;
+        $cohortNumber = $cohort->number;
 
         $cohort->delete();
 
-        VersionHistory::record(null, 'Cohort Management', 'delete_cohort', $cohortLabel);
+        VersionHistory::record(null, 'Cohort Management', 'delete_cohort', $cohortLabel, cohortNumber: $cohortNumber);
 
         if (! $wasSelected) {
             return redirect()->back()->with('cohortAction', 'deleted');

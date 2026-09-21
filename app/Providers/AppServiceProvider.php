@@ -5,7 +5,6 @@ namespace App\Providers;
 use App\Listeners\AssignLatestCohortOnVerification;
 use App\Models\Cohort;
 use App\Models\Startup;
-use App\Models\VersionHistory;
 use App\Notifications\NewRoadblockSubmitted;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -97,7 +96,6 @@ class AppServiceProvider extends ServiceProvider
             // rather than threaded through each individual controller.
             $sidebarCohorts = collect();
             $sidebarSelectedCohort = null;
-            $sidebarCohortHistory = collect();
 
             if ($user && $user->isAdmin()) {
                 $sidebarCohorts = Cohort::withCount('startups')
@@ -108,21 +106,10 @@ class AppServiceProvider extends ServiceProvider
                 $sidebarSelectedCohort = $selectedCohortId
                     ? $sidebarCohorts->firstWhere('cohort_id', (int) $selectedCohortId)
                     : null;
-
-                // One shared, page-wide Edit History feed covering every
-                // cohort's Create/Edit/Archive/Delete actions together (no
-                // single cohort to scope it to, since this control itself
-                // isn't about any one cohort) — see
-                // components/cohort-sidebar-control.blade.php.
-                $sidebarCohortHistory = VersionHistory::where('context', 'Cohort Management')
-                    ->with('user')
-                    ->latest()
-                    ->get();
             }
 
             $view->with('sidebarCohorts', $sidebarCohorts);
             $view->with('sidebarSelectedCohort', $sidebarSelectedCohort);
-            $view->with('sidebarCohortHistory', $sidebarCohortHistory);
         });
     }
 }

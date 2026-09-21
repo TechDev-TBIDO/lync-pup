@@ -504,6 +504,19 @@ class AssessmentMeetingLifecycleTest extends TestCase
         // (context = the stage name); only the dedicated meetings feed.
         $this->assertSame(0, VersionHistory::whereIn('context', ['Pre-Assessment', 'Post-Assessment'])->count());
         $this->assertSame(3, VersionHistory::where('context', 'Assessment Meetings')->count());
+
+        // Each status move says what it moved from and to.
+        $moves = VersionHistory::where('context', 'Assessment Meetings')
+            ->orderBy('version_history_id')
+            ->get()
+            ->map(fn ($e) => [$e->action, $e->field_changes])
+            ->all();
+
+        $this->assertSame([
+            ['resolve_assessment_meeting', [['label' => 'Status', 'from' => 'Pending Review', 'to' => 'Resolved']]],
+            ['fail_assessment_meeting', [['label' => 'Status', 'from' => 'Pending Review', 'to' => 'Failed']]],
+            ['recover_assessment_meeting', [['label' => 'Status', 'from' => 'Resolved', 'to' => 'Pending Review']]],
+        ], $moves);
     }
 
     public function test_the_meetings_nav_shows_its_own_activity_log(): void

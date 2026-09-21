@@ -45,7 +45,7 @@
                 <p class="text-gray-500 mt-2 text-base">Overview of intervention, sheets, request, updates, and mentor coordination</p>
             </div>
 
-            <x-version-history-panel :entries="$sidebarCohortHistory ?? collect()" label="Cohort History" />
+            <x-version-history-panel :entries="$cohortHistory ?? collect()" label="Cohort History" />
         </div>
 
         {{-- "What's new" cards — mirrors the founder Dashboard's update cards

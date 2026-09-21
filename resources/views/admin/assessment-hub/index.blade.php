@@ -41,8 +41,7 @@
                      equivalent primary action there is scheduling a meeting,
                      which lives inside _meetings.blade.php's own Alpine
                      scope. Dispatching a window event (same pattern as
-                     open-export-modal above and open-delete-version-{id} in
-                     version-history-panel.blade.php) reaches across that
+                     open-export-modal above) reaches across that
                      scope boundary without hoisting settingMeeting state up
                      here. --}}
                 <button type="button" x-show="mainTab === 'assessment' && {{ $onMeetings ? 'true' : 'false' }}" x-cloak
