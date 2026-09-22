@@ -36,9 +36,66 @@
             // heuristic for *showing* that button — the actual clipping is
             // done by CSS, so a wrong guess here never lets text overflow.
             $noteLimit = 50;
+
+            // Archive tab — same pattern as the founder's own Roadblock page
+            // Archive tab (resources/views/startup/roadblocks/index.blade.php):
+            // a status filter dropdown plus a colored status dot per row, so
+            // the two pages read as one consistent system.
+            $archiveStatuses = [
+                'all' => 'All Statuses',
+                'Approved' => 'Approved',
+                'Rejected' => 'Rejected',
+                'Missed' => 'Missed',
+                'Pending Review' => 'Pending Review',
+                'Resolved' => 'Resolved',
+                'Failed' => 'Failed',
+                'Deleted by Admin' => 'Deleted by Admin',
+            ];
+            $archiveStatusColors = [
+                'Approved' => 'text-green-600',
+                'Rejected' => 'text-rose-700',
+                'Missed' => 'text-gray-500',
+                'Pending Review' => 'text-amber-600',
+                'Resolved' => 'text-green-600',
+                'Failed' => 'text-rose-700',
+                'Deleted by Admin' => 'text-gray-600',
+            ];
+            $archiveStatusDots = [
+                'Approved' => 'bg-green-500',
+                'Rejected' => 'bg-rose-600',
+                'Missed' => 'bg-gray-400',
+                'Pending Review' => 'bg-amber-500',
+                'Resolved' => 'bg-green-500',
+                'Failed' => 'bg-rose-600',
+                'Deleted by Admin' => 'bg-gray-600',
+            ];
+            $typeLabels = [
+                'mentorship' => 'Mentorship',
+                'evaluation' => 'Evaluation',
+                'assessment' => 'Assessment',
+            ];
+            $validArchiveStatuses = array_keys($archiveStatuses);
+            $initialArchiveStatusFilter = in_array(request('status'), $validArchiveStatuses) ? request('status') : 'all';
+            $validTabs = ['meetings', 'archive'];
+            $initialTab = in_array(request('tab'), $validTabs) ? request('tab') : 'meetings';
             @endphp
 
-            <div x-data="{ viewingNote: null }">
+            <div x-data="{
+                viewingNote: null,
+                tab: @js($initialTab),
+                archiveStatusFilter: @js($initialArchiveStatusFilter),
+                archivedStatuses: @js($archivedMeetings->pluck('archive_status')),
+
+                get archiveVisibleCount() {
+                    return this.archiveStatusFilter === 'all'
+                        ? this.archivedStatuses.length
+                        : this.archivedStatuses.filter(s => s === this.archiveStatusFilter).length;
+                },
+            }"
+                x-init="
+                    $watch('tab', value => setQueryParam('tab', value));
+                    $watch('archiveStatusFilter', value => setQueryParam('status', value));
+                ">
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Meeting</h1>
                 <p class="mt-1 text-sm text-gray-500 sm:text-base">View your meetings.</p>
@@ -46,12 +103,21 @@
 
             <hr class="border-gray-200 mb-6">
 
-            <div class="flex items-center gap-2 mb-6">
+            <div class="flex items-center gap-2 mb-4">
                 <span class="icon-mask h-8 w-8 text-[#6D0D23] sm:h-10 sm:w-10"
                     style="--icon: url('{{ asset('images/icons/coordProfile.svg') }}')"></span>
                 <h2 class="font-bold text-gray-900">Meetings</h2>
             </div>
 
+            {{-- Tabs --}}
+            <div class="border-b border-gray-200 mb-6">
+                <nav class="flex gap-5 overflow-x-auto sm:gap-8">
+                    <button type="button" @click="tab = 'meetings'" :class="tab === 'meetings' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Meetings</button>
+                    <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive</button>
+                </nav>
+            </div>
+
+            <div x-show="tab === 'meetings'">
             <div class="grid grid-cols-2 gap-3 md:gap-6">
                 @forelse ($meetings as $meeting)
 
@@ -347,9 +413,40 @@
                         </div>
                         @endif
                         @else
-                        {{-- Admin-entered note only -- no generic fallback text,
-                             so a blank note field on the admin side means the
-                             founder sees no note section at all. --}}
+                        {{-- Evaluation: an online modality (anything but 'Location')
+                             gets the same Join Meeting button as mentorship/assessment
+                             above — 'Location' means in-person, nothing to join, so
+                             it keeps just the note (no generic fallback text; a blank
+                             note field on the admin side means the founder sees no
+                             note section at all). --}}
+                        @if (($meeting['platform'] ?? null) !== 'Location')
+                        <div class="w-full">
+                            @if ($meeting['can_join'] && $meeting['meeting_link'])
+                            <a href="{{ $meeting['meeting_link'] }}" target="_blank" rel="noopener"
+                                class="block w-full rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2 text-center text-xs font-medium text-white transition hover:opacity-95 sm:py-2.5 sm:text-sm">
+                                Join Meeting
+                            </a>
+                            @else
+                            <button type="button" disabled
+                                class="block w-full cursor-not-allowed rounded-lg bg-gray-300 py-2 text-center text-xs font-medium text-gray-500 sm:py-2.5 sm:text-sm">
+                                Join Meeting
+                            </button>
+                            @endif
+                            @if (!empty($meeting['notes']))
+                            @php $evalNoteIsLong = mb_strlen($meeting['notes']) > $noteLimit; @endphp
+                            <div class="mt-2 min-w-0 text-xs text-gray-600">
+                                <p class="font-semibold text-gray-800">Note:</p>
+                                <p class="line-clamp-2 break-words italic">{{ $meeting['notes'] }}</p>
+                                @if ($evalNoteIsLong)
+                                <button type="button" @click="viewingNote = @js($meeting['notes'])"
+                                    class="mt-1 font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                    View
+                                </button>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                        @else
                         @if (!empty($meeting['notes']))
                         @php $evalNoteIsLong = mb_strlen($meeting['notes']) > $noteLimit; @endphp
                         <div class="min-w-0 text-xs text-gray-600">
@@ -364,6 +461,7 @@
                         </div>
                         @endif
                         @endif
+                        @endif
                     </div>
                 </div>
                 @empty
@@ -371,6 +469,106 @@
                     No upcoming meetings scheduled.
                 </div>
                 @endforelse
+            </div>
+            </div>
+
+            {{-- ============================================================
+                 Archive tab — mirrors the founder's own Roadblock page
+                 Archive tab: once a meeting's scheduled time has passed, its
+                 card moves here instead of disappearing, tagged with each
+                 meeting type's own real-world outcome so the archive reads
+                 as one consistent system across all three meeting types.
+                 ============================================================ --}}
+            <div x-show="tab === 'archive'" x-cloak>
+
+                <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                    <h2 class="text-base font-semibold tracking-tight text-gray-900 sm:text-lg">Meeting Archive</h2>
+
+                    <div class="relative inline-block w-full max-w-[180px] sm:max-w-[200px]" x-data="{ open: false }"
+                        @click.outside="open = false" @keydown.escape.window="open = false">
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Filter by status</label>
+
+                        <button type="button" @click="open = !open"
+                            class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 transition hover:border-gray-400">
+                            <span class="truncate" x-text="{{ Js::from($archiveStatuses) }}[archiveStatusFilter]"></span>
+                            <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="open && 'rotate-180'"
+                                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
+                            class="absolute right-0 z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                            @foreach ($archiveStatuses as $value => $label)
+                            <button type="button"
+                                x-show="archiveStatusFilter !== '{{ $value }}'"
+                                @click="archiveStatusFilter = '{{ $value }}'; open = false"
+                                class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                {{ $label }}
+                            </button>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                @forelse ($archivedMeetings as $meeting)
+                <div x-show="archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $meeting['archive_status'] }}'"
+                    class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
+
+                    <div class="flex w-10 shrink-0 items-center justify-center bg-[#FFF1F2] sm:w-12">
+                        <span class="h-2.5 w-2.5 rounded-full {{ $archiveStatusDots[$meeting['archive_status']] ?? 'bg-amber-500' }}"></span>
+                    </div>
+
+                    <div class="min-w-0 flex-1 px-4 py-3 sm:px-5 sm:py-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                            <div class="min-w-0">
+                                <p class="mb-1 text-sm font-bold text-gray-900">{{ $typeLabels[$meeting['type']] }} Meeting</p>
+
+                                @if ($meeting['type'] === 'mentorship')
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-semibold text-gray-900">Roadblock:</span>
+                                    {{ $meeting['roadblock_category'] }}
+                                </p>
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-semibold text-gray-900">Mentor:</span>
+                                    {{ $meeting['mentor_name'] }}
+                                </p>
+                                @elseif ($meeting['type'] === 'assessment')
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-semibold text-gray-900">Stage:</span>
+                                    {{ $meeting['stage_label'] }}
+                                </p>
+                                @else
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-semibold text-gray-900">Evaluator:</span>
+                                    TBIDO
+                                </p>
+                                @endif
+
+                                <div class="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-gray-600">
+                                    <span>{{ $meeting['date_label'] }} · {{ $meeting['time_label'] }}</span>
+                                    <span>Status:
+                                        <span class="font-medium {{ $archiveStatusColors[$meeting['archive_status']] ?? 'text-amber-600' }}">
+                                            {{ $meeting['archive_status'] }}
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @empty
+                <div class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
+                    <p class="text-sm text-gray-500">No past meetings yet.</p>
+                </div>
+                @endforelse
+
+                @if ($archivedMeetings->isNotEmpty())
+                <div x-show="archiveVisibleCount === 0" x-cloak class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
+                    <p class="text-sm text-gray-500">No meetings match this filter.</p>
+                </div>
+                @endif
             </div>
 
             {{-- Full-note modal: shared by every card's "View" button above. --}}

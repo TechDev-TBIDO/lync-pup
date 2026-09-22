@@ -89,6 +89,91 @@ class RoadblockTest extends TestCase
         $this->assertDatabaseHas('roadblock_files', ['original_filename' => 'proof.jpg', 'is_image' => true]);
     }
 
+    /**
+     * Regression for the "attaching exactly 5 files drops all of them"
+     * SUBMISSION bug: the real cause was the front-end file input being left
+     * `disabled` once the 5-file cap was reached, which every browser then
+     * excludes entirely from the submitted form — but the backend contract
+     * this exercises (given 5 files in the request, all 5 persist) needs to
+     * hold regardless of what the front end does, so this guards it directly.
+     */
+    public function test_founder_can_submit_a_roadblock_with_the_maximum_five_supporting_files(): void
+    {
+        Storage::fake('public');
+        $user = $this->founderUser();
+
+        $response = $this->actingAs($user)->post(route('startup.submissions.store'), [
+            'problem_category' => 'Technical Support',
+            'description' => 'Uploading every one of the five allowed supporting files at once.',
+            'supporting_files' => [
+                UploadedFile::fake()->create('one.pdf', 500, 'application/pdf'),
+                UploadedFile::fake()->create('two.pdf', 2360, 'application/pdf'),
+                UploadedFile::fake()->create('three.docx', 1000),
+                UploadedFile::fake()->image('four.jpg'),
+                UploadedFile::fake()->create('five.pdf', 300, 'application/pdf'),
+            ],
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseCount('roadblock_files', 5);
+        foreach (['one.pdf', 'two.pdf', 'three.docx', 'four.jpg', 'five.pdf'] as $name) {
+            $this->assertDatabaseHas('roadblock_files', ['original_filename' => $name]);
+        }
+    }
+
+    /**
+     * Regression for "certain PDF files" being rejected: a real PDF whose
+     * original filename doesn't carry a recognized extension (e.g. exported
+     * by a scanner with no ".pdf" suffix at all) must still be accepted on
+     * its actual detected MIME type instead of being silently dropped.
+     */
+    public function test_a_pdf_without_a_recognized_extension_is_still_accepted_by_its_mime_type(): void
+    {
+        Storage::fake('public');
+        $user = $this->founderUser();
+
+        $response = $this->actingAs($user)->post(route('startup.submissions.store'), [
+            'problem_category' => 'Technical Support',
+            'description' => 'A scanned document exported without a file extension.',
+            'supporting_files' => [
+                UploadedFile::fake()->create('Scanned Document', 400, 'application/pdf'),
+            ],
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseCount('roadblock_files', 1);
+        $this->assertDatabaseHas('roadblock_files', ['original_filename' => 'Scanned Document']);
+    }
+
+    /**
+     * webp/csv were accepted by the form's own client-side picker but not by
+     * StoreRoadblockRequest::ALLOWED_EXTENSIONS — a mismatch that silently
+     * dropped them at submit time with no explanation. mp4 had the opposite
+     * mismatch (server-only). All three must now round-trip.
+     */
+    public function test_webp_csv_and_mp4_supporting_files_are_all_accepted(): void
+    {
+        Storage::fake('public');
+        $user = $this->founderUser();
+
+        $response = $this->actingAs($user)->post(route('startup.submissions.store'), [
+            'problem_category' => 'Technical Support',
+            'description' => 'Attaching the previously-mismatched file types.',
+            'supporting_files' => [
+                // A real (GD-generated) webp image — compressAndStoreImage()
+                // actually decodes this, unlike a fake()->create() stub whose
+                // bytes aren't valid image data.
+                UploadedFile::fake()->image('photo.webp'),
+                UploadedFile::fake()->create('data.csv', 50, 'text/csv'),
+                UploadedFile::fake()->create('clip.mp4', 4000, 'video/mp4'),
+            ],
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseCount('roadblock_files', 3);
+    }
+
     public function test_roadblock_requires_category_and_description(): void
     {
         $user = $this->founderUser();

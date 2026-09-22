@@ -102,7 +102,11 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         limits: {
             maxFiles: 5,
             maxBytes: 5 * 1024 * 1024,
-            accept: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv'],
+            // Kept in sync with StoreRoadblockRequest::ALLOWED_EXTENSIONS —
+            // mp4 is accepted server-side but was missing here, so a
+            // founder attaching one would only find out it didn't make it
+            // after submitting, with no explanation.
+            accept: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'mp4'],
         },
 
         get descriptionLeft() {
@@ -561,9 +565,18 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                                 <span x-text="files.length >= limits.maxFiles ? 'Limit Reached' : 'Browse Files'"></span>
                             </button>
 
+                            {{-- No :disabled here — this is the field the browser actually
+                                 reads from at submit time, and every browser silently drops a
+                                 disabled field from the submitted form entirely, as if it were
+                                 never there. Disabling it once the 5-file cap was reached wiped
+                                 out every already-attached file the moment Submit was clicked,
+                                 with no error shown anywhere. This field is only ever populated
+                                 programmatically (syncInput() assigns dt.files to it) and only
+                                 ever opened via the "Browse Files" button above, so leaving it
+                                 enabled doesn't let a founder add a 6th file — that trigger is
+                                 the one that stays disabled at the cap. --}}
                             <input type="file" name="supporting_files[]" x-ref="fileInput" multiple class="hidden"
-                                :disabled="files.length >= limits.maxFiles"
-                                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv,.mp4"
                                 @change="addFiles($event.target.files)">
                         </div>
                     </div>

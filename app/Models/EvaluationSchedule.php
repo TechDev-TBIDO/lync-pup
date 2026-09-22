@@ -180,4 +180,36 @@ class EvaluationSchedule extends Model
     {
         return Carbon::parse($this->start_time)->format('g:i A').' - '.Carbon::parse($this->end_time)->format('g:i A');
     }
+
+    /**
+     * The founder Meeting page's Archive tag once this slot's scheduled time
+     * has passed (see hasEnded()) — mirrors the three-way outcome the page
+     * already shows for Roadblock/Assessment meetings, so the archive reads
+     * as one consistent system: 'Approved', 'Rejected', or 'Missed'.
+     *
+     * 'Approved' reuses approvedOnEvaluationDay() as-is (already scoped to
+     * this row's own day). 'Rejected' needs its own care: informationSheet
+     * only ever tracks the sheet's SINGLE current rejected_at, so an older,
+     * already-superseded schedule row (one from a rejected cycle the founder
+     * has since resubmitted and rebooked past) must not also claim that same
+     * rejection — the exact staleness check Startup::evaluationDayLockActive()
+     * already applies (a row is "the one" only if it hasn't gone untouched
+     * since before the rejection landed) is reused here. Anything left over
+     * — no decision reached by day's end, or a rejection that actually
+     * belongs to an even earlier row — reads as 'Missed'.
+     */
+    public function archiveStatus(): string
+    {
+        if ($this->approvedOnEvaluationDay()) {
+            return 'Approved';
+        }
+
+        $sheet = $this->startup?->informationSheet;
+
+        if ($sheet?->approval_status === 'Rejected' && $sheet->rejected_at && $this->updated_at->gte($sheet->rejected_at)) {
+            return 'Rejected';
+        }
+
+        return 'Missed';
+    }
 }
