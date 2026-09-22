@@ -37,12 +37,21 @@
             // "Applicants" line (same number as the Applicant card below) — added
             // in the view rather than to $cohortBreakdown itself so that variable
             // stays a pure per-cohort breakdown.
+            // Graduated/Completed are a startup's terminal state (see
+            // Startup::getExitStatusAttribute()) — once set, the startup no
+            // longer counts toward Active/Assign Coordinator (see
+            // Startup::scopeActive()/scopeNeedsCoordinator()), so these two
+            // need their own cards for the same "Total Startup should add
+            // up" reason Applicant does. Appended after Applicant so the
+            // card order still reads as the onboarding-to-exit pipeline.
             $stats = [
             ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => collect($cohortBreakdown)->push(['count' => $totals['applicant'], 'label' => 'Applicants'])],
             ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#BFDBFE]', 'bg' => 'bg-[#F8FBFF]', 'note' => $pct($totals['active'], $totals['total']).'% startup are active'],
             ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['needsCoordinator'], $totals['total']).'% startup needs assigned coordinator'],
             ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $pct($totals['pending'], $totals['total']).'% startup is under evaluation'],
             ['label' => 'Applicant', 'value' => $totals['applicant'], 'icon' => 'person-loading.svg', 'border' => 'border-[#A7F3D0]', 'bg' => 'bg-[#F2FFFA]', 'note' => $pct($totals['applicant'], $totals['total']).'% startup is still applying'],
+            ['label' => 'Graduated', 'value' => $totals['graduated'], 'icon' => 'rocket.svg', 'border' => 'border-[#C7D2FE]', 'bg' => 'bg-[#F5F6FF]', 'note' => $pct($totals['graduated'], $totals['total']).'% startup have graduated'],
+            ['label' => 'Completed', 'value' => $totals['completed'], 'icon' => 'check-shield.svg', 'border' => 'border-[#A5F3FC]', 'bg' => 'bg-[#ECFEFF]', 'note' => $pct($totals['completed'], $totals['total']).'% startup have completed'],
             ];
             @endphp
 
@@ -72,19 +81,24 @@
                     .startup-stat-card .stat-value-lg { font-size: 1.35rem !important; }
                     .startup-stat-card .stat-value-plain { font-size: 1.35rem !important; }
                 }
-                /* Tablets/foldables (Surface Duo, iPad, Galaxy Fold unfolded, etc.) sit
-                   in this range while the grid is still 2-up (matches grid-cols-2's
-                   xl:grid-cols-5 switch below) - the full 96px watermark looks
-                   oversized against a narrower 2-up column here, so step it down. */
-                @media (min-width: 640px) and (max-width: 1279px) {
+                /* Tablets/foldables (Surface Duo, iPad, Galaxy Fold unfolded, etc.) and
+                   narrower desktop widths sit in this range while the grid is 2-up or
+                   4-up (matches grid-cols-2's sm:grid-cols-3/lg:grid-cols-4 switches
+                   below) - the full 96px watermark looks oversized against those
+                   narrower columns, so step it down. Widened from the old 1279px cap
+                   to 1535px when Graduated/Completed pushed the 7-up layout out to the
+                   2xl breakpoint, so the 4-up lg/xl range in between still gets it too. */
+                @media (min-width: 640px) and (max-width: 1535px) {
                     .startup-stat-card .stat-watermark-lg svg { width: 72px !important; height: 72px !important; }
                 }
             </style>
 
-            {{-- xl:grid-cols-5 (not -4) now that Applicant is its own card alongside
-                 Total/Active/Assign Coordinator/Pending — five cards in a 4-col grid
-                 would leave the last one alone on its own row. --}}
-            <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4 mb-8">
+            {{-- Seven cards now that Graduated/Completed joined Total/Active/Assign
+                 Coordinator/Pending/Applicant: 2-up on phones, stepping up through
+                 3-up/4-up so nothing sits alone on its own row, and all 7 across only
+                 once there's room at 2xl (matches the mentors/coordinators pages'
+                 same progressive-breakpoint approach to a wide card row). --}}
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-3 sm:gap-4 mb-8">
                 @foreach ($stats as $stat)
                 {{-- relative + overflow-hidden are what let the silhouette bleed off the card
              edge without spilling into the grid gap. --}}
@@ -132,18 +146,24 @@
             <div class="border-b border-gray-300 mb-8">
                 <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap">
                     {{-- Order follows the summary cards above (Total, Active, Assign
-                         Coordinator, Pending, Applicant), so Applicant is last.
+                         Coordinator, Pending, Applicant, Graduated, Completed).
                          Query param key stays 'onboarding' (matches
                          StartupProfileController::index()'s tab switch and
                          Startup::scopeOnboarding()) — only the displayed
                          label changed to "Applicant", since nothing in this
-                         tab has actually been accepted yet. --}}
+                         tab has actually been accepted yet. Graduated/Completed
+                         map to Startup::scopeGraduated()/scopeCompleted() — a
+                         startup lands on one of these once its Venture Exit
+                         form's Exit Status is set, and leaves Active/Assign
+                         Coordinator at the same time (see those scopes). --}}
                     @foreach ([
                     'all' => 'All',
                     'active' => 'Active',
                     'assign-coordinator' => 'Assign Coordinator',
                     'pending' => 'Pending',
                     'onboarding' => 'Applicant',
+                    'graduated' => 'Graduated',
+                    'completed' => 'Completed',
                     ] as $key => $label)
 
                     <a

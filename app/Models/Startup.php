@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\VentureExitForm;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,6 +13,16 @@ class Startup extends Model
     use HasFactory;
 
     protected $primaryKey = 'startup_id';
+
+    /**
+     * The Venture Exit form's Exit Status values that mean a startup has
+     * left the program — see getExitStatusAttribute() and the
+     * scopeGraduated()/scopeCompleted() below, and the exclusion added to
+     * scopeActive()/scopeNeedsCoordinator() further down. Mirrors the same
+     * two literals already read independently (before this existed) by
+     * WelcomeController and DashboardController::graduationSteps().
+     */
+    public const EXIT_STATUSES = ['Graduated', 'Completed'];
 
     protected $fillable = [
         'user_id', 'company_name', 'industry_sector', 'business_description', 'cohort_number',
@@ -130,7 +141,39 @@ class Startup extends Model
     {
         return $this->hasOne(CoordinatorAssignment::class, 'startup_id')->where('assignment_status', 'Active');
     }
-    
+
+    /**
+     * The Venture Exit stage's one-off exit form (see App\Support\
+     * VentureExitForm) — specifically document_number 13 under stage
+     * 'Venture Exit'. Its `exit_status` field is what
+     * getExitStatusAttribute() below reads to decide whether this startup
+     * has left the program.
+     */
+    public function ventureExitDocument()
+    {
+        return $this->hasOne(AssessmentDocument::class, 'startup_id')
+            ->where('stage', 'Venture Exit')
+            ->where('document_number', VentureExitForm::DOCUMENT_NUMBER);
+    }
+
+    /**
+     * 'Graduated', 'Completed', or null — the Venture Exit form's Exit
+     * Status field, read the same way WelcomeController and
+     * DashboardController::graduationSteps() already do independently: a
+     * form that's merely filled in, with no Exit Status chosen (or set to
+     * anything else), leaves the startup un-exited. Drives the Startup
+     * Profile page's Graduated/Completed summary cards, tags and tabs (see
+     * scopeGraduated()/scopeCompleted() below) and takes priority in
+     * getStatusAttribute() over the usual Active/Assign Coordinator/etc.
+     * status once set.
+     */
+    public function getExitStatusAttribute(): ?string
+    {
+        $status = data_get($this->ventureExitDocument?->data, 'exit_status');
+
+        return in_array($status, self::EXIT_STATUSES, true) ? $status : null;
+    }
+
     public function roadblocks()
     {   
     return $this->hasMany(Roadblock::class, 'startup_id', 'startup_id');
@@ -256,6 +299,14 @@ class Startup extends Model
     // Computed status, not stored
     public function getStatusAttribute(): string
     {
+        // Exit status wins over everything else: once the Venture Exit
+        // form's Exit Status is set, the startup has left the program and
+        // is no longer Active/Assign Coordinator/etc. — see
+        // getExitStatusAttribute() above.
+        if ($this->exit_status) {
+            return $this->exit_status;
+        }
+
         $sheet = $this->informationSheet;
 
         if ($sheet && $sheet->approval_status === 'Rejected') {
@@ -500,16 +551,50 @@ class Startup extends Model
             ->whereHas('evaluationSchedules', fn ($q) => $q->where('status', '!=', 'Cancelled'));
     }
 
+    /**
+     * Startups that have exited the program (Graduated or Completed — see
+     * getExitStatusAttribute()) are excluded here: once a startup exits it
+     * moves to the Graduated/Completed tab instead, the same way
+     * WelcomeController already treats an exited startup as no longer
+     * "active" on the public site.
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
-            ->whereHas('activeCoordinatorAssignment');
+            ->whereHas('activeCoordinatorAssignment')
+            ->whereDoesntHave('ventureExitDocument', fn ($q) => $q->whereIn('data->exit_status', self::EXIT_STATUSES));
     }
 
+    /**
+     * Same exit exclusion as scopeActive() above — a startup that's already
+     * Graduated/Completed doesn't belong on the "Assign Coordinator" tab
+     * even if it happens to have no active assignment.
+     */
     public function scopeNeedsCoordinator(Builder $query): Builder
     {
         return $query->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
-            ->whereDoesntHave('activeCoordinatorAssignment');
+            ->whereDoesntHave('activeCoordinatorAssignment')
+            ->whereDoesntHave('ventureExitDocument', fn ($q) => $q->whereIn('data->exit_status', self::EXIT_STATUSES));
+    }
+
+    /**
+     * "Graduated" tab/summary card on the Startup Profile page — the
+     * Venture Exit form's Exit Status is specifically 'Graduated'. See
+     * getExitStatusAttribute() for what counts.
+     */
+    public function scopeGraduated(Builder $query): Builder
+    {
+        return $query->whereHas('ventureExitDocument', fn ($q) => $q->where('data->exit_status', 'Graduated'));
+    }
+
+    /**
+     * "Completed" tab/summary card on the Startup Profile page — the
+     * Venture Exit form's Exit Status is specifically 'Completed'. See
+     * getExitStatusAttribute() for what counts.
+     */
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->whereHas('ventureExitDocument', fn ($q) => $q->where('data->exit_status', 'Completed'));
     }
 
     /**

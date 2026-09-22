@@ -369,6 +369,106 @@ class InformationSheetTest extends TestCase
         $response->assertRedirect(route('startup.information-sheet.edit'));
     }
 
+    /**
+     * Regression coverage for "Information Sheet Rejected — Resubmission
+     * Required": the lock used to only check whether an evaluation was
+     * scheduled today, not whether it had already been decided, so a
+     * same-day Rejection (a startup scheduled 8-9 AM, rejected at 9:15 AM)
+     * left the founder locked out until midnight even though their 10-day
+     * countdown to fix and resubmit had already started. See
+     * Startup::evaluationDayLockActive().
+     */
+    public function test_a_same_day_rejection_releases_the_evaluation_day_lock_immediately(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        [$user, $startup] = $this->makeFounder();
+        EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now(),
+            'start_time' => '08:00',
+            'end_time' => '09:00',
+            'status' => 'Scheduled',
+        ]);
+
+        // Confirms the lock is genuinely active first — otherwise the
+        // assertion below (that rejecting releases it) wouldn't prove
+        // anything.
+        $this->assertTrue($startup->fresh()->evaluationDayLockActive());
+
+        // A real gap between the schedule's creation and the rejection,
+        // same as test_resubmission_after_rejection_needs_a_fresh_evaluation
+        // — otherwise both timestamps land in the same second and the
+        // updated_at >= rejected_at comparison can't distinguish them.
+        $this->travel(1)->minute();
+
+        $this->actingAs($admin)->patch(route('admin.information-sheet.reject', $startup), [
+            'evaluator_remarks' => 'Missing a clear problem statement.',
+        ]);
+
+        $this->assertFalse($startup->fresh()->evaluationDayLockActive());
+
+        // Same-day, not "reopens tomorrow": the founder can edit and
+        // resubmit right away.
+        $response = $this->actingAs($user)->patch(
+            route('startup.information-sheet.update'),
+            array_merge($this->validInformationSheetPayload(), ['intent' => 'submit'])
+        );
+
+        $response->assertRedirect(route('startup.information-sheet.edit'));
+        $sheet = $startup->informationSheet->fresh();
+        $this->assertEquals('Pending', $sheet->approval_status);
+        $this->assertNotNull($sheet->submission_date);
+    }
+
+    /**
+     * The old (already-decided) schedule row staying unlocked after
+     * resubmission is the point — the founder shouldn't be relocked by the
+     * very evaluation that already rejected them. But once the admin books
+     * a fresh slot later that same day (or reschedules the same row), that
+     * new booking should lock the sheet again while it's pending review,
+     * exactly like any other scheduled-today evaluation.
+     */
+    public function test_a_freshly_booked_same_day_evaluation_relocks_after_resubmission(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        [$user, $startup] = $this->makeFounder();
+        $schedule = EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now(),
+            'start_time' => '08:00',
+            'end_time' => '09:00',
+            'status' => 'Scheduled',
+        ]);
+
+        $this->travel(1)->minute();
+        $this->actingAs($admin)->patch(route('admin.information-sheet.reject', $startup));
+        $this->assertFalse($startup->fresh()->evaluationDayLockActive());
+
+        $this->travel(1)->minute();
+        $this->actingAs($user)->patch(
+            route('startup.information-sheet.update'),
+            array_merge($this->validInformationSheetPayload(), ['intent' => 'submit'])
+        );
+        $this->assertFalse(
+            $startup->fresh()->evaluationDayLockActive(),
+            'Resubmitting while the old, still-Scheduled row is untouched must not relock the sheet.'
+        );
+
+        // Admin re-books the same row for later today — its updated_at
+        // naturally moves past rejected_at, so it counts as a fresh
+        // evaluation again.
+        $this->travel(1)->minute();
+        $schedule->update(['start_time' => '15:00', 'end_time' => '16:00']);
+
+        $this->assertTrue($startup->fresh()->evaluationDayLockActive());
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Attempted Change',
+            'first_name' => 'Still Attempted',
+        ]);
+        $response->assertForbidden();
+    }
+
     // --------------------------------------------------------------
     // Section V: registration numbers (28-31)
     // --------------------------------------------------------------

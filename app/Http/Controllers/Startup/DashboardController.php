@@ -155,7 +155,13 @@ class DashboardController extends Controller
         $exited = in_array(data_get($exitDocument?->data, 'exit_status'), ['Graduated', 'Completed'], true);
 
         return $this->stepsWithSkips([
-            'Active Startup' => $startup->status === 'Active',
+            // $exited is included here too: Startup::getStatusAttribute()
+            // now reports 'Graduated'/'Completed' (not 'Active') once the
+            // Venture Exit form's Exit Status is set (see the Startup
+            // Profile Graduated/Completed feature), but reaching that point
+            // still means this startup WAS an active member of the program
+            // — it shouldn't un-complete this earlier step.
+            'Active Startup' => $exited || $startup->status === 'Active',
             'Pre RL Documents' => (bool) $preRl?->isFullyScored(),
             'Active Documents' => $activeDocsCount >= 3,
             'Post RL Documents' => (bool) $postRl?->isFullyScored(),

@@ -49,6 +49,8 @@ class StartupProfileController extends Controller
             'assign-coordinator' => $query->needsCoordinator(),
             'pending' => $query->awaitingEvaluation(),
             'onboarding' => $query->onboarding(),
+            'graduated' => $query->graduated(),
+            'completed' => $query->completed(),
             default => $query,
         };
 
@@ -68,6 +70,13 @@ class StartupProfileController extends Controller
         // + Pending, which read as the counts being wrong rather than just
         // one whole category not being shown.
         $applicantStartups = $scopedTotal()->onboarding()->count();
+        // Same reasoning as $applicantStartups above: Graduated/Completed
+        // are their own real slice of Total Startup (a startup leaves
+        // Active/Assign Coordinator once it exits — see
+        // Startup::scopeActive()/scopeNeedsCoordinator()), so both need
+        // their own summary card for Total Startup to keep adding up.
+        $graduatedStartups = $scopedTotal()->graduated()->count();
+        $completedStartups = $scopedTotal()->completed()->count();
 
         return view('admin.startups.index', [
             'startups' => $startups,
@@ -92,6 +101,8 @@ class StartupProfileController extends Controller
                 'needsCoordinator' => $needsCoordinatorStartups,
                 'pending' => $scopedTotal()->awaitingEvaluation()->count(),
                 'applicant' => $applicantStartups,
+                'graduated' => $graduatedStartups,
+                'completed' => $completedStartups,
             ],
             // cohort_number (not the newer cohort_id -> cohorts table FK) is the
             // field actually populated on existing startups and used everywhere
