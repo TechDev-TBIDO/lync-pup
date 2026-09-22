@@ -93,7 +93,7 @@
     // when that rule fails. Starting with ONE blank, ready-to-fill row already
     // in edit mode fixes both: there's something to type into immediately, and
     // something for the blank-required-field check to flag if left empty.
-    // (It used to seed four; the founder adds more with "+ Add Entry".)
+    // (It used to seed four; the founder adds more with '+ Add Entry'.)
     // Only seeded when the startup has no real team members saved yet; once
     // at least one is saved, this never seeds again.
     newRows: { team: {{ $startup->teamMembers->isEmpty() ? '[{ id: 1 }]' : '[]' }}, inc: [], ld: [], ref: [] },
