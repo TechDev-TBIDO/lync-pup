@@ -4,9 +4,11 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Startup;
 use App\Models\User;
+use App\Notifications\VerifyEmailNotification;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -21,6 +23,77 @@ class EmailVerificationTest extends TestCase
         $response = $this->actingAs($user)->get('/verify-email');
 
         $response->assertStatus(200);
+    }
+
+    /**
+     * Regression for "We've sent a verification link to [email]" being a lie
+     * until Resend was clicked: landing on this page must now actually send
+     * a fresh email at that exact moment, not just say it did.
+     */
+    public function test_landing_on_the_verification_prompt_actually_sends_a_verification_email(): void
+    {
+        Notification::fake();
+        $user = User::factory()->unverified()->create();
+
+        $this->actingAs($user)->get(route('verification.notice'));
+
+        Notification::assertSentTo($user, VerifyEmailNotification::class);
+    }
+
+    /**
+     * The same "send on landing" behavior must fire every time — including
+     * the post-registration redirect (RegisteredUserController::store()
+     * redirects straight into this same route), so the message is accurate
+     * on a founder's very first visit too, not only on later ones.
+     */
+    public function test_registering_immediately_sends_a_verification_email_via_the_redirect_to_the_prompt(): void
+    {
+        Notification::fake();
+
+        $this->post('/register', [
+            'name' => 'Test Founder',
+            'email' => 'freshfounder@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'company_name' => 'NovaSync',
+            'terms' => '1',
+        ]);
+
+        $user = User::where('email', 'freshfounder@example.com')->firstOrFail();
+
+        // The redirect response itself isn't followed by the test client,
+        // so make the same request the browser's follow-up GET would.
+        $this->actingAs($user)->get(route('verification.notice'));
+
+        Notification::assertSentTo($user, VerifyEmailNotification::class);
+    }
+
+    /**
+     * Each landing must send a genuinely NEW link (matching the existing
+     * "only the newest link is valid" invalidation rule), not just re-fire
+     * the notification with the old, already-issued token.
+     */
+    public function test_each_landing_on_the_verification_prompt_invalidates_the_previous_link(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        // First landing — sends link #1 and rotates the token.
+        $this->actingAs($user)->get(route('verification.notice'));
+        $firstVerificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email), 'token' => $user->fresh()->email_verification_token]
+        );
+
+        // Second landing (e.g. the founder re-opens the page, or comes back
+        // via login after the first link expired) — sends link #2 and
+        // rotates the token again.
+        $this->actingAs($user)->get(route('verification.notice'));
+
+        // Link #1 must no longer work — only the freshest one is valid.
+        $response = $this->actingAs($user)->get($firstVerificationUrl);
+        $response->assertForbidden();
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
     }
 
     public function test_email_can_be_verified(): void

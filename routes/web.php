@@ -8,7 +8,6 @@ use App\Http\Controllers\Admin\CoordinatorAssignmentController;
 use App\Http\Controllers\Admin\InformationSheetController;
 use App\Http\Controllers\Admin\MentorController;
 use App\Http\Controllers\Admin\CoordinatorProfileController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Startup\NotificationController as FounderNotificationController;
 use App\Http\Controllers\Startup\RoadblockController;
 
@@ -76,12 +75,6 @@ Route::get('/storage/{path}', [StorageController::class, 'show'])
 // dashboard instead.
 Route::middleware(['auth', 'role:Admin', 'select-cohort'])->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
-});
-
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 // Admin-only routes

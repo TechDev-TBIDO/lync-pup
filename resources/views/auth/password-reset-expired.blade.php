@@ -46,12 +46,17 @@
                 Password reset links are only valid for 3 minutes. Request a new one below.
             </div>
 
-            <a href="{{ route('password.request') }}"
+            {{-- $role carries the Admin/Founder version through from the
+                 link that expired (see NewPasswordController::create()) so
+                 requesting a fresh one, or heading back to sign in, lands
+                 on the same version rather than defaulting back to
+                 Founder. --}}
+            <a href="{{ route('password.request', ['role' => $role ?? 'Startup']) }}"
                 class="block w-full text-center bg-rose-900 hover:bg-rose-950 text-white font-semibold py-3 rounded-lg transition mb-3">
                 Request a New Link
             </a>
 
-            <a href="{{ route('login') }}"
+            <a href="{{ route('login', ['role' => $role ?? 'Startup']) }}"
                 class="block w-full text-center border border-rose-200 rounded-lg p-4 text-sm text-gray-600 hover:bg-gray-50 transition">
                 Back to Sign In
             </a>

@@ -45,11 +45,22 @@ class AppServiceProvider extends ServiceProvider
                 ->view('emails.verify-email', ['url' => $url]);
         });
 
-        // Branded "forgot password" email, same reasoning as above.
+        // Branded "forgot password" email, same reasoning as above. The
+        // role query param lets the "set a new password" page
+        // (NewPasswordController::create()) and the final redirect back to
+        // login (NewPasswordController::store()) render/land on the right
+        // Admin-vs-Founder version — sourced from $notifiable's own real
+        // role column, not the "which tab did they click" value the
+        // request form only ever carries as far as the "check your email"
+        // screen (see PasswordResetLinkController), since by this point a
+        // real account has definitely been resolved and its actual role is
+        // the more reliable source of truth than an earlier, unconfirmed
+        // client-side tab selection.
         ResetPassword::toMailUsing(function ($notifiable, string $token) {
             $url = url(route('password.reset', [
                 'token' => $token,
                 'email' => $notifiable->getEmailForPasswordReset(),
+                'role' => $notifiable->role === 'Admin' ? 'Admin' : 'Startup',
             ], false));
 
             return (new MailMessage)

@@ -30,7 +30,14 @@
         the user had picked.
     --}}
     <div class="h-screen lg:overflow-hidden flex flex-col lg:flex-row" x-data="{
-            activeTab: '{{ old('role', 'Startup') }}',
+            {{-- Falls back to a role carried in the URL (e.g. the 'Back to
+                 Sign In' links on the forgot/reset-password pages, or the
+                 final redirect after a successful password reset) when
+                 there's no failed-login old('role') to prefer — so landing
+                 back here from that flow re-selects the same Admin/Founder
+                 tab the person was actually using, instead of always
+                 resetting to Founder. --}}
+            activeTab: '{{ in_array(old('role', request('role')), ['Admin', 'Startup']) ? old('role', request('role')) : 'Startup' }}',
             lockoutSeconds: {{ (int) session('lockout_seconds', 0) }},
             lockoutEndsAt: Date.now() + {{ (int) session('lockout_seconds', 0) }} * 1000,
             init() {
@@ -167,7 +174,14 @@
                         <div class="flex justify-between items-center mb-1">
                             <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
                             @if (Route::has('password.request'))
-                            <a href="{{ route('password.request') }}" class="text-sm text-rose-800 hover:underline">Forgot Password?</a>
+                            {{-- Carries whichever tab is active (Founder or
+                                 Admin) into the forgot-password flow, same
+                                 idea as the hidden role field the form
+                                 below submits with — reactive so it stays
+                                 correct if the tab is switched after page
+                                 load, not just on the tab selected when the
+                                 page first rendered. --}}
+                            <a :href="'{{ route('password.request') }}?role=' + activeTab" class="text-sm text-rose-800 hover:underline">Forgot Password?</a>
                             @endif
                         </div>
                         <div class="relative" x-data="{ show: false }">

@@ -33,6 +33,20 @@ class EmailVerificationPromptController extends Controller
                 ->with('status', 'Your email is already verified. Please log in.');
         }
 
+        // Make "We've sent a verification link to [email]" (see
+        // verify-email.blade.php) actually true every time this page is
+        // reached, not just after an explicit "Resend" click. This single
+        // chokepoint covers every way a founder lands here: straight after
+        // registering (RegisteredUserController::store() redirects here
+        // immediately), from the "you must verify" redirect on login, and
+        // from clicking an already-expired link (back to login, then here
+        // again). sendEmailVerificationNotification() itself rotates
+        // email_verification_token first (see User::sendEmailVerificationNotification()),
+        // so the freshly sent link is always the one and only valid one —
+        // any link from a previous visit to this page is invalidated here
+        // too, same as a manual Resend already did.
+        $request->user()->sendEmailVerificationNotification();
+
         return view('auth.verify-email');
     }
 }

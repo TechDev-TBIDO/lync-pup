@@ -32,15 +32,30 @@
         }">
         <div class="w-full max-w-md">
 
-            <a href="{{ route('login') }}" class="inline-flex text-gray-500 hover:text-gray-800 mb-6">
+            <a href="{{ route('login', ['role' => $role]) }}" class="inline-flex text-gray-500 hover:text-gray-800 mb-6">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
             </a>
 
+            {{-- Same role badge as the "Forgot your password?" page, so the
+                 two screens in this flow read as one consistent
+                 Admin-vs-Founder experience. --}}
+            <div class="flex justify-center mb-4">
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-rose-800 bg-rose-50 rounded-full px-3 py-1">
+                    <img src="{{ asset($role === 'Admin' ? 'images/icons/login-admin.svg' : 'images/icons/login-founder.svg') }}"
+                        alt="" class="w-3.5 h-3.5">
+                    {{ $role === 'Admin' ? 'Admin Account' : 'Founder Account' }}
+                </span>
+            </div>
+
             <h1 class="text-2xl font-bold text-center text-gray-900 mb-2">Create New Password</h1>
             <p class="text-sm text-gray-500 text-center mb-8">
-                Enter your new password below.
+                @if ($role === 'Admin')
+                    Set a new password for your admin account below.
+                @else
+                    Enter your new password below.
+                @endif
             </p>
 
             <form method="POST" action="{{ route('password.store') }}" class="space-y-4">
@@ -48,6 +63,7 @@
 
                 <input type="hidden" name="token" value="{{ $request->route('token') }}">
                 <input type="hidden" name="email" value="{{ old('email', $request->email) }}">
+                <input type="hidden" name="role" value="{{ $role }}">
 
                 <div>
                     <label for="password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
