@@ -48,8 +48,13 @@ return [
         ],
 
         'public' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => true,
             // Root-relative on purpose (not built from APP_URL): this app is tested
             // from multiple devices on the same network (dev machine, tester phones/
             // laptops), each hitting the server through a different host/IP. A URL
@@ -57,8 +62,14 @@ return [
             // machine running the server — every other device gets a broken image.
             // A path starting with "/" always resolves against whatever host the
             // browser is actually using, so it works the same for everyone.
+            //
+            // This also means every file request still flows through this app's own
+            // StorageController (see routes/web.php) rather than hitting R2
+            // directly — which is exactly what we want now that the bucket itself
+            // is private, not public: nothing can read a founder's uploaded
+            // documents without going through this app's own access checks first.
             'url' => env('ASSET_URL') ? rtrim(env('ASSET_URL'), '/').'/storage' : '/storage',
-            'visibility' => 'public',
+            'visibility' => 'private',
             'throw' => false,
             'report' => false,
         ],
