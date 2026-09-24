@@ -137,9 +137,15 @@ class DashboardController extends Controller
     /**
      * The Admin Dashboard's own "what's new" cards — same idea and shape as
      * the founder Dashboard's (see Startup\DashboardController::updates()),
-     * just reading whichever notifications were sent to this Admin instead
-     * (currently just NewRoadblockSubmitted). Capped at three for the same
-     * reason: a readable dashboard rather than a wall of cards.
+     * just reading whichever notifications were sent to this Admin instead.
+     * NewRoadblockSubmitted was the only notification ever sent to Admins
+     * (from Startup\RoadblockController::store()) and its "Review Roadblock"
+     * card was removed by request, so this currently always returns empty
+     * and the "Notifications" section on the dashboard stays hidden (see
+     * dashboard.blade.php's `@if (! empty($updates))`) — left in place
+     * rather than deleted so a future Admin-facing notification has
+     * somewhere to land without rebuilding this. Capped at three for the
+     * same reason: a readable dashboard rather than a wall of cards.
      */
     protected function updates(): array
     {

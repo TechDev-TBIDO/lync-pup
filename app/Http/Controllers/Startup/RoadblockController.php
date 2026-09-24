@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Startup\StoreRoadblockRequest;
 use App\Models\AssessmentDocument;
 use App\Models\Roadblock;
-use App\Models\User;
-use App\Notifications\NewRoadblockSubmitted;
 use App\Traits\CompressesImages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -108,11 +106,6 @@ class RoadblockController extends Controller
                 ]);
             }
         });
-
-        // Sent after the transaction commits, so a rolled-back attempt never
-        // fires a notification for a roadblock that doesn't actually exist.
-        User::where('role', 'Admin')->get()
-            ->each(fn (User $admin) => $admin->notify(new NewRoadblockSubmitted($roadblock, $startup)));
 
         // RedirectResponse has no when() (that's Conditionable — not used by
         // this class), which is what actually threw the BadMethodCallException
