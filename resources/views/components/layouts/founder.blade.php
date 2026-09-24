@@ -191,6 +191,10 @@
                                 <span class="flex-1">
                                     {{ $item['label'] }}
                                 </span>
+
+                                @if (!empty(($founderSidebarBadges ?? [])[$item['route']] ?? false))
+                                <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New update" aria-label="New update"></span>
+                                @endif
                             </a>
                             @endif
                             @endforeach
@@ -489,7 +493,16 @@
                             @click="
                         $store.navigation.hasUnsavedChanges = false;
                         $store.navigation.showLeaveModal = false;
-                        window.location = $store.navigation.nextUrl;
+                        // In-page moves (e.g. switching tabs away from a
+                        // Roadblock draft) hand over a callback instead of a
+                        // URL — run it rather than navigating.
+                        if (typeof $store.navigation.pendingAction === 'function') {
+                            const action = $store.navigation.pendingAction;
+                            $store.navigation.pendingAction = null;
+                            action();
+                        } else {
+                            window.location = $store.navigation.nextUrl;
+                        }
                     "
                             class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white">
                             Leave

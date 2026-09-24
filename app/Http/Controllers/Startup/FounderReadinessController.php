@@ -21,6 +21,9 @@ class FounderReadinessController extends Controller
     {
         $startup = auth()->user()->startup;
 
+        // Clears this page's founder sidebar red dot (see AppServiceProvider).
+        auth()->user()?->markModuleSeen('founder_readiness', now());
+
         $stage = $request->query('stage');
         $stage = in_array($stage, self::STAGES, true) ? $stage : self::STAGES[0];
 

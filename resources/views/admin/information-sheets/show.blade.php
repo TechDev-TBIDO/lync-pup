@@ -147,30 +147,52 @@
     confirmingReject: false,
     lastClickedInput: null,
 
-    // Same 'not started yet' pill list Venture Exit's own Save gate warns
-    // with (see ReadinessRubric::incompleteLabelsFor) — Accept & Lock warns
-    // with it too instead of silently locking a sheet whose founder still
-    // has unfinished Pre/Active/Post assessments.
-    incompleteAssessments: @js($incompleteAssessments ?? []),
-    showIncompleteConfirm: false,
-    confirmedIncomplete: false,
+    // The Endorsement and Approval fields (see 36. DECLARATION below) that
+    // must actually be filled in before this sheet can be locked —
+    // Portfolio Manager is the one exception (a startup can be endorsed
+    // before a Portfolio Coordinator is assigned). These already render
+    // with a required "*" and a real `required` attribute, but that
+    // attribute only ever applied to the big info-sheet-form (the Save
+    // button) — Accept & Lock posts its own separate approve-form, which
+    // never included them, so the sheet could be locked with this section
+    // still completely blank. This is the actual gate.
+    requiredEndorsementFields: [
+        ['cohort_no', 'Cohort No.'],
+        ['endorsed_by', 'Endorsed By'],
+        ['endorsement_date', 'Date'],
+        ['director_approval_date', 'Date of Approval'],
+    ],
 
-    // Gate the actual submit: if this startup still has assessments that
-    // were never started, ask once before proceeding instead of silently
-    // locking them in. Already-complete startups submit immediately.
+    // Blocks the lock when the endorsement section isn't complete, and —
+    // per direct testing feedback — unlocks that section for editing right
+    // here instead of making the admin cancel out, find the Edit button,
+    // and come back to Accept & Lock a second time.
     tryApprove(event) {
-        if (this.incompleteAssessments.length && ! this.confirmedIncomplete) {
+        const missing = this.requiredEndorsementFields.filter(([name]) => {
+            const el = document.querySelector(`[name='${name}']`);
+            return ! el || ! el.value.trim();
+        });
+
+        if (missing.length) {
             event.preventDefault();
-            this.showIncompleteConfirm = true;
+            this.confirmingApprove = false;
+            this.editing = true;
+            this.$nextTick(() => {
+                const el = document.querySelector(`[name='${missing[0][0]}']`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.focus();
+                }
+            });
+            Alpine.store('toast').error(
+                'Endorsement Incomplete',
+                'Fill in ' + missing.map(([, label]) => label).join(', ') + ' (under Endorsement and Approval) before accepting & locking this sheet.'
+            );
             return;
         }
+
         this.dirty = false;
         this.$store.navigation.hasUnsavedChanges = false;
-    },
-    proceedWithApproval() {
-        this.confirmedIncomplete = true;
-        this.showIncompleteConfirm = false;
-        this.$nextTick(() => document.getElementById('approve-form').requestSubmit());
     },
 
     // Flashes the Edit button so an admin who clicks a read-only field
@@ -1973,7 +1995,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             Rejecting lets {{ $startup->company_name }} revise and resubmit their sheet. Their next
                             submission will need a fresh evaluation before it can be decided again.
                         </p>
-                        <form method="POST" action="{{ $rejectUrl }}" class="mt-3" @submit="dirty = false">
+                        <form method="POST" action="{{ $rejectUrl }}" class="mt-3"
+                            x-data="{ sending: false }" @submit="dirty = false; sending = true">
                             @csrf
                             @method('PATCH')
 
@@ -1983,14 +2006,20 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             @error('evaluator_remarks') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
 
                             <div class="flex gap-3">
-                                <button type="button" @click="confirmingReject = false"
-                                    class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
+                                <button type="button" @click="confirmingReject = false" :disabled="sending"
+                                    class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition disabled:cursor-not-allowed disabled:opacity-50">
                                     Cancel
                                 </button>
-                                <button type="submit"
+                                {{-- Disables the instant a click registers — the server
+                                     also guards against a duplicate rejection now (see
+                                     InformationSheetController::reject()), but this is
+                                     what stops the second click/request from firing at
+                                     all on a fast double-click or a slow connection. --}}
+                                <button type="submit" :disabled="sending"
                                     class="flex-1 rounded-lg border border-rose-300 bg-rose-800 py-2.5 text-sm font-semibold text-white
-                                           hover:bg-rose-900 transition">
-                                    Yes, reject
+                                           hover:bg-rose-900 transition disabled:cursor-not-allowed disabled:opacity-50">
+                                    <span x-show="!sending">Yes, reject</span>
+                                    <span x-show="sending" x-cloak>Rejecting…</span>
                                 </button>
                             </div>
                         </form>
@@ -1998,52 +2027,6 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     @endif
 
                     @endif
-
-                    {{-- Incomplete assessments confirmation — same pill list and warning
-                         Venture Exit's own Save gate uses (see
-                         ReadinessRubric::incompleteLabelsFor). Fires only when Accept &
-                         Lock is submitted while this startup's Pre/Active/Post-Assessment
-                         pills still have unstarted items; an already-complete startup
-                         locks immediately with no extra step. --}}
-                    <div x-show="showIncompleteConfirm" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
-                        <div class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
-                            <button type="button" @click="showIncompleteConfirm = false"
-                                class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-gray-900 text-gray-900 transition hover:border-transparent hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"
-                                aria-label="Close">
-                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
-                                </svg>
-                            </button>
-
-                            <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
-                                <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a1 1 0 0 0 .86 1.5h18.64a1 1 0 0 0 .86-1.5L13.71 3.86a1 1 0 0 0-1.72 0Z" />
-                                </svg>
-                            </div>
-
-                            <h2 class="mt-2.5 bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-base font-bold text-transparent sm:text-lg">Incomplete Assessments</h2>
-                            <p class="mt-1.5 text-xs leading-5 text-gray-600">The following assessment(s) have not been started yet:</p>
-
-                            <ul class="mx-auto mt-3 max-w-xs list-inside list-disc space-y-1 text-left text-xs text-gray-700">
-                                <template x-for="item in incompleteAssessments" :key="item">
-                                    <li x-text="item"></li>
-                                </template>
-                            </ul>
-
-                            <p class="mt-3 text-xs leading-5 text-gray-600">Do you want to proceed anyway?</p>
-
-                            <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
-                                <button type="button" @click="showIncompleteConfirm = false"
-                                    class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50">
-                                    Cancel
-                                </button>
-                                <button type="button" @click="proceedWithApproval()"
-                                    class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
-                                    Proceed Anyway
-                                </button>
-                            </div>
-                        </div>
-                    </div>
 
                     {{-- Edit mode: Cancel / Save --}}
                     <div class="flex gap-3" x-show="editing" x-cloak>

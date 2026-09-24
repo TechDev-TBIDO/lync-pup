@@ -20,6 +20,9 @@ class RoadblockController extends Controller
     {
         Roadblock::promoteEndedMeetingsToPendingReview();
 
+        // Clears this page's founder sidebar red dot (see AppServiceProvider).
+        auth()->user()?->markModuleSeen('founder_submissions', now());
+
         $startup = Auth::user()->startup;
 
         $roadblocks = Roadblock::with('files')

@@ -91,7 +91,9 @@ class DashboardController extends Controller
         return auth()->user()
             ->unreadNotifications()
             ->latest()
-            ->limit(3)
+            // Every unread card is sent; the view shows the first three
+            // and reveals the rest in place via "View all".
+            ->limit(50)
             ->get()
             ->map(fn ($note) => [
                 'id' => $note->id,

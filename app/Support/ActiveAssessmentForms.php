@@ -187,7 +187,7 @@ class ActiveAssessmentForms
             6 => self::isDocument6Filled($data),
             7 => self::isDocument7Filled($data),
             8 => self::isDocument8Filled($data),
-            \App\Support\VentureExitForm::DOCUMENT_NUMBER => self::isVentureExitFilled($data),
+            \App\Support\VentureExitForm::DOCUMENT_NUMBER => self::isVentureExitCompleted($data),
             default => ! empty($data),
         };
     }
@@ -255,47 +255,38 @@ class ActiveAssessmentForms
     }
 
     /**
-     * Whether the Venture Exit "Startup Exit Form" (document 13) has any
-     * real admin-entered content. Startup Name is deliberately excluded —
-     * _venture-exit.blade.php's clearAll() intentionally leaves it
-     * untouched when the admin hits "Clear Form" (see its own comment:
-     * clearing shouldn't wipe out which startup the form is for), so a
-     * cleared-and-resaved document would otherwise still have a non-empty
-     * `data` array (just startup_name) and read as "Started" via the
-     * `default => !empty($data)` fallback below — even though every actual
-     * field is blank. The *_position signatory fields are excluded too,
-     * same reasoning as isDocument8Filled(): they're fixed institutional
-     * defaults ("Portfolio Coordinator, TBIDO", etc.), not admin-entered.
+     * Whether the Venture Exit "Startup Exit Form" (document 13) counts as
+     * DONE — reached, not merely started. The only thing that means a
+     * startup has actually exited the program is its Exit Status field
+     * being set to Graduated or Completed; nothing else on the form (a
+     * typed-in progress summary, a checked graduation-readiness row, a
+     * signatory name, etc.) counts on its own, no matter how much of the
+     * rest of the form has been filled in.
+     *
+     * This one rule is shared by every place in the app that asks "has
+     * Venture Exit been reached" — the Admin Dashboard's Incubation
+     * Progress donut (30% slice) and Milestone Completion bar both call
+     * this directly, and the Assessment Hub Overview table's Venture Exit
+     * pill reaches it through isDocumentFilled()'s dispatch table above —
+     * so all three agree with Startup::getExitStatusAttribute() /
+     * Startup::EXIT_STATUSES, the same accessor the founder Dashboard's
+     * own graduation tracker already used correctly.
      */
+    /**
+     * Venture Exit only counts as COMPLETED (green pill / progress credit)
+     * once its Exit Status checkbox is ticked — Completed or Graduated.
+     * Filling the rest of the form while leaving Exit Status blank is still
+     * in progress, not done. isVentureExitFilled() below remains the looser
+     * "has anything been entered" check.
+     */
+    public static function isVentureExitCompleted(array $data): bool
+    {
+        return in_array($data['exit_status'] ?? null, \App\Models\Startup::EXIT_STATUSES, true);
+    }
+
     public static function isVentureExitFilled(array $data): bool
     {
-        if (filled($data['date_of_assessment'] ?? null)
-            || filled($data['summary_of_progress'] ?? null)
-            || filled($data['post_incubation_recommendation'] ?? null)
-            || filled($data['scale_up_linkages'] ?? null)
-            || filled($data['exit_status'] ?? null)) {
-            return true;
-        }
-
-        if (self::hasAnyValue($data['business_stage'] ?? [])) {
-            return true;
-        }
-
-        foreach ($data['graduation_readiness'] ?? [] as $row) {
-            if (($row['status'] ?? false) === true || filled($row['remark'] ?? null)) {
-                return true;
-            }
-        }
-
-        foreach ($data['readiness_levels'] ?? [] as $row) {
-            if (filled($row['highest_level'] ?? null) || filled($row['remarks'] ?? null)) {
-                return true;
-            }
-        }
-
-        return filled($data['evaluated_by_name'] ?? null)
-            || filled($data['reviewed_by_name'] ?? null)
-            || filled($data['noted_by_name'] ?? null);
+        return in_array($data['exit_status'] ?? null, ['Graduated', 'Completed'], true);
     }
 
     /**

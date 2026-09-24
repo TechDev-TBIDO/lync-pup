@@ -58,7 +58,11 @@ class StartupProfileController extends Controller
 
         $scopedTotal = fn () => $applyCohort(Startup::applicationApproved());
 
-        $totalStartups = $scopedTotal()->count();
+        // Total Startup leaves Applicants out — a startup only starts
+        // counting toward the total once it's past the Applicant stage.
+        $countedInTotal = fn () => $scopedTotal()->whereNot(fn ($q) => $q->onboarding());
+
+        $totalStartups = $countedInTotal()->count();
         $activeStartups = $scopedTotal()->active()->count();
         $needsCoordinatorStartups = $scopedTotal()->needsCoordinator()->count();
         // Surfaced as its own summary card below (see 'applicant' in
@@ -113,7 +117,9 @@ class StartupProfileController extends Controller
             // specific cohort is selected, this only ever includes that one
             // cohort's row — it used to always list every cohort at once
             // regardless of what's actually selected on this page.
-            'cohortBreakdown' => $applyCohort(Startup::query()->applicationApproved())
+            // Applicants left out here too, so the per-cohort lines still add
+            // up to the Total Startup number.
+            'cohortBreakdown' => $countedInTotal()
                 ->whereNotNull('cohort_number')
                 ->selectRaw('cohort_number, count(*) as total')
                 ->groupBy('cohort_number')
@@ -141,8 +147,22 @@ class StartupProfileController extends Controller
         return view('admin.startups.show', compact('startup'));
     }
 
+    /**
+     * 5-minute cooldown, enforced here (not just the button disabling
+     * itself client-side in admin.startups.show) — a double-click, a slow
+     * connection triggering a second click before the page updates, or a
+     * second browser tab open on the same profile can all still reach this
+     * route a second time. Without a server-side check, any of those sends
+     * the founder a duplicate "pitch deck requested" email.
+     */
     public function requestPitchDeck(Startup $startup): RedirectResponse
     {
+        if ($startup->pitch_deck_requested_at && $startup->pitch_deck_requested_at->gt(now()->subMinutes(5))) {
+            return redirect()
+                ->route('admin.startups.show', $startup)
+                ->with('status', 'Pitch deck was already requested a few minutes ago — please wait before requesting again.');
+        }
+
         Mail::to($startup->user->email)->send(new PitchDeckRequested($startup));
 
         $startup->update(['pitch_deck_requested_at' => now()]);

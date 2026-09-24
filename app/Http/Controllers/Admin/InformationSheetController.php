@@ -24,7 +24,6 @@ use App\Models\TeamMember;
 use App\Models\VersionHistory;
 use App\Support\ChangeLog;
 use App\Support\HistoryFields;
-use App\Support\ReadinessRubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -79,12 +78,6 @@ class InformationSheetController extends Controller
             // cohort at email verification (see AssignLatestCohortOnVerification
             // and approve()).
             'cohorts' => Cohort::where('status', 'Active')->orderBy('number')->get(),
-            // Same "which pills are still not started" list Venture Exit's own
-            // Save gate warns with (see ReadinessRubric::incompleteLabelsFor's
-            // docblock) — the Accept & Lock confirmation warns with it too,
-            // instead of silently locking a sheet whose founder's Pre/Active/
-            // Post assessments were never actually finished.
-            'incompleteAssessments' => ReadinessRubric::incompleteLabelsFor($startup),
         ]);
     }
 
@@ -95,6 +88,27 @@ class InformationSheetController extends Controller
             403,
             'This startup\'s evaluation must be scheduled and its date reached before their Information Sheet can be approved.'
         );
+
+        // Same fields the Endorsement and Approval section (36. DECLARATION,
+        // admin.information-sheets.show) marks required — Portfolio Manager
+        // is the one exception, since a startup can be endorsed before a
+        // Portfolio Coordinator is assigned. The page's own JS (tryApprove())
+        // already blocks the Accept & Lock click while these are blank, but
+        // that's client-side only; this is the actual gate, in case that's
+        // ever bypassed.
+        $sheet = $startup->informationSheet;
+        $missingEndorsementFields = collect([
+            'cohort_no' => 'Cohort No.',
+            'endorsed_by' => 'Endorsed By',
+            'endorsement_date' => 'Endorsement Date',
+            'director_approval_date' => 'Date of Approval',
+        ])->filter(fn ($label, $field) => blank($sheet?->{$field}))->values();
+
+        if ($missingEndorsementFields->isNotEmpty()) {
+            return back()->withErrors([
+                'endorsement' => 'Fill in '.$missingEndorsementFields->implode(', ').' (under Endorsement and Approval) before accepting & locking this sheet.',
+            ]);
+        }
 
         // Cohort placement no longer waits for this moment — every startup is
         // already placed into whatever cohort was latest when its founder
@@ -187,6 +201,14 @@ class InformationSheetController extends Controller
             'evaluator_remarks' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        // Captured before the update, same guard approve() already uses for
+        // its own notification — without this, the "Yes, reject" button (no
+        // disabling, no loading state on click) sends a fresh rejection
+        // email and in-app notification on every single request, so a
+        // double-click or a second click on a slow connection emails the
+        // founder twice for the one rejection.
+        $wasRejected = $startup->informationSheet?->approval_status === 'Rejected';
+
         $decisionFields = HistoryFields::informationSheetDecision();
         $decisionBefore = ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields);
 
@@ -203,21 +225,23 @@ class InformationSheetController extends Controller
 
         $deadline = $startup->refresh()->rejectionDeadline();
 
-        $startup->user?->notify(new InformationSheetRejected(
-            $data['evaluator_remarks'] ?? null,
-            $deadline,
-        ));
-
-        // The notification above only ever produced an in-app dashboard
-        // card — founders had no way to find out about a rejection unless
-        // they happened to log back in. This is the actual email.
-        if ($startup->user?->email) {
-            Mail::to($startup->user->email)->send(new InformationSheetRejectedMail(
-                $startup->user->name ?? 'Founder',
-                $startup->company_name,
+        if (! $wasRejected) {
+            $startup->user?->notify(new InformationSheetRejected(
                 $data['evaluator_remarks'] ?? null,
                 $deadline,
             ));
+
+            // The notification above only ever produced an in-app dashboard
+            // card — founders had no way to find out about a rejection
+            // unless they happened to log back in. This is the actual email.
+            if ($startup->user?->email) {
+                Mail::to($startup->user->email)->send(new InformationSheetRejectedMail(
+                    $startup->user->name ?? 'Founder',
+                    $startup->company_name,
+                    $data['evaluator_remarks'] ?? null,
+                    $deadline,
+                ));
+            }
         }
 
         VersionHistory::record(

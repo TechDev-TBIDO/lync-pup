@@ -14,6 +14,9 @@ $cohortReturnUrl = match (request('from')) {
 // Opened from a coordinator's "Assigned Startups" list - switching cohorts
 // goes back to the Coordinator Profile page, same as the Back button.
 'coordinators' => route('admin.coordinators.index'),
+// Opened from a Risk Monitoring "No Portfolio Coordinator" flag -
+// switching cohorts goes back to Risk Monitoring, same as the Back button.
+'risk-monitoring' => route('admin.risk-monitoring.index'),
 default => null,
 };
 @endphp
@@ -66,6 +69,9 @@ default => null,
             ])),
             // "Assigned Startups" modal on the Coordinator Profile page.
             'coordinators' => route('admin.coordinators.index'),
+            // Risk Monitoring's "No Portfolio Coordinator" flag - see
+            // RiskEngine::resolveLink().
+            'risk-monitoring' => route('admin.risk-monitoring.index'),
             default => route('admin.startups.index', request()->only('tab')),
             };
             @endphp
@@ -315,14 +321,34 @@ default => null,
                         </p>
                     </div>
 
-                    <form method="POST" action="{{ route('admin.startups.request-pitch-deck', $startup) }}" class="mt-6">
+                    @php
+                        // Mirrors the 5-minute cooldown StartupProfileController::
+                        // requestPitchDeck() enforces server-side — the button here
+                        // just reflects that same window so it doesn't invite a
+                        // click that the server would reject anyway.
+                        $pitchDeckCooldownUntil = $startup->pitch_deck_requested_at?->copy()->addMinutes(5);
+                        $pitchDeckOnCooldown = $pitchDeckCooldownUntil && $pitchDeckCooldownUntil->isFuture();
+                    @endphp
+
+                    <form method="POST" action="{{ route('admin.startups.request-pitch-deck', $startup) }}"
+                        class="mt-6" x-data="{ sending: false }" @submit="sending = true">
                         @csrf
-                        <button type="submit" class="w-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] hover:opacity-90 transition-all duration-200 text-white rounded-lg py-2.5 text-sm font-medium">
-                            Request Pitch Deck
+                        {{-- Disables the instant a click registers (covers a fast
+                             double-click / slow connection double-submit), and stays
+                             disabled for the rest of the 5-minute server-side cooldown
+                             once a request has actually gone through. --}}
+                        <button type="submit" :disabled="sending || {{ $pitchDeckOnCooldown ? 'true' : 'false' }}"
+                            class="w-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] hover:opacity-90 transition-all duration-200 text-white rounded-lg py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">
+                            <span x-show="!sending">Request Pitch Deck</span>
+                            <span x-show="sending" x-cloak>Sending…</span>
                         </button>
                     </form>
 
-                    @if ($startup->pitch_deck_requested_at)
+                    @if ($pitchDeckOnCooldown)
+                    <p class="text-xs text-gray-400 text-center mt-2">
+                        Request again in 5 minutes
+                    </p>
+                    @elseif ($startup->pitch_deck_requested_at)
                     <p class="text-xs text-gray-400 text-center mt-2">
                         Last requested {{ $startup->pitch_deck_requested_at->diffForHumans() }}
                     </p>

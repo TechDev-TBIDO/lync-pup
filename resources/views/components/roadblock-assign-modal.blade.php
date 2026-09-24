@@ -206,8 +206,12 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
 
                             {{-- Panels stack on phones, sit side by side from sm up --}}
                             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
-                                <div class="relative rounded-xl border p-3 sm:p-4" x-data="{ previewId: null }">
-                                    <p class="mb-3 text-sm font-medium sm:text-base">1. Assign Mentor or Coordinator</p>
+                                {{-- Close any open profile preview card whenever the surrounding modal
+                                     closes (×, Cancel, Escape, backdrop...), so it isn't still
+                                     sitting open the next time the modal is shown. --}}
+                                <div class="relative rounded-xl border p-3 sm:p-4" x-data="{ previewId: null }"
+                                    x-init="$watch('{{ $mode === 'edit' ? 'editOpen' : ($mode === 'reschedule' ? 'rescheduleOpen' : 'assignOpen') }}', open => { if (! open) previewId = null })">
+                                    <p class="mb-3 text-sm font-medium sm:text-base">1. Assign Mentor or Coordinator <span class="text-red-600">*</span></p>
                                     <select name="assignee" autocomplete="off" x-model="assignee" data-original="{{ $assigneeDefault }}" class="{{ $fieldCls }} mb-4">
                                         <option value="" disabled hidden @selected($selectedAssignee==='' )>Select Mentor or Coordinator</option>
                                         @if ($mentors->isNotEmpty())
@@ -344,7 +348,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
 
                                                     <p class="{{ $previewRow }}">
                                                         <span class="{{ $previewDisc }}">{!! $icon('3person.svg', 'w-2.5 h-2.5') !!}</span>
-                                                        <span class="truncate">{{ $c->assigned_startups_count }} Startup</span>
+                                                        <span class="truncate">{{ $c->active_startups_count }} {{ Str::plural('Startup', $c->active_startups_count) }}</span>
                                                     </p>
                                                 </div>
                                             </div>
@@ -375,7 +379,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                 <div class="rounded-xl border p-3 sm:p-4">
                                     <p class="mb-3 text-sm font-medium sm:text-base">2. Set a Meeting</p>
 
-                                    <label class="{{ $lblCls }}">Date</label>
+                                    <label class="{{ $lblCls }}">Date <span class="text-red-600">*</span></label>
                                     <input type="date" name="meeting_date" autocomplete="off" x-model="meetingDate"
                                         @if ($enforceFutureOnly) :min="todayStr" @endif
                                         value="{{ $oldFor('meeting_date', $meetingDateDefault) }}"
@@ -385,7 +389,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
 
                                     <div class="mb-3 grid grid-cols-2 gap-3">
                                         <div>
-                                            <label class="{{ $lblCls }}">Start Time</label>
+                                            <label class="{{ $lblCls }}">Start Time <span class="text-red-600">*</span></label>
                                             <input type="time" name="meeting_start_time" autocomplete="off" x-model="meetingStartTime"
                                                 @wheel.prevent="meetingStartTime = stepTime(meetingStartTime, $event.deltaY < 0 ? 1 : -1)"
                                                 @if ($enforceFutureOnly) :min="meetingDate === todayStr ? nowTime : null" @endif
@@ -395,7 +399,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                             @if ($isErroredRoadblock) @error('meeting_start_time') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                                         </div>
                                         <div>
-                                            <label class="{{ $lblCls }}">End Time</label>
+                                            <label class="{{ $lblCls }}">End Time <span class="text-red-600">*</span></label>
                                             <input type="time" name="meeting_end_time" autocomplete="off" x-model="meetingEndTime"
                                                 @wheel.prevent="meetingEndTime = stepTime(meetingEndTime, $event.deltaY < 0 ? 1 : -1)"
                                                 value="{{ $oldFor('meeting_end_time', $meetingEndDefault) }}"
@@ -405,7 +409,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                         </div>
                                     </div>
 
-                                    <label class="{{ $lblCls }}">Platform</label>
+                                    <label class="{{ $lblCls }}">Platform <span class="text-red-600">*</span></label>
                                     <select name="meeting_platform" autocomplete="off" x-model="platform" data-original="{{ $platformDefault }}" class="{{ $fieldCls }} mb-3">
                                         <option value="" disabled hidden @selected(! $oldFor('meeting_platform', $platformDefault))>Select Platform</option>
                                         @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Location', 'Custom Link'] as $platformOption)
@@ -414,7 +418,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                     </select>
                                     @if ($isErroredRoadblock) @error('meeting_platform') <p class="mb-3 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
 
-                                    <label class="{{ $lblCls }}">Meeting Link / Location</label>
+                                    <label class="{{ $lblCls }}">Meeting Link / Location <span class="text-red-600">*</span></label>
                                     <textarea name="meeting_link" autocomplete="off" rows="3" x-model="meetingLink"
                                         :placeholder="linkPlaceholders[platform] || 'Input Meeting Link / Address'"
                                         data-original="{{ $linkDefault }}"

@@ -96,8 +96,21 @@
     </div>
     @endif
 
+    @if (! empty($updates))
+    <div x-data="{ showAllUpdates: false }" class="mb-5 sm:mb-6">
+        {{-- Only the latest three cards show by default; "View all" reveals
+             the rest right here instead of going to another page. --}}
+        <div class="mb-2 flex items-center justify-between">
+            <p class="text-sm font-semibold text-gray-900">Notifications <span class="font-normal text-gray-500">({{ count($updates) }})</span></p>
+            @if (count($updates) > 3)
+            <button type="button" @click="showAllUpdates = !showAllUpdates"
+                class="text-xs font-semibold text-[#11386A] underline underline-offset-2 hover:text-[#6D0D23]"
+                x-text="showAllUpdates ? 'Show less' : 'View all'">View all</button>
+            @endif
+        </div>
+        <div class="space-y-3">
     @foreach ($updates ?? [] as $update)
-    <div class="{{ $loop->last ? 'mb-5 sm:mb-6' : 'mb-3' }} flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <div @if ($loop->index >= 3) x-show="showAllUpdates" x-cloak @endif class="flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div class="flex items-center gap-3 sm:gap-4">
             <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
                 <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/' . $update['icon']) }}')"></span>
@@ -117,6 +130,9 @@
         </a>
     </div>
     @endforeach
+        </div>
+    </div>
+    @endif
 
     {{--
         Overall Readiness banner sizing is driven by the BANNER'S OWN width (container

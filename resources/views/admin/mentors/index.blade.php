@@ -312,7 +312,7 @@
                                         <a href="{{ route('admin.roadblocks.index', ['tab' => 'manage', 'highlight' => 'startup-'.$roadblock->startup_id]) }}"
                                             class="block rounded-lg border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
                                             <p class="truncate text-sm font-semibold text-gray-900">{{ $roadblock->startup->company_name }}</p>
-                                            <p class="mt-0.5 text-xs text-gray-500">{{ $roadblock->display_category }} &middot; {{ $roadblock->status }}</p>
+                                            <p class="mt-0.5 text-xs text-gray-500">{{ $roadblock->display_category }} &middot; {{ $roadblock->status }} &middot; Cohort {{ $roadblock->startup->cohort_number ?? '—' }}</p>
                                         </a>
                                         @endif
                                         @empty
@@ -329,7 +329,7 @@
                                         <a href="{{ route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => $roadblock->status === 'Failed' ? 'failed' : 'resolved', 'highlight' => 'startup-'.$roadblock->startup_id]) }}"
                                             class="block rounded-lg border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
                                             <p class="truncate text-sm font-semibold text-gray-900">{{ $roadblock->startup->company_name }}</p>
-                                            <p class="mt-0.5 text-xs text-gray-500">{{ $roadblock->display_category }} &middot; {{ $roadblock->status }}</p>
+                                            <p class="mt-0.5 text-xs text-gray-500">{{ $roadblock->display_category }} &middot; {{ $roadblock->status }} &middot; Cohort {{ $roadblock->startup->cohort_number ?? '—' }}</p>
                                         </a>
                                         @endif
                                         @empty

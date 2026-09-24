@@ -170,10 +170,16 @@ $hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
             @endif
 
             @if ($startup->status === 'Assign Coordinator')
-            <a href="{{ route('admin.startups.show', array_merge(['startup' => $startup], request()->only('tab'), ['assign_coordinator' => 1])) }}#assign-coordinator"
+            {{-- Opens the modal right on this card via the same namespaced
+                 window event the 3-dot menu's "Edit Coordinator" already
+                 uses (see <x-coordinator-assign-modal> below, now always
+                 rendered) — instead of navigating to the View Profile page
+                 first and relying on its ?assign_coordinator=1 auto-open. --}}
+            <button type="button"
+                @click="$dispatch('open-coordinator-modal-{{ $startup->startup_id }}')"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg bg-gradient-to-r from-[#6D0D23] via-[#43306A] to-[#11386A] px-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-all duration-300 hover:brightness-110 hover:shadow-md">
                 Assign Coordinator
-            </a>
+            </button>
 
             @elseif ($startup->status === 'Pending')
             <a href="{{ route('admin.information-sheet.show', array_merge(['startup' => $startup, 'from' => 'startups-list'], request()->only('tab'))) }}"
@@ -184,13 +190,16 @@ $hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
         </div>
     </div>
 
-    @if ($hasCoordinator)
     {{-- Own isolated x-data scope (see the component itself) — opened
-         externally by the 3-dot menu's "Edit Coordinator" button above via
-         a namespaced window event, since it has no room for its own
-         inline trigger on a card this size. --}}
+         externally, either by the 3-dot menu's "Edit Coordinator" button
+         (when a coordinator is already assigned) or by this card's own
+         "Assign Coordinator" action button above (when one isn't yet),
+         via a namespaced window event, since neither trigger has room for
+         the component's own inline button on a card this size. Always
+         rendered now (not just when $hasCoordinator) so the "Assign
+         Coordinator" button can open it without first navigating to the
+         View Profile page. --}}
     <x-coordinator-assign-modal :startup="$startup" :hide-trigger="true" />
-    @endif
 
     {{-- ============ DELETE STARTUP MODAL ============ --}}
     <div x-show="confirmingDelete" x-cloak x-data="{ reason: '', confirmText: '' }"
