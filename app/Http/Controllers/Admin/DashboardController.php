@@ -30,25 +30,25 @@ class DashboardController extends Controller
      */
     protected const INCUBATION_WEIGHTS = [
         'approved_information_sheet' => 10,
-        'pre_assessment' => 15,
+        'pre_assessment' => 20,
         'active_assessment' => 20,
-        'post_assessment' => 25,
+        'post_assessment' => 20,
         'venture_exit' => 30,
     ];
 
     /**
      * Bucket ranges are contiguous (each band's upper bound is the next
      * band's lower bound) per the reference mockup table, which showed
-     * "60.25 – 80.25%" / "20.25 – 40.25%" etc. rather than the slightly
+     * "70.25 – 85.25%" / "20.25 – 40.25%" etc. rather than the slightly
      * different text-only ranges also given alongside it — the mockup table
      * is treated as authoritative since it's the actual UI reference.
      * Bucketing checks from the top down (>= min), so a value that lands
      * exactly on a shared boundary belongs to the higher band.
      */
     protected const INCUBATION_BUCKETS = [
-        'High Ready' => [80.25, 100.00],
-        'Moderately Ready' => [60.25, 80.25],
-        'Moderately Unready' => [40.25, 60.25],
+        'High Ready' => [85.25, 100.00],
+        'Moderately Ready' => [70.25, 85.25],
+        'Moderately Unready' => [40.25, 70.25],
         'Not Ready' => [20.25, 40.25],
         'Critically Unready' => [0.00, 20.25],
     ];
@@ -137,9 +137,15 @@ class DashboardController extends Controller
     /**
      * The Admin Dashboard's own "what's new" cards — same idea and shape as
      * the founder Dashboard's (see Startup\DashboardController::updates()),
-     * just reading whichever notifications were sent to this Admin instead
-     * (currently just NewRoadblockSubmitted). Capped at three for the same
-     * reason: a readable dashboard rather than a wall of cards.
+     * just reading whichever notifications were sent to this Admin instead.
+     * NewRoadblockSubmitted was the only notification ever sent to Admins
+     * (from Startup\RoadblockController::store()) and its "Review Roadblock"
+     * card was removed by request, so this currently always returns empty
+     * and the "Notifications" section on the dashboard stays hidden (see
+     * dashboard.blade.php's `@if (! empty($updates))`) — left in place
+     * rather than deleted so a future Admin-facing notification has
+     * somewhere to land without rebuilding this. Capped at three for the
+     * same reason: a readable dashboard rather than a wall of cards.
      */
     protected function updates(): array
     {
@@ -167,22 +173,31 @@ class DashboardController extends Controller
      * where a date column makes that meaningful; "At Risk" has no
      * historical snapshot in the data model (risk is always current-state),
      * so its sparkline is decorative rather than computed.
+     *
+     * Per direct testing feedback, "Pre RL" / "Post RL" only count a
+     * startup once ALL FOUR readiness types (TRL/MRL/TMRL/SRL) for that
+     * stage are scored — the same all-or-nothing rule as
+     * ReadinessLevelAssessment::isFullyScored(), reused here rather than
+     * the old overall_score-non-null check, which went true the moment
+     * just one of the four was scored.
      */
     protected function buildStatCards($startupIds, int $totalStartups, $approvedStartupIds): array
     {
-        $preRlCount = ReadinessLevelAssessment::where('stage', 'Pre-Assessment')
-            ->whereNotNull('overall_score')
+        $preAssessments = ReadinessLevelAssessment::where('stage', 'Pre-Assessment')
             ->whereIn('startup_id', $approvedStartupIds)
+            ->get()
+            ->filter(fn (ReadinessLevelAssessment $a) => $a->isFullyScored());
+        $postAssessments = ReadinessLevelAssessment::where('stage', 'Post-Assessment')
+            ->whereIn('startup_id', $approvedStartupIds)
+            ->get()
+            ->filter(fn (ReadinessLevelAssessment $a) => $a->isFullyScored());
+
+        $preRlCount = $preAssessments->count();
+        $postRlCount = $postAssessments->count();
+        $assessedCount = $preAssessments->pluck('startup_id')
+            ->merge($postAssessments->pluck('startup_id'))
+            ->unique()
             ->count();
-        $postRlCount = ReadinessLevelAssessment::where('stage', 'Post-Assessment')
-            ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $approvedStartupIds)
-            ->count();
-        $assessedCount = ReadinessLevelAssessment::whereIn('stage', ['Pre-Assessment', 'Post-Assessment'])
-            ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $approvedStartupIds)
-            ->distinct('startup_id')
-            ->count('startup_id');
 
         $startupsForRisk = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
             ->whereIn('startup_id', $startupIds)
@@ -200,28 +215,12 @@ class DashboardController extends Controller
         // $totalStartups, so this ratio can never exceed 100%.
         $atRiskPct = $totalStartups > 0 ? round(($atRiskCount / $totalStartups) * 100, 1) : 0.0;
 
-        // Week-over-week growth for the Pre/Post RL counts, used for the
-        // "Pre RL's up X% | Post RL's up Y%" caption. Compares today's
-        // cumulative count against the cumulative count as of a week ago
-        // (consistent with the weekly buckets used elsewhere for
-        // sparklines). A prior count of 0 is reported as +100% growth if
-        // any assessments now exist, or 0% if there are still none.
-        $preRlCountLastWeek = ReadinessLevelAssessment::where('stage', 'Pre-Assessment')
-            ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $approvedStartupIds)
-            ->where('created_at', '<=', now()->subWeek())
-            ->count();
-        $postRlCountLastWeek = ReadinessLevelAssessment::where('stage', 'Post-Assessment')
-            ->whereNotNull('overall_score')
-            ->whereIn('startup_id', $approvedStartupIds)
-            ->where('created_at', '<=', now()->subWeek())
-            ->count();
-        $preRlTrend = $preRlCountLastWeek > 0
-            ? round((($preRlCount - $preRlCountLastWeek) / $preRlCountLastWeek) * 100, 1)
-            : ($preRlCount > 0 ? 100.0 : 0.0);
-        $postRlTrend = $postRlCountLastWeek > 0
-            ? round((($postRlCount - $postRlCountLastWeek) / $postRlCountLastWeek) * 100, 1)
-            : ($postRlCount > 0 ? 100.0 : 0.0);
+        // Coverage of the Pre/Post RL counts against the whole in-scope
+        // startup pool, used for the "Pre RL's X% | Post RL's Y%" caption —
+        // replaces the old week-over-week trend, which didn't reflect the
+        // all-four-required rule above and wasn't what the tester asked for.
+        $preRlPct = $totalStartups > 0 ? round(($preRlCount / $totalStartups) * 100, 1) : 0.0;
+        $postRlPct = $totalStartups > 0 ? round(($postRlCount / $totalStartups) * 100, 1) : 0.0;
 
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
@@ -239,8 +238,8 @@ class DashboardController extends Controller
                 'value' => $assessedCount,
                 'pre_rl' => $preRlCount,
                 'post_rl' => $postRlCount,
-                'pre_rl_trend' => $preRlTrend,
-                'post_rl_trend' => $postRlTrend,
+                'pre_rl_pct' => $preRlPct,
+                'post_rl_pct' => $postRlPct,
                 'sparkline' => $this->weeklyCounts(
                     ReadinessLevelAssessment::whereIn('startup_id', $approvedStartupIds)->whereNotNull('overall_score'),
                     'created_at'
@@ -307,23 +306,34 @@ class DashboardController extends Controller
             ->where('approval_status', 'Approved')
             ->pluck('startup_id')->flip();
 
-        $preAssessmentIds = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
-            ->where('stage', 'Pre-Assessment')->whereNotNull('overall_score')
-            ->pluck('startup_id')->flip();
+        // Pre/Post-Assessment now earn PARTIAL credit toward their 20-point
+        // weight, proportional to how many of the 4 readiness types
+        // (TRL/MRL/TMRL/SRL) are actually scored for that stage — a startup
+        // with 2 of 4 scored is half-credited, not all-or-nothing like the
+        // old "has any score" flip-set.
+        $formsScoredPerStartup = function (string $stage) use ($startupIds) {
+            return ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
+                ->where('stage', $stage)
+                ->get()
+                ->mapWithKeys(fn (ReadinessLevelAssessment $a) => [
+                    $a->startup_id => collect(ReadinessRubric::TYPES)->filter(fn ($type) => $a->scoreFor($type) !== null)->count(),
+                ]);
+        };
+        $preFormsScored = $formsScoredPerStartup('Pre-Assessment');
+        $postFormsScored = $formsScoredPerStartup('Post-Assessment');
 
-        $activeAssessmentIds = AssessmentDocument::whereIn('startup_id', $startupIds)
+        // Active-Assessment likewise earns partial credit toward its
+        // 20-point weight, proportional to how many of its 3 documents
+        // (6/7/8) are on file for that startup.
+        $activeDocsPresent = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
-            ->select('startup_id')->groupBy('startup_id')
-            ->havingRaw('COUNT(DISTINCT document_number) = 3')
-            ->pluck('startup_id')->flip();
-
-        $postAssessmentIds = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
-            ->where('stage', 'Post-Assessment')->whereNotNull('overall_score')
-            ->pluck('startup_id')->flip();
+            ->get(['startup_id', 'document_number'])
+            ->groupBy('startup_id')
+            ->map(fn ($docs) => $docs->pluck('document_number')->unique()->count());
 
         // Row existence (or any other field being filled in) isn't enough
         // here — only an actual Exit Status of Graduated/Completed counts
-        // as reached (see ActiveAssessmentForms::isVentureExitFilled()),
+        // as reached (see ActiveAssessmentForms::isVentureExitCompleted()),
         // the same single rule Milestone Completion below and the
         // Assessment Hub Overview pill both use, so every "is Venture Exit
         // done" check in the app agrees.
@@ -336,9 +346,9 @@ class DashboardController extends Controller
         foreach ($startupIds as $id) {
             $percent = 0;
             $percent += $approvedInfoSheetIds->has($id) ? self::INCUBATION_WEIGHTS['approved_information_sheet'] : 0;
-            $percent += $preAssessmentIds->has($id) ? self::INCUBATION_WEIGHTS['pre_assessment'] : 0;
-            $percent += $activeAssessmentIds->has($id) ? self::INCUBATION_WEIGHTS['active_assessment'] : 0;
-            $percent += $postAssessmentIds->has($id) ? self::INCUBATION_WEIGHTS['post_assessment'] : 0;
+            $percent += ($preFormsScored->get($id, 0) / 4) * self::INCUBATION_WEIGHTS['pre_assessment'];
+            $percent += ($activeDocsPresent->get($id, 0) / 3) * self::INCUBATION_WEIGHTS['active_assessment'];
+            $percent += ($postFormsScored->get($id, 0) / 4) * self::INCUBATION_WEIGHTS['post_assessment'];
             $percent += $ventureExitIds->has($id) ? self::INCUBATION_WEIGHTS['venture_exit'] : 0;
 
             $counts[self::incubationBucketLabel((float) $percent)]++;
@@ -503,9 +513,25 @@ class DashboardController extends Controller
         $coordinatorAssigned = CoordinatorAssignment::whereIn('startup_id', $startupIds)
             ->where('assignment_status', 'Active')->distinct('startup_id')->count('startup_id');
 
-        $preAssessment = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
-            ->where('stage', 'Pre-Assessment')->whereNotNull('overall_score')
-            ->distinct('startup_id')->count('startup_id');
+        // Per direct testing feedback: Pre/Active/Post-Assessment are each a
+        // document-weighted COHORT AVERAGE, not "% of startups with at
+        // least one score/document" — every one of the 4 readiness types
+        // (Pre/Post) or 3 documents (Active) that's on file contributes its
+        // own fractional share, so a cohort that's half-scored across the
+        // board reads as 50%, not as though nobody's started.
+        $formsScoredTotal = function (string $stage) use ($startupIds) {
+            return ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
+                ->where('stage', $stage)
+                ->get()
+                ->sum(fn (ReadinessLevelAssessment $a) => collect(ReadinessRubric::TYPES)->filter(fn ($type) => $a->scoreFor($type) !== null)->count());
+        };
+        $preAssessmentPercent = round(($formsScoredTotal('Pre-Assessment') / ($totalStartups * 4)) * 100, 1);
+        $postAssessmentPercent = round(($formsScoredTotal('Post-Assessment') / ($totalStartups * 4)) * 100, 1);
+
+        $activeDocsPresentTotal = AssessmentDocument::whereIn('startup_id', $startupIds)
+            ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
+            ->count();
+        $activeAssessmentPercent = round(($activeDocsPresentTotal / ($totalStartups * 3)) * 100, 1);
 
         // Per direct testing feedback: unlike every other milestone here,
         // "Assign Mentor" is measured PER ROADBLOCK, not per startup — a
@@ -521,28 +547,17 @@ class DashboardController extends Controller
             ->count();
         $mentorAssignedPercent = $roadblocksTotal > 0 ? round(($roadblocksWithMentor / $roadblocksTotal) * 100, 1) : 0.0;
 
-        $activeAssessment = AssessmentDocument::whereIn('startup_id', $startupIds)
-            ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
-            ->select('startup_id')->groupBy('startup_id')
-            ->havingRaw('COUNT(DISTINCT document_number) = 3')
-            ->get()->count();
-
-        $postAssessment = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
-            ->where('stage', 'Post-Assessment')->whereNotNull('overall_score')
-            ->distinct('startup_id')->count('startup_id');
-
         // Venture Exit only counts as reached once its Exit Status is
         // actually set to Graduated or Completed — same single rule the
         // Incubation Progress donut above and the Assessment Hub Overview
-        // pill both use (see ActiveAssessmentForms::isVentureExitFilled()),
+        // pill both use (see ActiveAssessmentForms::isVentureExitCompleted()),
         // so every "is Venture Exit done" check in the app agrees. A
         // startup that's merely typed something into the form without
         // choosing an Exit Status doesn't count, no matter which field.
         $ventureExit = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
-            ->filter(fn (AssessmentDocument $doc) => filled($doc->data['date_of_assessment'] ?? null)
-                && filled($doc->data['summary_of_progress'] ?? null))
+            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitCompleted($doc->data ?? []))
             ->pluck('startup_id')->unique()->count();
 
         $pct = fn ($count) => round(($count / $totalStartups) * 100, 1);
@@ -551,10 +566,10 @@ class DashboardController extends Controller
             ['label' => 'Profile Setup', 'percent' => $pct($profileSetup)],
             ['label' => 'Information Sheet', 'percent' => $pct($infoSheet)],
             ['label' => 'Assign Profile Coordinator', 'percent' => $pct($coordinatorAssigned)],
-            ['label' => 'Pre-Assessment', 'percent' => $pct($preAssessment)],
+            ['label' => 'Pre-Assessment', 'percent' => $preAssessmentPercent],
             ['label' => 'Assign Mentor', 'percent' => $mentorAssignedPercent],
-            ['label' => 'Active-Assessment', 'percent' => $pct($activeAssessment)],
-            ['label' => 'Post-Assessment', 'percent' => $pct($postAssessment)],
+            ['label' => 'Active-Assessment', 'percent' => $activeAssessmentPercent],
+            ['label' => 'Post-Assessment', 'percent' => $postAssessmentPercent],
             ['label' => 'Venture Exit', 'percent' => $pct($ventureExit)],
         ]);
 

@@ -15,12 +15,14 @@ class RoadblockNotificationTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Regression coverage for the new "Notification for new roadblock
-     * submission" feature — every Admin user should be notified the moment
-     * a founder submits a new roadblock, so it doesn't sit unnoticed in the
-     * Pending list.
+     * The "Review Roadblock" notification card on the Admin Dashboard was
+     * removed by request (see Startup\RoadblockController::store(), which
+     * used to dispatch NewRoadblockSubmitted to every Admin right here).
+     * This now locks in the opposite of what this test originally covered
+     * — a new roadblock submission no longer notifies anyone — so a future
+     * change doesn't silently bring the card back.
      */
-    public function test_submitting_a_roadblock_notifies_every_admin(): void
+    public function test_submitting_a_roadblock_does_not_notify_admins(): void
     {
         Notification::fake();
 
@@ -51,8 +53,8 @@ class RoadblockNotificationTest extends TestCase
 
         $response->assertRedirect(route('startup.submissions.index', ['tab' => 'roadblock']));
 
-        Notification::assertSentTo($admin1, NewRoadblockSubmitted::class);
-        Notification::assertSentTo($admin2, NewRoadblockSubmitted::class);
+        Notification::assertNotSentTo($admin1, NewRoadblockSubmitted::class);
+        Notification::assertNotSentTo($admin2, NewRoadblockSubmitted::class);
         Notification::assertNotSentTo($founder, NewRoadblockSubmitted::class);
     }
 }

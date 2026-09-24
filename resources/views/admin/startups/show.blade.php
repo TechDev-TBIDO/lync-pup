@@ -76,8 +76,93 @@ default => null,
             };
             @endphp
 
-            <div class="flex items-center justify-between mb-4">
+            {{-- Delete Startup — same reason-required + type-DELETE-to-confirm
+                 modal shape as the Rejected tab's own delete button (see
+                 admin/assessment-hub/_rejected.blade.php), which already wires
+                 up to a controller that emails the founder the typed reason
+                 (see StartupProfileController::destroy() / App\Mail\
+                 StartupAccountDeleted). That controller/mailable/email view
+                 already existed with nothing in the UI actually able to reach
+                 it — this button is what was missing. --}}
+            <div x-data="{ confirmingDelete: false, deleting: false, reason: '', confirmText: '' }"
+                class="flex items-center justify-between mb-4">
                 <a href="{{ $backUrl }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back</a>
+
+                <button type="button" @click="confirmingDelete = true"
+                    class="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-red-700 px-3 text-[11px] font-semibold text-white transition hover:opacity-90">
+                    Delete Startup
+                </button>
+
+                {{-- ============ DELETE STARTUP MODAL ============ --}}
+                <div x-show="confirmingDelete" x-cloak
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;"
+                    @click.self="confirmingDelete = false">
+                    <div class="w-full max-w-md overflow-hidden rounded-xl bg-white text-left shadow-xl">
+                        <div class="flex items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 text-white">
+                            <div class="flex items-center gap-3">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20H4a2 2 0 01-2-2V6a2 2 0 012-2h5l2 2h9a2 2 0 012 2v10a2 2 0 01-2 2h-1" />
+                                </svg>
+                                <h3 class="text-base font-bold">Delete Startup</h3>
+                            </div>
+                            <button type="button" @click="confirmingDelete = false"
+                                class="flex h-6 w-6 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23]"
+                                aria-label="Close">
+                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <form method="POST" action="{{ route('admin.startups.destroy', $startup) }}" class="px-6 pb-6 pt-5"
+                            @submit="deleting = true">
+                            @csrf
+                            @method('DELETE')
+
+                            <div class="mb-4 flex justify-center">
+                                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
+                                    <svg class="h-7 w-7 text-rose-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M10.29 3.86 1.82 18a1.5 1.5 0 001.28 2.25h17.8a1.5 1.5 0 001.28-2.25L13.71 3.86a1.5 1.5 0 00-2.42 0Z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <p class="text-center text-lg font-bold text-gray-900">Delete Startup Account</p>
+                            <p class="mt-1 text-center text-sm text-gray-500">
+                                Are you sure you want to permanently delete this startup's account?<br>This action is permanent and cannot be undone. The founder will be notified by email.
+                            </p>
+
+                            <p class="mt-4 text-sm font-semibold text-gray-700">Startup:</p>
+                            <p class="text-base font-bold text-gray-900">{{ $startup->company_name }}</p>
+
+                            <label class="mt-4 mb-1 block text-sm font-medium text-gray-700">
+                                Reason for Deletion <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="reason" x-model="reason" required placeholder="e.g. Inactive for two consecutive cohorts"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            @error('reason') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+
+                            <label class="mt-4 mb-1 block text-sm font-medium text-gray-700">
+                                Type <span class="font-bold text-rose-800">DELETE</span> to confirm
+                            </label>
+                            <input type="text" name="confirm" x-model="confirmText" required placeholder="DELETE"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            @error('confirm') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+
+                            <div class="mt-5 flex gap-3">
+                                <button type="button" @click="confirmingDelete = false" :disabled="deleting"
+                                    class="flex-1 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50">
+                                    Cancel
+                                </button>
+                                <button type="submit" :disabled="deleting || confirmText !== 'DELETE'"
+                                    class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40">
+                                    <span x-show="!deleting">Confirm Deletion</span>
+                                    <span x-show="deleting">Processing…</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
 
             <div class="rounded-2xl overflow-hidden mb-8 shadow-sm">
