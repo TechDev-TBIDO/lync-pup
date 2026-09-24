@@ -212,6 +212,20 @@ class AssessmentController extends Controller
             'document_13' => ['nullable', 'json'],
         ]);
 
+        // Active-Assessment's Documents 6, 7 and 8 are three separate forms that
+        // share one Save button: only the document whose tab is open is checked
+        // and stored. (The form already posts just that one; this also guards
+        // an older page that still posts all three, where a problem on another
+        // tab used to reject the save of the open one.)
+        if ($validated['stage'] === 'Active-Assessment' && in_array((int) $request->input('active_document'), [6, 7, 8], true)) {
+            $activeKey = 'document_'.(int) $request->input('active_document');
+            $validated = array_filter(
+                $validated,
+                fn ($key) => ! str_starts_with($key, 'document_') || $key === $activeKey,
+                ARRAY_FILTER_USE_KEY,
+            );
+        }
+
         // Check every document's names/positions/contact numbers BEFORE any of
         // them is written - one bad field rejects the whole save instead of
         // leaving the other documents half-updated.

@@ -204,25 +204,32 @@
         // or blocks the actual submit the way it used to.
         // Names/positions must be letters (and / - ' . , only) and the contact
         // number must be 09XXXXXXXXX / +639XXXXXXXXX — anything else stops the
-        // whole save (the server re-checks the same rules).
+        // save (the server re-checks the same rules). Only the OPEN document is
+        // checked: Documents 6, 7 and 8 are separate forms and each Save posts
+        // and stores just the active one, so a problem on one tab can never
+        // block saving another.
         formProblem() {
             const list = [];
-            (this.doc6.prepared_by || []).forEach((row, i) => {
-                list.push([`Document 6 - Prepared By #${i + 1} name`, row.name, 'name']);
-                list.push([`Document 6 - Prepared By #${i + 1} position`, row.position, 'name']);
-            });
-            list.push(['Document 6 - Noted By name', this.doc6.noted_by, 'name']);
-            list.push(['Document 6 - Noted By position', this.doc6.noted_by_position, 'name']);
-            ['prepared_by', 'noted_by'].forEach(k => {
-                list.push([`Document 7 - ${k === 'prepared_by' ? 'Prepared' : 'Noted'} By name`, this.doc7[k + '_name'], 'name']);
-                list.push([`Document 7 - ${k === 'prepared_by' ? 'Prepared' : 'Noted'} By position`, this.doc7[k + '_position'], 'name']);
-            });
-            ['validated', 'noted', 'approved'].forEach(k => {
-                const label = k.charAt(0).toUpperCase() + k.slice(1);
-                list.push([`Document 8 - ${label} By name`, this.doc8[k + '_by_name'], 'name']);
-                list.push([`Document 8 - ${label} By position`, this.doc8[k + '_by_position'], 'name']);
-            });
-            list.push(['Document 8 - Validated By contact number', this.doc8.validated_by_contact, 'phone']);
+            if (this.activeDoc === 6) {
+                (this.doc6.prepared_by || []).forEach((row, i) => {
+                    list.push([`Document 6 - Prepared By #${i + 1} name`, row.name, 'name']);
+                    list.push([`Document 6 - Prepared By #${i + 1} position`, row.position, 'name']);
+                });
+                list.push(['Document 6 - Noted By name', this.doc6.noted_by, 'name']);
+                list.push(['Document 6 - Noted By position', this.doc6.noted_by_position, 'name']);
+            } else if (this.activeDoc === 7) {
+                ['prepared_by', 'noted_by'].forEach(k => {
+                    list.push([`Document 7 - ${k === 'prepared_by' ? 'Prepared' : 'Noted'} By name`, this.doc7[k + '_name'], 'name']);
+                    list.push([`Document 7 - ${k === 'prepared_by' ? 'Prepared' : 'Noted'} By position`, this.doc7[k + '_position'], 'name']);
+                });
+            } else if (this.activeDoc === 8) {
+                ['validated', 'noted', 'approved'].forEach(k => {
+                    const label = k.charAt(0).toUpperCase() + k.slice(1);
+                    list.push([`Document 8 - ${label} By name`, this.doc8[k + '_by_name'], 'name']);
+                    list.push([`Document 8 - ${label} By position`, this.doc8[k + '_by_position'], 'name']);
+                });
+                list.push(['Document 8 - Validated By contact number', this.doc8.validated_by_contact, 'phone']);
+            }
 
             return window.LyncFormat.firstProblem(list);
         },
@@ -364,9 +371,9 @@
         @method('PUT')
         <input type="hidden" name="stage" value="Active-Assessment">
         <input type="hidden" name="active_document" :value="activeDoc">
-        <input type="hidden" name="document_6" :value="JSON.stringify(doc6)">
-        <input type="hidden" name="document_7" :value="JSON.stringify(doc7)">
-        <input type="hidden" name="document_8" :value="JSON.stringify(doc8)">
+        <input type="hidden" name="document_6" :value="JSON.stringify(doc6)" :disabled="activeDoc !== 6">
+        <input type="hidden" name="document_7" :value="JSON.stringify(doc7)" :disabled="activeDoc !== 7">
+        <input type="hidden" name="document_8" :value="JSON.stringify(doc8)" :disabled="activeDoc !== 8">
 
         {{-- ============ Document 6 ============ --}}
         <div x-show="activeDoc === 6">
@@ -620,11 +627,21 @@
                                         {{ $opt }}
                                     </label>
                                 @endforeach
-                                <label class="flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="checkbox" x-model="doc8.{{ $group['key'] }}.others_checked" class="h-4 w-4 rounded border-gray-300">
-                                    Others:
-                                    <input type="text" x-model="doc8.{{ $group['key'] }}.others_text" class="flex-1 border-b border-gray-300 px-1 text-sm focus:outline-none">
-                                </label>
+                                {{-- The text field is only editable while "Others" is ticked. It sits
+                                     outside the <label> so clicking the locked field doesn't tick the box.
+                                     Unticking keeps the typed text (re-ticking restores it); the export
+                                     already ignores others_text unless others_checked is true. --}}
+                                <div class="flex items-center gap-2 text-sm text-gray-700">
+                                    <label class="flex items-center gap-2">
+                                        <input type="checkbox" x-model="doc8.{{ $group['key'] }}.others_checked"
+                                            @change="if ($event.target.checked) $nextTick(() => $refs.others_{{ $group['key'] }}.focus())"
+                                            class="h-4 w-4 rounded border-gray-300">
+                                        Others:
+                                    </label>
+                                    <input type="text" x-ref="others_{{ $group['key'] }}" x-model="doc8.{{ $group['key'] }}.others_text"
+                                        :disabled="! doc8.{{ $group['key'] }}.others_checked"
+                                        class="flex-1 border-b border-gray-300 px-1 text-sm focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">
+                                </div>
                             </div>
                         </div>
                     @endforeach

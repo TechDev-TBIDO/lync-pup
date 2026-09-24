@@ -151,7 +151,7 @@
     // must actually be filled in before this sheet can be locked —
     // Portfolio Manager is the one exception (a startup can be endorsed
     // before a Portfolio Coordinator is assigned). These already render
-    // with a required "*" and a real `required` attribute, but that
+    // with a required '*' and a real `required` attribute, but that
     // attribute only ever applied to the big info-sheet-form (the Save
     // button) — Accept & Lock posts its own separate approve-form, which
     // never included them, so the sheet could be locked with this section
