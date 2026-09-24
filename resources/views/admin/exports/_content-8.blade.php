@@ -11,7 +11,7 @@
     foreach ($categories as $catKey => $cat) {
         $categoryAverages[$catKey] = \App\Support\ActiveAssessmentForms::averageRating(data_get($data, "ratings.$catKey", []));
     }
-    $overallAvg = \App\Support\ActiveAssessmentForms::averageRating(array_filter($categoryAverages, fn ($a) => $a !== null));
+    $overallAvg = \App\Support\ActiveAssessmentForms::averageRating(array_filter($categoryAverages, fn ($a) => $a !== null), 2);
 @endphp
 @include('admin.exports._letterhead', ['formNo' => 'PUP-TBIDO FORM No. 008', 'title' => 'PROTOTYPE VALIDATION FORM'])
 
@@ -63,7 +63,7 @@
     @endforeach
     <tr>
         <td style="font-weight: bold;">Average / Interpretation</td>
-        <td colspan="5">{{ $categoryAverages[$catKey] ?? '—' }} &mdash; {{ \App\Support\ActiveAssessmentForms::scoreInterpretation($categoryAverages[$catKey]) ?? '—' }}</td>
+        <td colspan="5">{{ isset($categoryAverages[$catKey]) ? number_format($categoryAverages[$catKey], 1) : '—' }} &mdash; {{ \App\Support\ActiveAssessmentForms::scoreInterpretation($categoryAverages[$catKey]) ?? '—' }}</td>
     </tr>
 </table>
 @endforeach
@@ -72,11 +72,11 @@
 <table class="bordered" style="margin-top: 4px;">
     <tr><th>Category</th><th>Average Score</th></tr>
     @foreach ($categories as $catKey => $cat)
-    <tr><td>{{ $cat['title'] }}</td><td>{{ $categoryAverages[$catKey] ?? '—' }}</td></tr>
+    <tr><td>{{ $cat['title'] }}</td><td>{{ isset($categoryAverages[$catKey]) ? number_format($categoryAverages[$catKey], 1) : '—' }}</td></tr>
     @endforeach
     <tr>
         <td style="font-weight: bold;">Total Average Score</td>
-        <td style="font-weight: bold;">{{ $overallAvg ?? '—' }} &mdash; {{ \App\Support\ActiveAssessmentForms::scoreInterpretation($overallAvg) ?? '—' }}</td>
+        <td style="font-weight: bold;">{{ $overallAvg !== null ? number_format($overallAvg, 2) : '—' }} &mdash; {{ \App\Support\ActiveAssessmentForms::scoreInterpretation($overallAvg) ?? '—' }}</td>
     </tr>
 </table>
 

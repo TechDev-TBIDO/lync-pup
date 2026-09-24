@@ -144,11 +144,16 @@ class ActiveAssessmentForms
      * Average of a rating array (1-5 values, null/blank entries skipped),
      * or null when nothing has been rated yet.
      */
-    public static function averageRating(array $ratings): ?float
+    /**
+     * Average of the given ratings, ignoring blanks. Each category's average
+     * is shown to 1 decimal place; the overall Total Average Score (the
+     * average of those category averages) to 2 — pass $decimals = 2 for it.
+     */
+    public static function averageRating(array $ratings, int $decimals = 1): ?float
     {
         $rated = array_filter($ratings, fn ($r) => $r !== null && $r !== '');
 
-        return $rated ? round(array_sum($rated) / count($rated), 2) : null;
+        return $rated ? round(array_sum($rated) / count($rated), $decimals) : null;
     }
 
     /**

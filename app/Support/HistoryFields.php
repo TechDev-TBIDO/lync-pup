@@ -242,7 +242,10 @@ class HistoryFields
     public static function readinessAssessment(): array
     {
         $fields = [
-            'assessment_date' => ['label' => 'Date of Assessment', 'type' => 'date'],
+            'trl_assessment_date' => ['label' => 'TRL · Date of Assessment', 'type' => 'date'],
+            'mrl_assessment_date' => ['label' => 'MRL · Date of Assessment', 'type' => 'date'],
+            'tmrl_assessment_date' => ['label' => 'TMRL · Date of Assessment', 'type' => 'date'],
+            'srl_assessment_date' => ['label' => 'SRL · Date of Assessment', 'type' => 'date'],
             'prepared_by' => 'TRL · Prepared By',
             'prepared_by_position' => 'TRL · Prepared By (Position)',
             'trl_noted_by' => 'TRL · Noted By',

@@ -308,10 +308,7 @@
             columns.forEach(c => blank[c] = '');
             this[doc][section].push(blank);
             this.$nextTick(() => {
-                document.querySelectorAll(`textarea[x-model^='${doc}.${section}[']`).forEach(el => {
-                    el.style.height = 'auto';
-                    el.style.height = el.scrollHeight + 'px';
-                });
+                document.querySelectorAll(`textarea[x-model^='${doc}.${section}[']`).forEach(el => window.LyncFormat.fitRow(el));
             });
         },
         removeRow(doc, section, index) {
@@ -320,7 +317,8 @@
         avgFor(category) {
             const vals = this.doc8.ratings[category].filter(v => v !== null && v !== '');
             if (! vals.length) return null;
-            return Math.round((vals.reduce((a, b) => a + Number(b), 0) / vals.length) * 100) / 100;
+            // Each category's average: 1 decimal place.
+            return Math.round((vals.reduce((a, b) => a + Number(b), 0) / vals.length) * 10) / 10;
         },
         interpretation(avg) {
             if (avg === null) return '';
@@ -337,6 +335,7 @@
         totalAverage() {
             const avgs = Object.keys(this.doc8.ratings).map(c => this.avgFor(c)).filter(v => v !== null);
             if (! avgs.length) return null;
+            // Overall Total Average Score: 2 decimal places.
             return Math.round((avgs.reduce((a, b) => a + b, 0) / avgs.length) * 100) / 100;
         },
         // Resets to the exact same blank template a never-saved document
@@ -470,7 +469,7 @@
                                     <template x-for="(row, idx) in doc6.{{ $sectionKey }}" :key="idx">
                                         <tr>
                                             @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_6_ROW_COLUMNS) as $col)
-                                                <td class="border border-gray-400 p-1">
+                                                <td class="border border-gray-400 p-1 align-top">
                                                     {{-- A single-line text input hides everything past its edge behind
                                                          horizontal scroll once the entry runs long. A textarea wraps
                                                          instead, and this x-effect grows its height to fit — on every
@@ -478,7 +477,7 @@
                                                          another tab, so height can only be measured once it's
                                                          visible again), and after Clear Form blanks it back down. --}}
                                                     <textarea rows="1" x-model="doc6.{{ $sectionKey }}[idx].{{ $col }}"
-                                                        x-effect="doc6.{{ $sectionKey }}[idx].{{ $col }}; activeDoc; $nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
+                                                        data-fit-row x-effect="doc6.{{ $sectionKey }}[idx].{{ $col }}; activeDoc; $nextTick(() => window.LyncFormat.fitRow($el))"
                                                         class="{{ $tableInput }} block resize-none overflow-hidden"></textarea>
                                                 </td>
                                             @endforeach
@@ -502,14 +501,14 @@
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
                         @for ($i = 0; $i < 3; $i++)
                         <div>
-                            <input type="text" x-model="doc6.prepared_by[{{ $i }}].name" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="doc6.prepared_by[{{ $i }}].name; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="doc6.prepared_by[{{ $i }}].name" data-person-name placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc6.prepared_by[' + {{ $i }} + '].name') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc6.prepared_by_label')">
-                            <input type="text" x-model="doc6.prepared_by[{{ $i }}].position" placeholder="Position" data-person-name
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :disabled="! sigHasLabel('doc6.prepared_by_label')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="doc6.prepared_by[{{ $i }}].position; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="doc6.prepared_by[{{ $i }}].position" placeholder="Position" data-person-name
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc6.prepared_by[' + {{ $i }} + '].position') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc6.prepared_by_label')">
+                            :disabled="! sigHasLabel('doc6.prepared_by_label')"></textarea>
                         </div>
                         @endfor
                     </div>
@@ -518,14 +517,14 @@
                         class="mb-2 mt-6 max-w-xs w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                             @input="sigLabelChanged('doc6.noted_by_label', ['doc6.noted_by', 'doc6.noted_by_position'])">
                     <div class="max-w-xs">
-                        <input type="text" x-model="doc6.noted_by" data-person-name placeholder="Input Name"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        <textarea rows="1" data-auto-grow x-effect="doc6.noted_by; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="doc6.noted_by" data-person-name placeholder="Input Name"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc6.noted_by') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc6.noted_by_label')">
-                        <input type="text" x-model="doc6.noted_by_position" placeholder="Position" data-person-name
-                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :disabled="! sigHasLabel('doc6.noted_by_label')"></textarea>
+                        <textarea rows="1" data-auto-grow x-effect="doc6.noted_by_position; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="doc6.noted_by_position" placeholder="Position" data-person-name
+                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc6.noted_by_position') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc6.noted_by_label')">
+                            :disabled="! sigHasLabel('doc6.noted_by_label')"></textarea>
                     </div>
                 </div>
             </div>
@@ -568,14 +567,14 @@
                             <template x-for="(row, idx) in doc7.check_ins" :key="idx">
                                 <tr>
                                     @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_ROW_COLUMNS) as $col)
-                                        <td class="border p-1">
+                                        <td class="border p-1 align-top">
                                             @if ($col === 'dates')
                                             {{-- A native date input, not free text — a real calendar picker
                                                  instead of typing dates out by hand. --}}
                                             <input type="date" x-model="doc7.check_ins[idx].{{ $col }}" class="{{ $tableInput }}">
                                             @else
                                             <textarea rows="1" x-model="doc7.check_ins[idx].{{ $col }}"
-                                                x-effect="doc7.check_ins[idx].{{ $col }}; activeDoc; $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                                                data-fit-row x-effect="doc7.check_ins[idx].{{ $col }}; activeDoc; $nextTick(() => window.LyncFormat.fitRow($el))"
                                                 class="{{ $tableInput }} block resize-none overflow-hidden"></textarea>
                                             @endif
                                         </td>
@@ -605,15 +604,19 @@
                         <tbody>
                             @foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_METRICS as $metric)
                                 <tr>
-                                    <td class="border px-3 py-2 font-semibold">{{ $metric }}</td>
+                                    <td class="border px-3 py-2 font-semibold align-top">{{ $metric }}</td>
                                     {{-- Every column here is free text, including the 'dates' key -
                                          it's now labelled "Remarks" (see DOCUMENT_7_PERFORMANCE_COLUMNS),
                                          not a real date, so no date picker for it. Not to be confused
                                          with the Check-ins table's own 'dates' column above, which is a
                                          genuine date and keeps its calendar input. --}}
                                     @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_COLUMNS) as $col)
-                                        <td class="border p-1">
-                                            <input type="text" x-model="doc7.performance_matrix['{{ $metric }}'].{{ $col }}" class="{{ $tableInput }}">
+                                        <td class="border p-1 align-top">
+                                            {{-- Wraps and grows like the check-in rows; every box in the
+                                                 row matches the row's longest entry (LyncFormat.fitRow). --}}
+                                            <textarea rows="1" x-model="doc7.performance_matrix['{{ $metric }}'].{{ $col }}"
+                                                data-fit-row x-effect="doc7.performance_matrix['{{ $metric }}'].{{ $col }}; activeDoc; $nextTick(() => window.LyncFormat.fitRow($el))"
+                                                class="{{ $tableInput }} block resize-none overflow-hidden"></textarea>
                                         </td>
                                     @endforeach
                                 </tr>
@@ -627,28 +630,28 @@
                         <input type="text" x-model="doc7.prepared_by_label" maxlength="60" placeholder="Prepared By:" title="Click to edit this label"
                         class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                             @input="sigLabelChanged('doc7.prepared_by_label', ['doc7.prepared_by_name', 'doc7.prepared_by_position'])">
-                        <input type="text" x-model="doc7.prepared_by_name" data-person-name placeholder="Input Name"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        <textarea rows="1" data-auto-grow x-effect="doc7.prepared_by_name; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="doc7.prepared_by_name" data-person-name placeholder="Input Name"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc7.prepared_by_name') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc7.prepared_by_label')">
-                        <input type="text" x-model="doc7.prepared_by_position" placeholder="Position" data-person-name
-                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :disabled="! sigHasLabel('doc7.prepared_by_label')"></textarea>
+                        <textarea rows="1" data-auto-grow x-effect="doc7.prepared_by_position; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="doc7.prepared_by_position" placeholder="Position" data-person-name
+                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc7.prepared_by_position') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc7.prepared_by_label')">
+                            :disabled="! sigHasLabel('doc7.prepared_by_label')"></textarea>
                     </div>
 
                     <div>
                         <input type="text" x-model="doc7.noted_by_label" maxlength="60" placeholder="Noted By:" title="Click to edit this label"
                         class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                             @input="sigLabelChanged('doc7.noted_by_label', ['doc7.noted_by_name', 'doc7.noted_by_position'])">
-                        <input type="text" x-model="doc7.noted_by_name" data-person-name placeholder="Input Name"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        <textarea rows="1" data-auto-grow x-effect="doc7.noted_by_name; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="doc7.noted_by_name" data-person-name placeholder="Input Name"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc7.noted_by_name') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc7.noted_by_label')">
-                        <input type="text" x-model="doc7.noted_by_position" placeholder="Position" data-person-name
-                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :disabled="! sigHasLabel('doc7.noted_by_label')"></textarea>
+                        <textarea rows="1" data-auto-grow x-effect="doc7.noted_by_position; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="doc7.noted_by_position" placeholder="Position" data-person-name
+                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc7.noted_by_position') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc7.noted_by_label')">
+                            :disabled="! sigHasLabel('doc7.noted_by_label')"></textarea>
                     </div>
                 </div>
             </div>
@@ -707,16 +710,18 @@
                                      outside the <label> so clicking the locked field doesn't tick the box.
                                      Unticking keeps the typed text (re-ticking restores it); the export
                                      already ignores others_text unless others_checked is true. --}}
-                                <div class="flex items-center gap-2 text-sm text-gray-700">
-                                    <label class="flex items-center gap-2">
+                                <div class="flex items-start gap-2 text-sm text-gray-700">
+                                    <label class="flex shrink-0 items-center gap-2">
                                         <input type="checkbox" x-model="doc8.{{ $group['key'] }}.others_checked"
                                             @change="if ($event.target.checked) $nextTick(() => $refs.others_{{ $group['key'] }}.focus())"
                                             class="h-4 w-4 rounded border-gray-300">
                                         Others:
                                     </label>
-                                    <input type="text" x-ref="others_{{ $group['key'] }}" x-model="doc8.{{ $group['key'] }}.others_text"
+                                    {{-- Wraps and grows instead of running past the box's edge. --}}
+                                    <textarea rows="1" x-ref="others_{{ $group['key'] }}" x-model="doc8.{{ $group['key'] }}.others_text"
+                                        data-auto-grow @keydown.enter.prevent x-effect="doc8.{{ $group['key'] }}.others_text; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))"
                                         :disabled="! doc8.{{ $group['key'] }}.others_checked"
-                                        class="flex-1 border-b border-gray-300 px-1 text-sm focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">
+                                        class="block min-w-0 flex-1 resize-none overflow-hidden border-b border-gray-300 px-1 text-sm focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -785,7 +790,7 @@
                                         @endforeach
                                         <tr class="bg-gray-50 font-semibold">
                                             <td class="border px-3 py-2" colspan="2">Total Average Score</td>
-                                            <td class="border px-2 py-2 text-center" colspan="5" x-text="avgFor('{{ $catKey }}') ?? '—'"></td>
+                                            <td class="border px-2 py-2 text-center" colspan="5" x-text="avgFor('{{ $catKey }}') !== null ? avgFor('{{ $catKey }}').toFixed(1) : '—'"></td>
                                         </tr>
                                         <tr class="bg-gray-50 font-semibold">
                                             <td class="border px-3 py-2" colspan="2">Score Interpretation</td>
@@ -816,12 +821,12 @@
                             @foreach (\App\Support\ActiveAssessmentForms::document8RatingCategories() as $catKey => $cat)
                                 <tr>
                                     <td class="border px-3 py-2">{{ $loop->iteration }}. {{ $cat['title'] }}</td>
-                                    <td class="border px-3 py-2 text-center" x-text="avgFor('{{ $catKey }}') ?? '—'"></td>
+                                    <td class="border px-3 py-2 text-center" x-text="avgFor('{{ $catKey }}') !== null ? avgFor('{{ $catKey }}').toFixed(1) : '—'"></td>
                                 </tr>
                             @endforeach
                             <tr class="bg-gray-50 font-semibold">
                                 <td class="border px-3 py-2">Total Average Score</td>
-                                <td class="border px-3 py-2 text-center" x-text="totalAverage() ?? '—'"></td>
+                                <td class="border px-3 py-2 text-center" x-text="totalAverage() !== null ? totalAverage().toFixed(2) : '—'"></td>
                             </tr>
                             <tr class="bg-gray-50 font-semibold">
                                 <td class="border px-3 py-2">Score Interpretation</td>
@@ -844,17 +849,17 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Name</p>
-                            <input type="text" x-model="doc8.validated_by_name" placeholder="Input Name" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="doc8.validated_by_name; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="doc8.validated_by_name" placeholder="Input Name" data-person-name
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc8.validated_by_name') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc8.validated_by_label')">
+                            :disabled="! sigHasLabel('doc8.validated_by_label')"></textarea>
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Position / Affiliation</p>
-                            <input type="text" x-model="doc8.validated_by_position" placeholder="Position" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="doc8.validated_by_position; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="doc8.validated_by_position" placeholder="Position" data-person-name
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc8.validated_by_position') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc8.validated_by_label')">
+                            :disabled="! sigHasLabel('doc8.validated_by_label')"></textarea>
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Contact No.</p>
@@ -879,26 +884,26 @@
                             <input type="text" x-model="doc8.noted_by_label" maxlength="60" placeholder="Noted By:" title="Click to edit this label"
                         class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                             @input="sigLabelChanged('doc8.noted_by_label', ['doc8.noted_by_name', 'doc8.noted_by_position'])">
-                            <input type="text" x-model="doc8.noted_by_name" placeholder="Input Name" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="doc8.noted_by_name; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="doc8.noted_by_name" placeholder="Input Name" data-person-name
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc8.noted_by_name') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc8.noted_by_label')">
-                            <input type="text" x-model="doc8.noted_by_position" placeholder="Position" data-person-name
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :disabled="! sigHasLabel('doc8.noted_by_label')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="doc8.noted_by_position; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="doc8.noted_by_position" placeholder="Position" data-person-name
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc8.noted_by_position') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc8.noted_by_label')">
+                            :disabled="! sigHasLabel('doc8.noted_by_label')"></textarea>
                         </div>
 
                         <div>
                             <input type="text" x-model="doc8.approved_by_label" maxlength="60" placeholder="Approved By:" title="Click to edit this label"
                         class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                             @input="sigLabelChanged('doc8.approved_by_label', ['doc8.approved_by_name', 'doc8.approved_by_position'])">
-                            <input type="text" x-model="doc8.approved_by_name" placeholder="Input Name" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="doc8.approved_by_name; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="doc8.approved_by_name" placeholder="Input Name" data-person-name
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc8.approved_by_name') && '!border-red-500 ring-1 ring-red-500'"
-                            :disabled="! sigHasLabel('doc8.approved_by_label')">
-                            <textarea x-model="doc8.approved_by_position" placeholder="Position" data-person-name rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :disabled="! sigHasLabel('doc8.approved_by_label')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="doc8.approved_by_position; activeDoc; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="doc8.approved_by_position" placeholder="Position" data-person-name
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                             :class="sigBad('doc8.approved_by_position') && '!border-red-500 ring-1 ring-red-500'"
                             :disabled="! sigHasLabel('doc8.approved_by_label')"></textarea>
                         </div>

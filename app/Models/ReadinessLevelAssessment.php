@@ -39,12 +39,17 @@ class ReadinessLevelAssessment extends Model
         'tmrl_score', 'tmrl_progress',
         'srl_score', 'srl_progress',
         'overall_score', 'remarks', 'assessment_date',
+        'trl_assessment_date', 'mrl_assessment_date', 'tmrl_assessment_date', 'srl_assessment_date',
     ];
 
     protected function casts(): array
     {
         return [
             'assessment_date' => 'date',
+            'trl_assessment_date' => 'date',
+            'mrl_assessment_date' => 'date',
+            'tmrl_assessment_date' => 'date',
+            'srl_assessment_date' => 'date',
             'trl_progress' => 'array',
             'trl_overview' => 'array',
             'mrl_progress' => 'array',
