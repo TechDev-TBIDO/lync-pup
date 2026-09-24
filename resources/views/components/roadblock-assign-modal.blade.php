@@ -348,7 +348,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
 
                                                     <p class="{{ $previewRow }}">
                                                         <span class="{{ $previewDisc }}">{!! $icon('3person.svg', 'w-2.5 h-2.5') !!}</span>
-                                                        <span class="truncate">{{ $c->assigned_startups_count }} Startup</span>
+                                                        <span class="truncate">{{ $c->active_startups_count }} {{ Str::plural('Startup', $c->active_startups_count) }}</span>
                                                     </p>
                                                 </div>
                                             </div>
