@@ -176,46 +176,6 @@ class MentorController extends Controller
             ->each(fn (Roadblock $roadblock) => $roadblock->update(Roadblock::pendingResetAttributes()));
 
         if ($mentor->mentor_photo_path) {
-                Storage::disk('public')->delete($mentor->mentor_photo_path);
-            }
-            $data['mentor_photo_path'] = $newPhotoPath;
-        }
-
-        // Which fields this save really changed (see ChangeLog) — a save that
-        // changes nothing isn't logged at all.
-        $changes = ChangeLog::track($mentor, HistoryFields::mentor(), fn () => $mentor->update($data));
-
-        VersionHistory::recordChanges(null, 'Mentor Profile', 'update_mentor', $changes, $mentor->display_name);
-
-        return redirect()->route('admin.mentors.index')->with('status', 'Mentor updated successfully.');
-    }
-
-    public function destroy(Mentor $mentor): RedirectResponse
-    {
-        // The mentor_id FK is ON DELETE SET NULL, so deleting this mentor
-        // would otherwise leave any roadblock still assigned to them stuck
-        // as "Scheduled"/"Pending Review" with a blank assignee column
-        // instead of reappearing in the Pending list — send those back to
-        // Pending explicitly first. Already-Resolved/Failed roadblocks are
-        // left untouched; they're closed out and losing the mentor_id
-        // column there doesn't need to reopen them.
-        $mentor->roadblocks()
-            ->whereIn('status', Roadblock::ACTIVE_STATUSES)
-            ->get()
-            ->each(fn (Roadblock $roadblock) => $roadblock->update(Roadblock::pendingResetAttributes()));
-
-        // Those closed-out roadblocks keep their status, but the FK is
-        // about to null mentor_id out from under them regardless — capture
-        // the name now so Archive can still say who it was, tagged as
-        // deleted, instead of showing a blank Mentor column. Includes
-        // "Deleted by Admin" too, for the same reason — it's just as closed
-        // out as Resolved/Failed, and losing the mentor's name there would
-        // blank out that historical record as well.
-        $mentor->roadblocks()
-            ->whereIn('status', ['Resolved', 'Failed', 'Deleted by Admin'])
-            ->update(['assignee_name_snapshot' => $mentor->display_name]);
-
-        if ($mentor->mentor_photo_path) {
             Storage::disk('public')->delete($mentor->mentor_photo_path);
         }
 
