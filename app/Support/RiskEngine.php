@@ -252,8 +252,15 @@ class RiskEngine
         // against, so these simply never trigger for that startup.
         $cohortStart = $startup->cohort?->start_date ? Carbon::parse($startup->cohort->start_date) : null;
         if ($cohortStart) {
+            // isFullyScored() requires all four of TRL/MRL/TMRL/SRL to have a
+            // score, not just overall_score being non-null — overall_score
+            // goes non-blank the moment just one of the four forms is
+            // scored (see ReadinessLevelAssessment::recomputeScores()), so a
+            // startup that's only done 1 of 4 forms used to read as fully
+            // assessed here and never got flagged even with the other 3
+            // forms still outstanding and the cohort's due window closing in.
             $hasPreAssessment = $startup->readinessAssessments->contains(
-                fn ($a) => $a->stage === 'Pre-Assessment' && $a->overall_score !== null
+                fn ($a) => $a->stage === 'Pre-Assessment' && $a->isFullyScored()
             );
             if (! $hasPreAssessment) {
                 $score = self::assessmentDueScore($cohortStart, self::ASSESSMENT_DUE_MONTHS['no_pre_assessment']);
@@ -275,8 +282,9 @@ class RiskEngine
                 }
             }
 
+            // Same fix as $hasPreAssessment above — see its comment.
             $hasPostAssessment = $startup->readinessAssessments->contains(
-                fn ($a) => $a->stage === 'Post-Assessment' && $a->overall_score !== null
+                fn ($a) => $a->stage === 'Post-Assessment' && $a->isFullyScored()
             );
             if (! $hasPostAssessment) {
                 $score = self::assessmentDueScore($cohortStart, self::ASSESSMENT_DUE_MONTHS['no_post_assessment']);
@@ -352,9 +360,14 @@ class RiskEngine
                 'highlight' => 'startup-'.$startup->startup_id,
             ]),
 
+            // 'from' => 'risk-monitoring' so the profile page's own Back
+            // button (and its cohort-switch return url — see show.blade.php's
+            // $backUrl/$cohortReturnUrl) sends the admin back here instead of
+            // defaulting to the generic Startups index.
             'no_portfolio_coordinator' => route('admin.startups.show', [
                 'startup' => $startup,
                 'highlight' => 'coordinator',
+                'from' => 'risk-monitoring',
             ]),
 
             'no_pre_assessment' => self::assessmentHubLink($startup, 'Pre-Assessment'),

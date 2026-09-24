@@ -14,6 +14,9 @@ $cohortReturnUrl = match (request('from')) {
 // Opened from a coordinator's "Assigned Startups" list - switching cohorts
 // goes back to the Coordinator Profile page, same as the Back button.
 'coordinators' => route('admin.coordinators.index'),
+// Opened from a Risk Monitoring "No Portfolio Coordinator" flag -
+// switching cohorts goes back to Risk Monitoring, same as the Back button.
+'risk-monitoring' => route('admin.risk-monitoring.index'),
 default => null,
 };
 @endphp
@@ -66,6 +69,9 @@ default => null,
             ])),
             // "Assigned Startups" modal on the Coordinator Profile page.
             'coordinators' => route('admin.coordinators.index'),
+            // Risk Monitoring's "No Portfolio Coordinator" flag - see
+            // RiskEngine::resolveLink().
+            'risk-monitoring' => route('admin.risk-monitoring.index'),
             default => route('admin.startups.index', request()->only('tab')),
             };
             @endphp
