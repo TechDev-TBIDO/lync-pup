@@ -40,25 +40,11 @@
     @endforeach
 </table>
 
-<table style="margin-top: 12px;">
-    <tr>
-        <td width="33%">
-            <div style="font-size: 10px;">Evaluated by:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'evaluated_by_name')) !!}</div>
-            <div class="sig-position">{!! $v(data_get($data, 'evaluated_by_position')) !!}</div>
-        </td>
-        <td width="33%">
-            <div style="font-size: 10px;">Reviewed by:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'reviewed_by_name')) !!}</div>
-            <div class="sig-position">{!! $v(data_get($data, 'reviewed_by_position')) !!}</div>
-        </td>
-        <td width="33%">
-            <div style="font-size: 10px;">Noted by:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
-            <div class="sig-position">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
-        </td>
-    </tr>
-</table>
+@include('admin.exports._signatory-row', ['people' => [
+    ['label' => data_get($data, 'evaluated_by_label'), 'name' => data_get($data, 'evaluated_by_name'), 'position' => data_get($data, 'evaluated_by_position')],
+    ['label' => data_get($data, 'reviewed_by_label'), 'name' => data_get($data, 'reviewed_by_name'), 'position' => data_get($data, 'reviewed_by_position')],
+    ['label' => data_get($data, 'noted_by_label'), 'name' => data_get($data, 'noted_by_name'), 'position' => data_get($data, 'noted_by_position')],
+]])
 
 @php $exitStatus = data_get($data, 'exit_status'); @endphp
 <div class="field-row" style="margin-top: 12px;">

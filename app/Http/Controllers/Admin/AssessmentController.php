@@ -52,6 +52,19 @@ class AssessmentController extends Controller
             'trl_noted_by_position' => ['nullable', 'string', 'max:150', new PersonName],
             'approved_by' => ['nullable', 'string', 'max:150', new PersonName],
             'approved_by_position' => ['nullable', 'string', 'max:1000', new PersonName],
+            // Editable captions for the three TRL signatories.
+            'prepared_by_label' => ['nullable', 'string', 'max:60'],
+            'trl_noted_by_label' => ['nullable', 'string', 'max:60'],
+            'approved_by_label' => ['nullable', 'string', 'max:60'],
+            'mrl_evaluated_by_label' => ['nullable', 'string', 'max:60'],
+            'mrl_reviewed_by_label' => ['nullable', 'string', 'max:60'],
+            'mrl_noted_by_label' => ['nullable', 'string', 'max:60'],
+            'tmrl_evaluated_by_label' => ['nullable', 'string', 'max:60'],
+            'tmrl_reviewed_by_label' => ['nullable', 'string', 'max:60'],
+            'tmrl_noted_by_label' => ['nullable', 'string', 'max:60'],
+            'srl_evaluated_by_label' => ['nullable', 'string', 'max:60'],
+            'srl_reviewed_by_label' => ['nullable', 'string', 'max:60'],
+            'srl_noted_by_label' => ['nullable', 'string', 'max:60'],
             // MRL and TMRL's own independent Evaluated/Reviewed/Noted by
             // blocks — used to be one shared set of columns (see the
             // migration that split them), which meant editing MRL's block
@@ -89,6 +102,36 @@ class AssessmentController extends Controller
             $this->assertFieldFormats('TRL Overview', json_decode($validated['trl_overview'], true), 'trl_overview');
         }
 
+        // A filled-in signatory label makes that signatory's name and position
+        // required (mirrors LyncFormat.signatoryCheck on the page).
+        $signatoryPrefixes = ['TRL' => ['prepared_by', 'trl_noted_by', 'approved_by']];
+        foreach (['mrl' => 'MRL', 'tmrl' => 'TMRL', 'srl' => 'SRL'] as $key => $type) {
+            $signatoryPrefixes[$type] = ["{$key}_evaluated_by", "{$key}_reviewed_by", "{$key}_noted_by"];
+        }
+        // No label = no signatory: its name and position are not kept.
+        foreach ($signatoryPrefixes as $prefixes) {
+            foreach ($prefixes as $prefix) {
+                if (trim((string) ($validated["{$prefix}_label"] ?? '')) === '') {
+                    $validated[$prefix] = null;
+                    $validated["{$prefix}_position"] = null;
+                }
+            }
+        }
+
+        $signatoryErrors = [];
+        foreach ($signatoryPrefixes as $type => $prefixes) {
+            foreach ($prefixes as $prefix) {
+                $signatoryErrors = [...$signatoryErrors, ...$this->signatoryErrors(
+                    $type,
+                    $validated["{$prefix}_label"] ?? null,
+                    [[$validated[$prefix] ?? null, $validated["{$prefix}_position"] ?? null]],
+                )];
+            }
+        }
+        if ($signatoryErrors !== []) {
+            throw ValidationException::withMessages(['signatories' => $signatoryErrors]);
+        }
+
         $assessment = ReadinessLevelAssessment::firstOrNew([
             'startup_id' => $startup->startup_id,
             'stage' => $validated['stage'],
@@ -120,17 +163,17 @@ class AssessmentController extends Controller
         $assessment->trl_noted_by_position = $validated['trl_noted_by_position'] ?? null;
         $assessment->approved_by = $validated['approved_by'] ?? null;
         $assessment->approved_by_position = $validated['approved_by_position'] ?? null;
-        // Each defaults to the current admin's name/email on this
-        // assessment's first save, same behavior the old shared
-        // evaluated_by column used to have — now applied independently
-        // for MRL and TMRL since they no longer share one column.
-        $assessment->mrl_evaluated_by = $validated['mrl_evaluated_by'] ?? ($request->user()->name ?? $request->user()->email);
+        $assessment->prepared_by_label = $validated['prepared_by_label'] ?? null;
+        $assessment->trl_noted_by_label = $validated['trl_noted_by_label'] ?? null;
+        $assessment->approved_by_label = $validated['approved_by_label'] ?? null;
+        // No signatory is auto-filled: a blank field saves as blank.
+        $assessment->mrl_evaluated_by = $validated['mrl_evaluated_by'] ?? null;
         $assessment->mrl_evaluated_by_position = $validated['mrl_evaluated_by_position'] ?? null;
         $assessment->mrl_reviewed_by = $validated['mrl_reviewed_by'] ?? null;
         $assessment->mrl_reviewed_by_position = $validated['mrl_reviewed_by_position'] ?? null;
         $assessment->mrl_noted_by = $validated['mrl_noted_by'] ?? null;
         $assessment->mrl_noted_by_position = $validated['mrl_noted_by_position'] ?? null;
-        $assessment->tmrl_evaluated_by = $validated['tmrl_evaluated_by'] ?? ($request->user()->name ?? $request->user()->email);
+        $assessment->tmrl_evaluated_by = $validated['tmrl_evaluated_by'] ?? null;
         $assessment->tmrl_evaluated_by_position = $validated['tmrl_evaluated_by_position'] ?? null;
         $assessment->tmrl_reviewed_by = $validated['tmrl_reviewed_by'] ?? null;
         $assessment->tmrl_reviewed_by_position = $validated['tmrl_reviewed_by_position'] ?? null;
@@ -142,6 +185,15 @@ class AssessmentController extends Controller
         $assessment->srl_reviewed_by_position = $validated['srl_reviewed_by_position'] ?? null;
         $assessment->srl_noted_by = $validated['srl_noted_by'] ?? null;
         $assessment->srl_noted_by_position = $validated['srl_noted_by_position'] ?? null;
+        $assessment->mrl_evaluated_by_label = $validated['mrl_evaluated_by_label'] ?? null;
+        $assessment->mrl_reviewed_by_label = $validated['mrl_reviewed_by_label'] ?? null;
+        $assessment->mrl_noted_by_label = $validated['mrl_noted_by_label'] ?? null;
+        $assessment->tmrl_evaluated_by_label = $validated['tmrl_evaluated_by_label'] ?? null;
+        $assessment->tmrl_reviewed_by_label = $validated['tmrl_reviewed_by_label'] ?? null;
+        $assessment->tmrl_noted_by_label = $validated['tmrl_noted_by_label'] ?? null;
+        $assessment->srl_evaluated_by_label = $validated['srl_evaluated_by_label'] ?? null;
+        $assessment->srl_reviewed_by_label = $validated['srl_reviewed_by_label'] ?? null;
+        $assessment->srl_noted_by_label = $validated['srl_noted_by_label'] ?? null;
         $assessment->assessment_date = $validated['assessment_date'] ?? now();
 
         // Captured before recomputeScores() so the notification below fires
@@ -237,6 +289,22 @@ class AssessmentController extends Controller
             }
         }
 
+        // A filled-in signatory label makes that signatory's name and position
+        // required (mirrors LyncFormat.signatoryCheck on the page).
+        $signatoryErrors = [];
+        foreach ([6, 7, 8, 13] as $documentNumber) {
+            $key = 'document_'.$documentNumber;
+            if (array_key_exists($key, $validated)) {
+                $signatoryErrors = [...$signatoryErrors, ...$this->documentSignatoryErrors(
+                    $documentNumber,
+                    (array) json_decode((string) $validated[$key], true),
+                )];
+            }
+        }
+        if ($signatoryErrors !== []) {
+            throw ValidationException::withMessages(['signatories' => $signatoryErrors]);
+        }
+
         $changes = [];
 
         foreach ([6, 7, 8, 13] as $documentNumber) {
@@ -246,7 +314,7 @@ class AssessmentController extends Controller
                 continue;
             }
 
-            $payload = json_decode($validated[$key], true);
+            $payload = $this->clearUnlabeledSignatories($documentNumber, json_decode($validated[$key], true));
 
             // What this document held before the save, so the Edit History
             // entry can list the fields that changed.
@@ -326,6 +394,115 @@ class AssessmentController extends Controller
      *
      * @throws ValidationException
      */
+    /**
+     * One signatory's "label filled => name and position required" rule.
+     * $rows holds [name, position] pairs; several rows share one label
+     * (Document 6's Prepared By), in which case every started row must be
+     * complete and at least one row must be.
+     *
+     * @param  list<array{0: mixed, 1: mixed}>  $rows
+     * @return list<string>
+     */
+    protected function signatoryErrors(string $where, mixed $label, array $rows): array
+    {
+        $label = trim((string) $label);
+        if ($label === '') {
+            return [];
+        }
+
+        $filled = fn ($value) => trim((string) $value) !== '';
+        $complete = collect($rows)->filter(fn ($row) => $filled($row[0] ?? null) && $filled($row[1] ?? null));
+        $partial = collect($rows)->filter(fn ($row) => $filled($row[0] ?? null) xor $filled($row[1] ?? null));
+
+        if ($complete->isEmpty() || $partial->isNotEmpty()) {
+            return ["{$where} - \"{$label}\" needs a name and position. Fill them in, or clear the label."];
+        }
+
+        return [];
+    }
+
+    /**
+     * signatoryErrors() for each signatory of one Active-Assessment /
+     * Venture Exit document's JSON payload.
+     *
+     * @return list<string>
+     */
+    protected function documentSignatoryErrors(int $documentNumber, array $data): array
+    {
+        $where = HistoryFields::DOCUMENT_NAMES[$documentNumber] ?? "Document {$documentNumber}";
+        $one = fn (string $role, ?string $nameKey = null) => $this->signatoryErrors(
+            $where,
+            $data["{$role}_label"] ?? null,
+            [[$data[$nameKey ?? "{$role}_name"] ?? null, $data["{$role}_position"] ?? null]],
+        );
+
+        return match ($documentNumber) {
+            6 => [
+                ...$this->signatoryErrors(
+                    $where,
+                    $data['prepared_by_label'] ?? null,
+                    collect($data['prepared_by'] ?? [])->map(fn ($row) => [$row['name'] ?? null, $row['position'] ?? null])->all(),
+                ),
+                ...$one('noted_by', 'noted_by'),
+            ],
+            7 => [...$one('prepared_by'), ...$one('noted_by')],
+            8 => [...$one('validated_by'), ...$one('noted_by'), ...$one('approved_by')],
+            13 => [...$one('evaluated_by'), ...$one('reviewed_by'), ...$one('noted_by')],
+            default => [],
+        };
+    }
+
+    /**
+     * No label = no signatory: blanks the name/position (and Document 8's
+     * Validated By contact/date) of every signatory whose label is empty.
+     */
+    protected function clearUnlabeledSignatories(int $documentNumber, mixed $data): mixed
+    {
+        if (! is_array($data)) {
+            return $data;
+        }
+
+        $blank = fn (string $key) => trim((string) ($data[$key] ?? '')) === '';
+        $roles = match ($documentNumber) {
+            6 => [],
+            7 => ['prepared_by', 'noted_by'],
+            8 => ['validated_by', 'noted_by', 'approved_by'],
+            13 => ['evaluated_by', 'reviewed_by', 'noted_by'],
+            default => [],
+        };
+
+        foreach ($roles as $role) {
+            if ($blank("{$role}_label")) {
+                $fields = ["{$role}_name", "{$role}_position"];
+                if ($role === 'validated_by') {
+                    array_push($fields, 'validated_by_contact', 'validated_by_date');
+                }
+                foreach ($fields as $field) {
+                    if (array_key_exists($field, $data)) {
+                        $data[$field] = '';
+                    }
+                }
+            }
+        }
+
+        if ($documentNumber === 6) {
+            if ($blank('prepared_by_label') && is_array($data['prepared_by'] ?? null)) {
+                foreach ($data['prepared_by'] as $i => $row) {
+                    if (is_array($row)) {
+                        $data['prepared_by'][$i]['name'] = '';
+                        $data['prepared_by'][$i]['position'] = '';
+                    }
+                }
+            }
+            if ($blank('noted_by_label')) {
+                $data['noted_by'] = '';
+                $data['noted_by_position'] = '';
+            }
+        }
+
+        return $data;
+    }
+
     protected function assertFieldFormats(string $label, mixed $payload, string $errorKey): void
     {
         if (! is_array($payload)) {
