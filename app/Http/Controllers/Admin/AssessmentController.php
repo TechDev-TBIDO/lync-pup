@@ -11,7 +11,6 @@ use App\Notifications\ReadinessResultsReleased;
 use App\Notifications\WeeklyCheckInPosted;
 use App\Rules\PersonName;
 use App\Rules\PhMobile;
-use App\Support\ActiveAssessmentForms;
 use App\Support\ChangeLog;
 use App\Support\HistoryFields;
 use App\Support\ReadinessRubric;
@@ -213,6 +212,20 @@ class AssessmentController extends Controller
             'document_13' => ['nullable', 'json'],
         ]);
 
+        // Active-Assessment's Documents 6, 7 and 8 are three separate forms that
+        // share one Save button: only the document whose tab is open is checked
+        // and stored. (The form already posts just that one; this also guards
+        // an older page that still posts all three, where a problem on another
+        // tab used to reject the save of the open one.)
+        if ($validated['stage'] === 'Active-Assessment' && in_array((int) $request->input('active_document'), [6, 7, 8], true)) {
+            $activeKey = 'document_'.(int) $request->input('active_document');
+            $validated = array_filter(
+                $validated,
+                fn ($key) => ! str_starts_with($key, 'document_') || $key === $activeKey,
+                ARRAY_FILTER_USE_KEY,
+            );
+        }
+
         // Check every document's names/positions/contact numbers BEFORE any of
         // them is written - one bad field rejects the whole save instead of
         // leaving the other documents half-updated.
@@ -221,30 +234,6 @@ class AssessmentController extends Controller
 
             if (array_key_exists($key, $validated)) {
                 $this->assertFieldFormats('Document '.$documentNumber, json_decode($validated[$key], true), $key);
-            }
-        }
-
-        // Active-Assessment documents can't be saved with a blank signatory
-        // (Prepared / Noted / Validated / Approved By) - same rule the Save
-        // button enforces in the browser; see ActiveAssessmentForms::documentProblems(). Only the
-        // documents the admin actually changed this time are held to it
-        // (changed_documents, sent by the form), since all three are posted
-        // on every save and an untouched tab must not block saving another.
-        if ($validated['stage'] === 'Active-Assessment') {
-            $changed = array_map('intval', (array) (json_decode((string) $request->input('changed_documents', '[]'), true) ?: []));
-
-            foreach ([6, 7, 8] as $documentNumber) {
-                $key = 'document_'.$documentNumber;
-
-                if (! in_array($documentNumber, $changed, true) || ! array_key_exists($key, $validated)) {
-                    continue;
-                }
-
-                $problems = ActiveAssessmentForms::documentProblems($documentNumber, json_decode((string) $validated[$key], true) ?: []);
-
-                if ($problems !== []) {
-                    throw ValidationException::withMessages([$key => $problems]);
-                }
             }
         }
 
