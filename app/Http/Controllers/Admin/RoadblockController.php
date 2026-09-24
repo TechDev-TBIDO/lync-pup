@@ -110,7 +110,18 @@ class RoadblockController extends Controller
             ->get();
 
         $mentors = Mentor::orderBy('mentor_id')->get();
-        $coordinators = Coordinator::orderBy('coordinator_id')->get();
+
+        // 'assignments' eager-loaded (scoped to Active, matching
+        // CoordinatorProfileController::index()) so the Assign modal's
+        // coordinator preview card can read Coordinator::
+        // getActiveStartupsCountAttribute() without an extra query per
+        // coordinator — see roadblock-assign-modal.blade.php, which used to
+        // print the raw, only-ever-incrementing assigned_startups_count
+        // column here instead and drifted from the accurate count shown on
+        // the Coordinator Profile page.
+        $coordinators = Coordinator::with(['assignments' => fn ($q) => $q->where('assignment_status', 'Active')])
+            ->orderBy('coordinator_id')
+            ->get();
 
         return view('admin.roadblocks.index', [
             // One shared, page-wide Edit History feed of every Assign &
