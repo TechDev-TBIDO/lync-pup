@@ -36,6 +36,64 @@
                 }
                 return null;
             },
+            // Signatory blocks: once a signatory's label (e.g. "Noted by:")
+            // is filled in, that signatory's name AND position are required;
+            // a signatory with an empty label is optional. `rules` is a list
+            // of { label, name, position, where, tab } holding x-model paths
+            // (resolved against `scope`, e.g. 'doc7.noted_by_name'). A rule
+            // may give `rows: [[namePath, positionPath], ...]` instead, for
+            // one label shared by several signers (Document 6's Prepared By):
+            // then every started row must be complete, and at least one row.
+            // Returns { missing: [paths], message, tab } (message null = OK).
+            // Read / write an x-model style path ('doc6.prepared_by[0].name')
+            // on an Alpine scope.
+            pathGet: function (scope, path) {
+                return String(path).replace(/\[(\d+)\]/g, '.$1').split('.')
+                    .reduce(function (obj, key) { return obj == null ? undefined : obj[key]; }, scope);
+            },
+            pathSet: function (scope, path, value) {
+                var keys = String(path).replace(/\[(\d+)\]/g, '.$1').split('.');
+                var last = keys.pop();
+                var target = keys.reduce(function (obj, key) { return obj == null ? undefined : obj[key]; }, scope);
+                if (target != null) target[last] = value;
+            },
+            filled: function (v) { return String(v == null ? '' : v).trim() !== ''; },
+            signatoryCheck: function (scope, rules) {
+                var get = function (path) {
+                    return String(path).replace(/\[(\d+)\]/g, '.$1').split('.')
+                        .reduce(function (obj, key) { return obj == null ? undefined : obj[key]; }, scope);
+                };
+                var filled = function (v) { return String(v == null ? '' : v).trim() !== ''; };
+                var result = { missing: [], message: null, tab: null };
+
+                rules.forEach(function (rule) {
+                    var label = get(rule.label);
+                    if (!filled(label)) return;
+
+                    var rows = rule.rows || [[rule.name, rule.position]];
+                    var bad = [];
+                    var anyComplete = false;
+                    rows.forEach(function (row) {
+                        var hasName = filled(get(row[0]));
+                        var hasPosition = filled(get(row[1]));
+                        if (hasName && hasPosition) { anyComplete = true; return; }
+                        if (rows.length > 1 && !hasName && !hasPosition) return;
+                        if (!hasName) bad.push(row[0]);
+                        if (!hasPosition) bad.push(row[1]);
+                    });
+                    if (!anyComplete && bad.length === 0) bad.push(rows[0][0], rows[0][1]);
+                    if (bad.length === 0) return;
+
+                    result.missing = result.missing.concat(bad);
+                    if (result.message === null) {
+                        result.message = (rule.where ? rule.where + ' - ' : '') + '"' + String(label).trim()
+                            + '" needs a name and position. Fill them in, or clear the label.';
+                        result.tab = rule.tab === undefined ? null : rule.tab;
+                    }
+                });
+
+                return result;
+            },
         };
 
         var NAME_BAD = /[^\p{L}\p{M}\s\/\-'’.,]/gu;

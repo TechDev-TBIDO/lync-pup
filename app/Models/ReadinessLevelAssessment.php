@@ -16,6 +16,8 @@ class ReadinessLevelAssessment extends Model
         'startup_id', 'stage', 'evaluated_by', 'reviewed_by', 'noted_by',
         'prepared_by', 'prepared_by_position', 'trl_noted_by', 'trl_noted_by_position',
         'approved_by', 'approved_by_position',
+        'prepared_by_label', 'trl_noted_by_label', 'approved_by_label',
+        'mrl_evaluated_by_label', 'mrl_reviewed_by_label', 'mrl_noted_by_label', 'tmrl_evaluated_by_label', 'tmrl_reviewed_by_label', 'tmrl_noted_by_label', 'srl_evaluated_by_label', 'srl_reviewed_by_label', 'srl_noted_by_label',
         'evaluated_by_position', 'reviewed_by_position', 'noted_by_position',
         'srl_evaluated_by', 'srl_evaluated_by_position',
         'srl_reviewed_by', 'srl_reviewed_by_position',

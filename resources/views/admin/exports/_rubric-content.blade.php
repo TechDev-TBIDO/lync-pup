@@ -17,28 +17,28 @@
     // Per-type signatory field mapping (mirrors the Assessment Hub blades).
     $signatories = match ($type) {
         'TRL' => [
-            ['label' => 'Prepared By', 'name' => $assessment?->prepared_by, 'position' => $assessment?->prepared_by_position],
-            ['label' => 'Noted By', 'name' => $assessment?->trl_noted_by, 'position' => $assessment?->trl_noted_by_position],
-            ['label' => 'Approved by', 'name' => $assessment?->approved_by, 'position' => $assessment?->approved_by_position],
+            ['label' => $assessment?->prepared_by_label ?? '', 'name' => $assessment?->prepared_by, 'position' => $assessment?->prepared_by_position],
+            ['label' => $assessment?->trl_noted_by_label ?? '', 'name' => $assessment?->trl_noted_by, 'position' => $assessment?->trl_noted_by_position],
+            ['label' => $assessment?->approved_by_label ?? '', 'name' => $assessment?->approved_by, 'position' => $assessment?->approved_by_position],
         ],
         'SRL' => [
-            ['label' => 'Evaluated by', 'name' => $assessment?->srl_evaluated_by, 'position' => $assessment?->srl_evaluated_by_position],
-            ['label' => 'Reviewed by', 'name' => $assessment?->srl_reviewed_by, 'position' => $assessment?->srl_reviewed_by_position],
-            ['label' => 'Noted by', 'name' => $assessment?->srl_noted_by, 'position' => $assessment?->srl_noted_by_position],
+            ['label' => $assessment?->srl_evaluated_by_label ?? '', 'name' => $assessment?->srl_evaluated_by, 'position' => $assessment?->srl_evaluated_by_position],
+            ['label' => $assessment?->srl_reviewed_by_label ?? '', 'name' => $assessment?->srl_reviewed_by, 'position' => $assessment?->srl_reviewed_by_position],
+            ['label' => $assessment?->srl_noted_by_label ?? '', 'name' => $assessment?->srl_noted_by, 'position' => $assessment?->srl_noted_by_position],
         ],
         // MRL and TMRL used to share one evaluated_by/reviewed_by/noted_by
         // column set (see the migration that split them) — each now reads
         // its own independent columns so a TMRL export can no longer show
         // MRL's signatories (or vice versa).
         'MRL' => [
-            ['label' => 'Evaluated by', 'name' => $assessment?->mrl_evaluated_by, 'position' => $assessment?->mrl_evaluated_by_position],
-            ['label' => 'Reviewed by', 'name' => $assessment?->mrl_reviewed_by, 'position' => $assessment?->mrl_reviewed_by_position],
-            ['label' => 'Noted by', 'name' => $assessment?->mrl_noted_by, 'position' => $assessment?->mrl_noted_by_position],
+            ['label' => $assessment?->mrl_evaluated_by_label ?? '', 'name' => $assessment?->mrl_evaluated_by, 'position' => $assessment?->mrl_evaluated_by_position],
+            ['label' => $assessment?->mrl_reviewed_by_label ?? '', 'name' => $assessment?->mrl_reviewed_by, 'position' => $assessment?->mrl_reviewed_by_position],
+            ['label' => $assessment?->mrl_noted_by_label ?? '', 'name' => $assessment?->mrl_noted_by, 'position' => $assessment?->mrl_noted_by_position],
         ],
         default => [
-            ['label' => 'Evaluated by', 'name' => $assessment?->tmrl_evaluated_by, 'position' => $assessment?->tmrl_evaluated_by_position],
-            ['label' => 'Reviewed by', 'name' => $assessment?->tmrl_reviewed_by, 'position' => $assessment?->tmrl_reviewed_by_position],
-            ['label' => 'Noted by', 'name' => $assessment?->tmrl_noted_by, 'position' => $assessment?->tmrl_noted_by_position],
+            ['label' => $assessment?->tmrl_evaluated_by_label ?? '', 'name' => $assessment?->tmrl_evaluated_by, 'position' => $assessment?->tmrl_evaluated_by_position],
+            ['label' => $assessment?->tmrl_reviewed_by_label ?? '', 'name' => $assessment?->tmrl_reviewed_by, 'position' => $assessment?->tmrl_reviewed_by_position],
+            ['label' => $assessment?->tmrl_noted_by_label ?? '', 'name' => $assessment?->tmrl_noted_by, 'position' => $assessment?->tmrl_noted_by_position],
         ],
     };
 @endphp
@@ -167,9 +167,17 @@
     @endforeach
 </table>
 
+@php
+    // A signatory left completely blank is skipped, so the next one moves up
+    // - except the last one (e.g. Approved by), which always stays last.
+    $lastSignatory = array_pop($signatories);
+    $signatories = [...array_values(array_filter($signatories, fn ($sig) => trim(
+        ($sig['label'] ?? '').($sig['name'] ?? '').($sig['position'] ?? '')
+    ) !== '')), $lastSignatory];
+@endphp
 @foreach ($signatories as $sig)
 <div class="sig-block">
-    <div class="sig-label">{{ $sig['label'] }}:</div>
+    <div class="sig-label">{{ $sig['label'] }}</div>
     <div class="sig-name">{!! $v($sig['name']) !!}</div>
     <div class="sig-position">{!! nl2br($v($sig['position'])) !!}</div>
 </div>

@@ -47,17 +47,7 @@
     @endforeach
 </table>
 
-<table style="margin-top: 12px;">
-    <tr>
-        <td width="50%">
-            <div class="sig-label">Prepared By:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'prepared_by_name')) !!}</div>
-            <div class="sig-position">{!! $v(data_get($data, 'prepared_by_position')) !!}</div>
-        </td>
-        <td width="50%">
-            <div class="sig-label">Noted By:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
-            <div class="sig-position">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
-        </td>
-    </tr>
-</table>
+@include('admin.exports._signatory-row', ['people' => [
+    ['label' => data_get($data, 'prepared_by_label'), 'name' => data_get($data, 'prepared_by_name'), 'position' => data_get($data, 'prepared_by_position')],
+    ['label' => data_get($data, 'noted_by_label'), 'name' => data_get($data, 'noted_by_name'), 'position' => data_get($data, 'noted_by_position')],
+]])

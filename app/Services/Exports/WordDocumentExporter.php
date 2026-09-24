@@ -350,19 +350,16 @@ class WordDocumentExporter
             }
         }
 
-        $processor->setValue('prepared_by', $vc($assessment?->prepared_by));
-        $processor->setValue('prepared_by_position', $v($assessment?->prepared_by_position));
-        $processor->setValue('trl_noted_by', $vc($assessment?->trl_noted_by));
-        $processor->setValue('trl_noted_by_position', $v($assessment?->trl_noted_by_position));
-        $processor->setValue('approved_by', $vc($assessment?->approved_by));
-
-        // approved_by_position is ONE db column but the real form prints
-        // the director's title across two lines - split on newline (matches
-        // how the admin form's default value for this column is already
-        // stored: "Director, ...\nProject Leader, ...").
-        $positionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->approved_by_position ?? ''));
-        $processor->setValue('approved_by_position_1', $v($positionLines[0] ?? ''));
-        $processor->setValue('approved_by_position_2', $v($positionLines[1] ?? ''));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'prepared_by_label', 'name' => 'prepared_by', 'position' => 'prepared_by_position', 'block' => 'sig_slot_1'],
+            ['label' => 'trl_noted_by_label', 'name' => 'trl_noted_by', 'position' => 'trl_noted_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'approved_by_label', 'name' => 'approved_by', 'position' => ['approved_by_position_1', 'approved_by_position_2']],
+        ], [
+            ['label' => $assessment?->prepared_by_label, 'name' => $assessment?->prepared_by, 'position' => $assessment?->prepared_by_position],
+            ['label' => $assessment?->trl_noted_by_label, 'name' => $assessment?->trl_noted_by, 'position' => $assessment?->trl_noted_by_position],
+            ['label' => $assessment?->approved_by_label, 'name' => $assessment?->approved_by, 'position' => $assessment?->approved_by_position],
+        ]);
 
         $tempDir = storage_path('app/tmp-exports');
         if (! is_dir($tempDir)) {
@@ -423,18 +420,16 @@ class WordDocumentExporter
         // MRL's own independent signatory block (see the migration that
         // split this from the shared evaluated_by/reviewed_by/noted_by
         // columns TMRL used to write to as well).
-        $processor->setValue('evaluated_by', $vc($assessment?->mrl_evaluated_by));
-        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->mrl_evaluated_by_position ?? ''));
-        $processor->setValue('evaluated_by_position_1', $v($evaluatedPositionLines[0] ?? ''));
-        $processor->setValue('evaluated_by_position_2', $v($evaluatedPositionLines[1] ?? ''));
-
-        $processor->setValue('reviewed_by', $vc($assessment?->mrl_reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->mrl_reviewed_by_position));
-
-        $processor->setValue('noted_by', $vc($assessment?->mrl_noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->mrl_noted_by_position ?? ''));
-        $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
-        $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'evaluated_by_label', 'name' => 'evaluated_by', 'position' => ['evaluated_by_position_1', 'evaluated_by_position_2'], 'block' => 'sig_slot_1'],
+            ['label' => 'reviewed_by_label', 'name' => 'reviewed_by', 'position' => 'reviewed_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'noted_by_label', 'name' => 'noted_by', 'position' => ['noted_by_position_1', 'noted_by_position_2']],
+        ], [
+            ['label' => $assessment?->mrl_evaluated_by_label, 'name' => $assessment?->mrl_evaluated_by, 'position' => $assessment?->mrl_evaluated_by_position],
+            ['label' => $assessment?->mrl_reviewed_by_label, 'name' => $assessment?->mrl_reviewed_by, 'position' => $assessment?->mrl_reviewed_by_position],
+            ['label' => $assessment?->mrl_noted_by_label, 'name' => $assessment?->mrl_noted_by, 'position' => $assessment?->mrl_noted_by_position],
+        ]);
 
         $tempDir = storage_path('app/tmp-exports');
         if (! is_dir($tempDir)) {
@@ -489,18 +484,16 @@ class WordDocumentExporter
         // TMRL's own independent signatory block (see the migration that
         // split this from the shared evaluated_by/reviewed_by/noted_by
         // columns MRL used to write to as well).
-        $processor->setValue('evaluated_by', $vc($assessment?->tmrl_evaluated_by));
-        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->tmrl_evaluated_by_position ?? ''));
-        $processor->setValue('evaluated_by_position_1', $v($evaluatedPositionLines[0] ?? ''));
-        $processor->setValue('evaluated_by_position_2', $v($evaluatedPositionLines[1] ?? ''));
-
-        $processor->setValue('reviewed_by', $vc($assessment?->tmrl_reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->tmrl_reviewed_by_position));
-
-        $processor->setValue('noted_by', $vc($assessment?->tmrl_noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->tmrl_noted_by_position ?? ''));
-        $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
-        $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'evaluated_by_label', 'name' => 'evaluated_by', 'position' => ['evaluated_by_position_1', 'evaluated_by_position_2'], 'block' => 'sig_slot_1'],
+            ['label' => 'reviewed_by_label', 'name' => 'reviewed_by', 'position' => 'reviewed_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'noted_by_label', 'name' => 'noted_by', 'position' => ['noted_by_position_1', 'noted_by_position_2']],
+        ], [
+            ['label' => $assessment?->tmrl_evaluated_by_label, 'name' => $assessment?->tmrl_evaluated_by, 'position' => $assessment?->tmrl_evaluated_by_position],
+            ['label' => $assessment?->tmrl_reviewed_by_label, 'name' => $assessment?->tmrl_reviewed_by, 'position' => $assessment?->tmrl_reviewed_by_position],
+            ['label' => $assessment?->tmrl_noted_by_label, 'name' => $assessment?->tmrl_noted_by, 'position' => $assessment?->tmrl_noted_by_position],
+        ]);
 
         $tempDir = storage_path('app/tmp-exports');
         if (! is_dir($tempDir)) {
@@ -558,18 +551,16 @@ class WordDocumentExporter
         // the same columns the SRL tab on screen writes to. This used to read the old shared
         // evaluated_by/reviewed_by/noted_by columns (which MRL and TMRL stopped using), so
         // whatever an admin typed on the SRL tab never reached the Word document.
-        $processor->setValue('evaluated_by', $vc($assessment?->srl_evaluated_by));
-        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->srl_evaluated_by_position ?? ''));
-        $processor->setValue('evaluated_by_position_1', $v($evaluatedPositionLines[0] ?? ''));
-        $processor->setValue('evaluated_by_position_2', $v($evaluatedPositionLines[1] ?? ''));
-
-        $processor->setValue('reviewed_by', $vc($assessment?->srl_reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->srl_reviewed_by_position));
-
-        $processor->setValue('noted_by', $vc($assessment?->srl_noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->srl_noted_by_position ?? ''));
-        $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
-        $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'evaluated_by_label', 'name' => 'evaluated_by', 'position' => ['evaluated_by_position_1', 'evaluated_by_position_2'], 'block' => 'sig_slot_1'],
+            ['label' => 'reviewed_by_label', 'name' => 'reviewed_by', 'position' => 'reviewed_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'noted_by_label', 'name' => 'noted_by', 'position' => ['noted_by_position_1', 'noted_by_position_2']],
+        ], [
+            ['label' => $assessment?->srl_evaluated_by_label, 'name' => $assessment?->srl_evaluated_by, 'position' => $assessment?->srl_evaluated_by_position],
+            ['label' => $assessment?->srl_reviewed_by_label, 'name' => $assessment?->srl_reviewed_by, 'position' => $assessment?->srl_reviewed_by_position],
+            ['label' => $assessment?->srl_noted_by_label, 'name' => $assessment?->srl_noted_by, 'position' => $assessment?->srl_noted_by_position],
+        ]);
 
         $tempDir = storage_path('app/tmp-exports');
         if (! is_dir($tempDir)) {
@@ -619,18 +610,16 @@ class WordDocumentExporter
             }
         }
 
-        $processor->setValue('prepared_by', $vc($assessment?->prepared_by));
-        $processor->setValue('prepared_by_position', $v($assessment?->prepared_by_position));
-        $processor->setValue('trl_noted_by', $vc($assessment?->trl_noted_by));
-        $processor->setValue('trl_noted_by_position', $v($assessment?->trl_noted_by_position));
-        $processor->setValue('approved_by', $vc($assessment?->approved_by));
-
-        // approved_by_position is ONE db column but the real form prints
-        // the director's title across two lines - same split as
-        // renderDocument2().
-        $positionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->approved_by_position ?? ''));
-        $processor->setValue('approved_by_position_1', $v($positionLines[0] ?? ''));
-        $processor->setValue('approved_by_position_2', $v($positionLines[1] ?? ''));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'prepared_by_label', 'name' => 'prepared_by', 'position' => 'prepared_by_position', 'block' => 'sig_slot_1'],
+            ['label' => 'trl_noted_by_label', 'name' => 'trl_noted_by', 'position' => 'trl_noted_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'approved_by_label', 'name' => 'approved_by', 'position' => ['approved_by_position_1', 'approved_by_position_2']],
+        ], [
+            ['label' => $assessment?->prepared_by_label, 'name' => $assessment?->prepared_by, 'position' => $assessment?->prepared_by_position],
+            ['label' => $assessment?->trl_noted_by_label, 'name' => $assessment?->trl_noted_by, 'position' => $assessment?->trl_noted_by_position],
+            ['label' => $assessment?->approved_by_label, 'name' => $assessment?->approved_by, 'position' => $assessment?->approved_by_position],
+        ]);
 
         $tempDir = storage_path('app/tmp-exports');
         if (! is_dir($tempDir)) {
@@ -689,16 +678,16 @@ class WordDocumentExporter
         // MRL's own independent signatory block (see the migration that
         // split this from the shared evaluated_by/reviewed_by/noted_by
         // columns TMRL used to write to as well).
-        $processor->setValue('evaluated_by', $vc($assessment?->mrl_evaluated_by));
-        $processor->setValue('evaluated_by_position', $v($assessment?->mrl_evaluated_by_position));
-
-        $processor->setValue('reviewed_by', $vc($assessment?->mrl_reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->mrl_reviewed_by_position));
-
-        $processor->setValue('noted_by', $vc($assessment?->mrl_noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->mrl_noted_by_position ?? ''));
-        $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
-        $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'evaluated_by_label', 'name' => 'evaluated_by', 'position' => 'evaluated_by_position', 'block' => 'sig_slot_1'],
+            ['label' => 'reviewed_by_label', 'name' => 'reviewed_by', 'position' => 'reviewed_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'noted_by_label', 'name' => 'noted_by', 'position' => ['noted_by_position_1', 'noted_by_position_2']],
+        ], [
+            ['label' => $assessment?->mrl_evaluated_by_label, 'name' => $assessment?->mrl_evaluated_by, 'position' => $assessment?->mrl_evaluated_by_position],
+            ['label' => $assessment?->mrl_reviewed_by_label, 'name' => $assessment?->mrl_reviewed_by, 'position' => $assessment?->mrl_reviewed_by_position],
+            ['label' => $assessment?->mrl_noted_by_label, 'name' => $assessment?->mrl_noted_by, 'position' => $assessment?->mrl_noted_by_position],
+        ]);
 
         $tempDir = storage_path('app/tmp-exports');
         if (! is_dir($tempDir)) {
@@ -751,16 +740,16 @@ class WordDocumentExporter
         // TMRL's own independent signatory block (see the migration that
         // split this from the shared evaluated_by/reviewed_by/noted_by
         // columns MRL used to write to as well).
-        $processor->setValue('evaluated_by', $vc($assessment?->tmrl_evaluated_by));
-        $processor->setValue('evaluated_by_position', $v($assessment?->tmrl_evaluated_by_position));
-
-        $processor->setValue('reviewed_by', $vc($assessment?->tmrl_reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->tmrl_reviewed_by_position));
-
-        $processor->setValue('noted_by', $vc($assessment?->tmrl_noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->tmrl_noted_by_position ?? ''));
-        $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
-        $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'evaluated_by_label', 'name' => 'evaluated_by', 'position' => 'evaluated_by_position', 'block' => 'sig_slot_1'],
+            ['label' => 'reviewed_by_label', 'name' => 'reviewed_by', 'position' => 'reviewed_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'noted_by_label', 'name' => 'noted_by', 'position' => ['noted_by_position_1', 'noted_by_position_2']],
+        ], [
+            ['label' => $assessment?->tmrl_evaluated_by_label, 'name' => $assessment?->tmrl_evaluated_by, 'position' => $assessment?->tmrl_evaluated_by_position],
+            ['label' => $assessment?->tmrl_reviewed_by_label, 'name' => $assessment?->tmrl_reviewed_by, 'position' => $assessment?->tmrl_reviewed_by_position],
+            ['label' => $assessment?->tmrl_noted_by_label, 'name' => $assessment?->tmrl_noted_by, 'position' => $assessment?->tmrl_noted_by_position],
+        ]);
 
         $tempDir = storage_path('app/tmp-exports');
         if (! is_dir($tempDir)) {
@@ -811,16 +800,16 @@ class WordDocumentExporter
         }
 
         // SRL's own signatory block — same columns the SRL tab on screen writes to (see Document 5).
-        $processor->setValue('evaluated_by', $vc($assessment?->srl_evaluated_by));
-        $processor->setValue('evaluated_by_position', $v($assessment?->srl_evaluated_by_position));
-
-        $processor->setValue('reviewed_by', $vc($assessment?->srl_reviewed_by));
-        $processor->setValue('reviewed_by_position', $v($assessment?->srl_reviewed_by_position));
-
-        $processor->setValue('noted_by', $vc($assessment?->srl_noted_by));
-        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->srl_noted_by_position ?? ''));
-        $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
-        $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'evaluated_by_label', 'name' => 'evaluated_by', 'position' => 'evaluated_by_position', 'block' => 'sig_slot_1'],
+            ['label' => 'reviewed_by_label', 'name' => 'reviewed_by', 'position' => 'reviewed_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'noted_by_label', 'name' => 'noted_by', 'position' => ['noted_by_position_1', 'noted_by_position_2']],
+        ], [
+            ['label' => $assessment?->srl_evaluated_by_label, 'name' => $assessment?->srl_evaluated_by, 'position' => $assessment?->srl_evaluated_by_position],
+            ['label' => $assessment?->srl_reviewed_by_label, 'name' => $assessment?->srl_reviewed_by, 'position' => $assessment?->srl_reviewed_by_position],
+            ['label' => $assessment?->srl_noted_by_label, 'name' => $assessment?->srl_noted_by, 'position' => $assessment?->srl_noted_by_position],
+        ]);
 
         $tempDir = storage_path('app/tmp-exports');
         if (! is_dir($tempDir)) {
@@ -926,16 +915,18 @@ class WordDocumentExporter
             $this->cloneRepeatingRow($processor, "{$prefix}_topics", $sectionRows, '');
         }
 
-        $preparedBy = data_get($data, 'prepared_by', []);
-        foreach ([1, 2, 3] as $i) {
-            $person = $preparedBy[$i - 1] ?? [];
-            // Signer names print in all caps on the real form, positions
-            // stay normal case - same convention as the SRL/rubric
-            // signature blocks (renderDocument5's evaluated_by/noted_by).
-            $processor->setValue("prepared_by_name_{$i}", $vc($person['name'] ?? null));
-            $processor->setValue("prepared_by_position_{$i}", $v($person['position'] ?? null));
-        }
+        // The three Prepared By signers share one caption; a blank one is
+        // skipped and the next one moves into its column.
+        $processor->setValue('prepared_by_label', htmlspecialchars((string) data_get($data, 'prepared_by_label', ''), ENT_XML1));
+        $this->fillSignatorySlots($processor, [
+            ['name' => 'prepared_by_name_1', 'position' => 'prepared_by_position_1', 'block' => 'sig_prep_1'],
+            ['name' => 'prepared_by_name_2', 'position' => 'prepared_by_position_2', 'block' => 'sig_prep_2'],
+            ['name' => 'prepared_by_name_3', 'position' => 'prepared_by_position_3', 'block' => 'sig_prep_3'],
+        ], collect(data_get($data, 'prepared_by', []))
+            ->map(fn ($person) => ['name' => $person['name'] ?? null, 'position' => $person['position'] ?? null])
+            ->all(), true, false);
 
+        $processor->setValue('noted_by_label', htmlspecialchars((string) data_get($data, 'noted_by_label', ''), ENT_XML1));
         $processor->setValue('noted_by', $vc(data_get($data, 'noted_by')));
         $processor->setValue('noted_by_position', $v(data_get($data, 'noted_by_position')));
 
@@ -1003,10 +994,14 @@ class WordDocumentExporter
             $processor->setValue("{$prefix}_remarks", $v(data_get($data, ['performance_matrix', $metric, 'dates'])));
         }
 
-        $processor->setValue('prepared_by_name', $v(data_get($data, 'prepared_by_name')));
-        $processor->setValue('prepared_by_position', $v(data_get($data, 'prepared_by_position')));
-        $processor->setValue('noted_by_name', $v(data_get($data, 'noted_by_name')));
-        $processor->setValue('noted_by_position', $v(data_get($data, 'noted_by_position')));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'prepared_by_label', 'name' => 'prepared_by_name', 'position' => 'prepared_by_position', 'block' => 'sig_slot_1'],
+            ['label' => 'noted_by_label', 'name' => 'noted_by_name', 'position' => 'noted_by_position'],
+        ], [
+            ['label' => data_get($data, 'prepared_by_label'), 'name' => data_get($data, 'prepared_by_name'), 'position' => data_get($data, 'prepared_by_position')],
+            ['label' => data_get($data, 'noted_by_label'), 'name' => data_get($data, 'noted_by_name'), 'position' => data_get($data, 'noted_by_position')],
+        ], false);
 
         return $this->saveAndReadBinary($processor, 'doc7-');
     }
@@ -1096,6 +1091,7 @@ class WordDocumentExporter
         $processor->setValue('sum_total', $overallAvg !== null ? (string) $overallAvg : '');
         $processor->setValue('sum_overall_interp', (string) (\App\Support\ActiveAssessmentForms::scoreInterpretation($overallAvg) ?? ''));
 
+        $processor->setValue('validated_by_label', htmlspecialchars((string) data_get($data, 'validated_by_label', ''), ENT_XML1));
         $processor->setValue('validated_by_name', $v(data_get($data, 'validated_by_name')));
         $processor->setValue('validated_by_position', $v(data_get($data, 'validated_by_position')));
         // Contact No. and Date were captured by the form (validated_by_contact
@@ -1103,12 +1099,15 @@ class WordDocumentExporter
         // template just had static underscore blanks for them.
         $processor->setValue('validated_by_contact', $v(data_get($data, 'validated_by_contact')));
         $processor->setValue('validated_by_date', $d(data_get($data, 'validated_by_date')));
-        $processor->setValue('noted_by_name', $v(data_get($data, 'noted_by_name')));
-        $processor->setValue('noted_by_position', $v(data_get($data, 'noted_by_position')));
-        $processor->setValue('approved_by_name', $v(data_get($data, 'approved_by_name')));
-        $approvedPositionLines = preg_split('/\r\n|\r|\n/', (string) data_get($data, 'approved_by_position', ''));
-        $processor->setValue('approved_by_position_1', $v($approvedPositionLines[0] ?? ''));
-        $processor->setValue('approved_by_position_2', $v($approvedPositionLines[1] ?? ''));
+        // Noted By / Approved By: a blank one is skipped and the next one
+        // moves into its place.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'noted_by_label', 'name' => 'noted_by_name', 'position' => 'noted_by_position', 'block' => 'sig_slot_1'],
+            ['label' => 'approved_by_label', 'name' => 'approved_by_name', 'position' => ['approved_by_position_1', 'approved_by_position_2']],
+        ], [
+            ['label' => data_get($data, 'noted_by_label'), 'name' => data_get($data, 'noted_by_name'), 'position' => data_get($data, 'noted_by_position')],
+            ['label' => data_get($data, 'approved_by_label'), 'name' => data_get($data, 'approved_by_name'), 'position' => data_get($data, 'approved_by_position')],
+        ], false);
 
         return $this->saveAndReadBinary($processor, 'doc8-');
     }
@@ -1166,12 +1165,16 @@ class WordDocumentExporter
 
         // Macy: names in the signatory block must be all caps.
         $vUpper = fn($val) => mb_strtoupper($v($val), 'UTF-8');
-        $processor->setValue('evaluated_by_name', $vUpper(data_get($data, 'evaluated_by_name')));
-        $processor->setValue('evaluated_by_position', $v(data_get($data, 'evaluated_by_position')));
-        $processor->setValue('reviewed_by_name', $vUpper(data_get($data, 'reviewed_by_name')));
-        $processor->setValue('reviewed_by_position', $v(data_get($data, 'reviewed_by_position')));
-        $processor->setValue('noted_by_name', $vUpper(data_get($data, 'noted_by_name')));
-        $processor->setValue('noted_by_position', $v(data_get($data, 'noted_by_position')));
+        // Blank signatories are skipped and the next one moves up.
+        $this->fillSignatorySlots($processor, [
+            ['label' => 'evaluated_by_label', 'name' => 'evaluated_by_name', 'position' => 'evaluated_by_position', 'block' => 'sig_slot_1'],
+            ['label' => 'reviewed_by_label', 'name' => 'reviewed_by_name', 'position' => 'reviewed_by_position', 'block' => 'sig_slot_2'],
+            ['label' => 'noted_by_label', 'name' => 'noted_by_name', 'position' => 'noted_by_position'],
+        ], [
+            ['label' => data_get($data, 'evaluated_by_label'), 'name' => data_get($data, 'evaluated_by_name'), 'position' => data_get($data, 'evaluated_by_position')],
+            ['label' => data_get($data, 'reviewed_by_label'), 'name' => data_get($data, 'reviewed_by_name'), 'position' => data_get($data, 'reviewed_by_position')],
+            ['label' => data_get($data, 'noted_by_label'), 'name' => data_get($data, 'noted_by_name'), 'position' => data_get($data, 'noted_by_position')],
+        ]);
 
         return $this->saveAndReadBinary($processor, 'doc13-');
     }
@@ -1234,6 +1237,79 @@ class WordDocumentExporter
         if (empty($rows)) {
             foreach (array_keys($this->rowKeysFor($anchor)) as $key) {
                 $processor->setValue("{$key}#1", '');
+            }
+        }
+    }
+
+    /**
+     * Fills a row of signatory slots in a Word template, shifting filled-in
+     * signatories left: a signatory whose label, name and position are all
+     * blank is skipped, and the next one moves into its slot. Leftover slots
+     * at the end print blank.
+     *
+     * Each $slots entry names the template's placeholders for one slot:
+     * ['label' => ?string, 'name' => string, 'position' => string|string[]]
+     * (a position given as a list is one placeholder per line). Each
+     * $people entry is ['label' => ?string, 'name' => ?string,
+     * 'position' => ?string], in slot order.
+     *
+     * With $pinLast (the default), the last signatory (e.g. Approved by)
+     * always stays in the last slot on the right; only the ones before it
+     * shift left to fill gaps.
+     */
+    protected function fillSignatorySlots(TemplateProcessor $processor, array $slots, array $people, bool $upperName = true, bool $pinLast = true): void
+    {
+        $people = array_values($people);
+        $isFilled = fn (array $person) => trim(
+            ($person['label'] ?? '').($person['name'] ?? '').($person['position'] ?? '')
+        ) !== '';
+        $lastSlot = count($slots) - 1;
+        $pinned = $pinLast && $people !== [] ? array_pop($people) : null;
+        $filled = array_values(array_filter($people, $isFilled));
+        if ($pinned !== null) {
+            $filled = array_pad(array_slice($filled, 0, $lastSlot), $lastSlot, []);
+            $filled[$lastSlot] = $pinned;
+        }
+
+        foreach (array_values($slots) as $i => $slot) {
+            $person = $filled[$i] ?? [];
+
+            // A slot wrapped in its own template block (stacked layouts like
+            // TRL's) is removed entirely when it ends up empty, so the
+            // signatory below it moves up instead of leaving a gap.
+            if (! empty($slot['block'])) {
+                $processor->cloneBlock($slot['block'], $isFilled($person) ? 1 : 0);
+            }
+            $name = trim((string) ($person['name'] ?? ''));
+            $lines = array_values(array_filter(
+                array_map('trim', preg_split('/\r\n|\r|\n/', (string) ($person['position'] ?? ''))),
+                fn ($line) => $line !== ''
+            ));
+
+            if (! empty($slot['label'])) {
+                $processor->setValue($slot['label'], htmlspecialchars((string) ($person['label'] ?? ''), ENT_XML1));
+            }
+
+            $processor->setValue($slot['name'], $upperName ? mb_strtoupper($name) : $name);
+
+            // Positions keep their own line breaks wherever they land: a
+            // one-placeholder slot gets real Word line breaks between lines.
+            $asLines = fn (array $parts) => implode(
+                '</w:t><w:br/><w:t xml:space="preserve">',
+                array_map(fn ($line) => htmlspecialchars($line, ENT_XML1), $parts)
+            );
+
+            if (is_array($slot['position'])) {
+                // The templates now have one position paragraph per slot;
+                // every line goes into the first placeholder (with line
+                // breaks) and any leftover per-line placeholders are cleared,
+                // so an empty second line no longer adds a blank gap.
+                $keys = array_values($slot['position']);
+                foreach ($keys as $k => $key) {
+                    $processor->setValue($key, $k === 0 ? $asLines($lines) : '');
+                }
+            } else {
+                $processor->setValue($slot['position'], $asLines($lines));
             }
         }
     }

@@ -33,19 +33,11 @@
 </table>
 @endforeach
 
-<table style="margin-top: 12px;">
-    <tr>
-        @foreach (data_get($data, 'prepared_by', []) as $person)
-        <td width="25%">
-            <div class="sig-label">Prepared By:</div>
-            <div class="sig-name">{!! $v($person['name'] ?? null) !!}</div>
-            <div class="sig-position">{!! nl2br($v($person['position'] ?? null)) !!}</div>
-        </td>
-        @endforeach
-        <td width="25%">
-            <div class="sig-label">Noted By:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'noted_by')) !!}</div>
-            <div class="sig-position">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
-        </td>
-    </tr>
-</table>
+@include('admin.exports._signatory-row', ['people' => [
+    ...collect(data_get($data, 'prepared_by', []))->map(fn ($person) => [
+        'label' => data_get($data, 'prepared_by_label'),
+        'name' => $person['name'] ?? null,
+        'position' => $person['position'] ?? null,
+    ])->all(),
+    ['label' => data_get($data, 'noted_by_label'), 'name' => data_get($data, 'noted_by'), 'position' => data_get($data, 'noted_by_position')],
+]])

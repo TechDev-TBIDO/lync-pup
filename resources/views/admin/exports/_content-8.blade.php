@@ -83,22 +83,8 @@
 <div class="section-title">RECOMMENDATIONS</div>
 <div style="border: 1px solid #000; padding: 6px; min-height: 30px;">{!! nl2br($v(data_get($data, 'recommendations'))) !!}</div>
 
-<table style="margin-top: 12px;">
-    <tr>
-        <td width="33%">
-            <div style="font-size: 10px;">Validated By:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'validated_by_name')) !!}</div>
-            <div class="sig-position">{!! $v(data_get($data, 'validated_by_position')) !!}</div>
-        </td>
-        <td width="33%">
-            <div style="font-size: 10px;">Noted By:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
-            <div class="sig-position">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
-        </td>
-        <td width="33%">
-            <div style="font-size: 10px;">Approved By:</div>
-            <div class="sig-name">{!! $v(data_get($data, 'approved_by_name')) !!}</div>
-            <div class="sig-position">{!! nl2br($v(data_get($data, 'approved_by_position'))) !!}</div>
-        </td>
-    </tr>
-</table>
+@include('admin.exports._signatory-row', ['people' => [
+    ['label' => data_get($data, 'validated_by_label'), 'name' => data_get($data, 'validated_by_name'), 'position' => data_get($data, 'validated_by_position')],
+    ['label' => data_get($data, 'noted_by_label'), 'name' => data_get($data, 'noted_by_name'), 'position' => data_get($data, 'noted_by_position')],
+    ['label' => data_get($data, 'approved_by_label'), 'name' => data_get($data, 'approved_by_name'), 'position' => data_get($data, 'approved_by_position')],
+]])

@@ -249,12 +249,16 @@ class HistoryFields
             'trl_noted_by_position' => 'TRL · Noted By (Position)',
             'approved_by' => 'TRL · Approved By',
             'approved_by_position' => 'TRL · Approved By (Position)',
+            'prepared_by_label' => 'TRL · Prepared By (Label)',
+            'trl_noted_by_label' => 'TRL · Noted By (Label)',
+            'approved_by_label' => 'TRL · Approved By (Label)',
         ];
 
         foreach (['mrl' => 'MRL', 'tmrl' => 'TMRL', 'srl' => 'SRL'] as $key => $type) {
             foreach (['evaluated' => 'Evaluated By', 'reviewed' => 'Reviewed By', 'noted' => 'Noted By'] as $role => $roleLabel) {
                 $fields["{$key}_{$role}_by"] = "{$type} · {$roleLabel}";
                 $fields["{$key}_{$role}_by_position"] = "{$type} · {$roleLabel} (Position)";
+                $fields["{$key}_{$role}_by_label"] = "{$type} · {$roleLabel} (Label)";
             }
         }
 

@@ -69,6 +69,11 @@ for ($i = 0; $i < $count; $i++) {
     $overviewTrlNotedBy = $currentAssessment?->trl_noted_by ?? '';
     $overviewTrlNotedByPosition = $currentAssessment?->trl_noted_by_position ?? '';
 
+    // The captions themselves ("Prepared By:" etc.) are editable too.
+    $overviewPreparedByLabel = $currentAssessment?->prepared_by_label ?? '';
+    $overviewTrlNotedByLabel = $currentAssessment?->trl_noted_by_label ?? '';
+    $overviewApprovedByLabel = $currentAssessment?->approved_by_label ?? '';
+
     // "Approved by" starts blank like every other signatory.
     $overviewApprovedBy = $currentAssessment?->approved_by ?? '';
     $overviewApprovedByPosition = $currentAssessment?->approved_by_position ?? '';
@@ -93,6 +98,17 @@ for ($i = 0; $i < $count; $i++) {
     $overviewSrlReviewedByPosition = $currentAssessment?->srl_reviewed_by_position ?? '';
     $overviewSrlNotedBy = $currentAssessment?->srl_noted_by ?? '';
     $overviewSrlNotedByPosition = $currentAssessment?->srl_noted_by_position ?? '';
+
+    // Editable signatory captions for MRL / TMRL / SRL.
+    $overviewMrlEvaluatedByLabel = $currentAssessment?->mrl_evaluated_by_label ?? '';
+    $overviewMrlReviewedByLabel = $currentAssessment?->mrl_reviewed_by_label ?? '';
+    $overviewMrlNotedByLabel = $currentAssessment?->mrl_noted_by_label ?? '';
+    $overviewTmrlEvaluatedByLabel = $currentAssessment?->tmrl_evaluated_by_label ?? '';
+    $overviewTmrlReviewedByLabel = $currentAssessment?->tmrl_reviewed_by_label ?? '';
+    $overviewTmrlNotedByLabel = $currentAssessment?->tmrl_noted_by_label ?? '';
+    $overviewSrlEvaluatedByLabel = $currentAssessment?->srl_evaluated_by_label ?? '';
+    $overviewSrlReviewedByLabel = $currentAssessment?->srl_reviewed_by_label ?? '';
+    $overviewSrlNotedByLabel = $currentAssessment?->srl_noted_by_label ?? '';
 
     // Always seed a full object shape (never a bare empty array) so
     // @js() below emits a JS object — an empty PHP array would otherwise
@@ -351,9 +367,61 @@ for ($i = 0; $i < $count; $i++) {
             set notedBy(v) { if (this.activeType === 'MRL') this.mrlNotedBy = v; else this.tmrlNotedBy = v; },
             get notedByPosition() { return this.activeType === 'MRL' ? this.mrlNotedByPosition : this.tmrlNotedByPosition; },
             set notedByPosition(v) { if (this.activeType === 'MRL') this.mrlNotedByPosition = v; else this.tmrlNotedByPosition = v; },
+            get evaluatedByLabel() { return this.activeType === 'MRL' ? this.mrlEvaluatedByLabel : this.tmrlEvaluatedByLabel; },
+            set evaluatedByLabel(v) { if (this.activeType === 'MRL') this.mrlEvaluatedByLabel = v; else this.tmrlEvaluatedByLabel = v; },
+            get reviewedByLabel() { return this.activeType === 'MRL' ? this.mrlReviewedByLabel : this.tmrlReviewedByLabel; },
+            set reviewedByLabel(v) { if (this.activeType === 'MRL') this.mrlReviewedByLabel = v; else this.tmrlReviewedByLabel = v; },
+            get notedByLabel() { return this.activeType === 'MRL' ? this.mrlNotedByLabel : this.tmrlNotedByLabel; },
+            set notedByLabel(v) { if (this.activeType === 'MRL') this.mrlNotedByLabel = v; else this.tmrlNotedByLabel = v; },
             // Every signatory name/position (all of MRL, TMRL, SRL and TRL are
             // posted on each save) plus the TRL overview contact number: a bad
             // one blocks the whole save instead of being stored.
+            // A filled-in signatory label makes that signatory's name and
+            // position required (see LyncFormat.signatoryCheck). Checked for
+            // all four types, since one Save stores them all.
+            sigTried: false,
+            sigRules() {
+                const rules = [
+                    ['TRL', 'preparedBy'], ['TRL', 'trlNotedBy'], ['TRL', 'approvedBy'],
+                ];
+                ['MRL', 'TMRL', 'SRL'].forEach(type => ['Evaluated', 'Reviewed', 'Noted'].forEach(role => rules.push([type, type.toLowerCase() + role + 'By'])));
+
+                return rules.map(([type, base]) => ({ label: base + 'Label', name: base, position: base + 'Position', where: type, tab: type }));
+            },
+            // No label = no signatory: its name and position boxes are locked
+            // (and emptied when the label is cleared).
+            sigHasLabel(base) {
+                return window.LyncFormat.filled(this[base + 'Label']);
+            },
+            sigLabelChanged(base) {
+                if (! this.sigHasLabel(base)) {
+                    this[base] = '';
+                    this[base + 'Position'] = '';
+                }
+            },
+            sigBad(base, part) {
+                if (! this.sigTried) return false;
+                return window.LyncFormat.signatoryCheck(this, this.sigRules()).missing.includes(part === 'name' ? base : base + 'Position');
+            },
+            trySubmit(event) {
+                const sig = window.LyncFormat.signatoryCheck(this, this.sigRules());
+                if (sig.message) {
+                    event.preventDefault();
+                    this.sigTried = true;
+                    if (sig.tab && this.activeType !== sig.tab) this.activeType = sig.tab;
+                    this.$store.toast.error('Cannot save yet', sig.message);
+                    return;
+                }
+
+                const problem = this.formProblem();
+                if (problem) {
+                    event.preventDefault();
+                    this.$store.toast.error('Cannot save yet', problem);
+                    return;
+                }
+
+                this.$store.navigation.hasUnsavedChanges = false;
+            },
             formProblem() {
                 const list = [];
                 [['MRL', 'mrl'], ['TMRL', 'tmrl'], ['SRL', 'srl']].forEach(([label, k]) => {
@@ -377,12 +445,24 @@ for ($i = 0; $i < $count; $i++) {
             trlNotedByPosition: @js($overviewTrlNotedByPosition),
             approvedBy: @js($overviewApprovedBy),
             approvedByPosition: @js($overviewApprovedByPosition),
+            preparedByLabel: @js($overviewPreparedByLabel),
+            trlNotedByLabel: @js($overviewTrlNotedByLabel),
+            approvedByLabel: @js($overviewApprovedByLabel),
             srlEvaluatedBy: @js($overviewSrlEvaluatedBy),
             srlEvaluatedByPosition: @js($overviewSrlEvaluatedByPosition),
             srlReviewedBy: @js($overviewSrlReviewedBy),
             srlReviewedByPosition: @js($overviewSrlReviewedByPosition),
             srlNotedBy: @js($overviewSrlNotedBy),
             srlNotedByPosition: @js($overviewSrlNotedByPosition),
+            mrlEvaluatedByLabel: @js($overviewMrlEvaluatedByLabel),
+            mrlReviewedByLabel: @js($overviewMrlReviewedByLabel),
+            mrlNotedByLabel: @js($overviewMrlNotedByLabel),
+            tmrlEvaluatedByLabel: @js($overviewTmrlEvaluatedByLabel),
+            tmrlReviewedByLabel: @js($overviewTmrlReviewedByLabel),
+            tmrlNotedByLabel: @js($overviewTmrlNotedByLabel),
+            srlEvaluatedByLabel: @js($overviewSrlEvaluatedByLabel),
+            srlReviewedByLabel: @js($overviewSrlReviewedByLabel),
+            srlNotedByLabel: @js($overviewSrlNotedByLabel),
             initialProgress: @js($seedProgress),
             initialTrlOverview: @js($trlOverviewSeed),
             initialAssessmentDate: @js($overviewAssessmentDateInput),
@@ -404,12 +484,24 @@ for ($i = 0; $i < $count; $i++) {
             initialTrlNotedByPosition: @js($overviewTrlNotedByPosition),
             initialApprovedBy: @js($overviewApprovedBy),
             initialApprovedByPosition: @js($overviewApprovedByPosition),
+            initialPreparedByLabel: @js($overviewPreparedByLabel),
+            initialTrlNotedByLabel: @js($overviewTrlNotedByLabel),
+            initialApprovedByLabel: @js($overviewApprovedByLabel),
             initialSrlEvaluatedBy: @js($overviewSrlEvaluatedBy),
             initialSrlEvaluatedByPosition: @js($overviewSrlEvaluatedByPosition),
             initialSrlReviewedBy: @js($overviewSrlReviewedBy),
             initialSrlReviewedByPosition: @js($overviewSrlReviewedByPosition),
             initialSrlNotedBy: @js($overviewSrlNotedBy),
             initialSrlNotedByPosition: @js($overviewSrlNotedByPosition),
+            initialMrlEvaluatedByLabel: @js($overviewMrlEvaluatedByLabel),
+            initialMrlReviewedByLabel: @js($overviewMrlReviewedByLabel),
+            initialMrlNotedByLabel: @js($overviewMrlNotedByLabel),
+            initialTmrlEvaluatedByLabel: @js($overviewTmrlEvaluatedByLabel),
+            initialTmrlReviewedByLabel: @js($overviewTmrlReviewedByLabel),
+            initialTmrlNotedByLabel: @js($overviewTmrlNotedByLabel),
+            initialSrlEvaluatedByLabel: @js($overviewSrlEvaluatedByLabel),
+            initialSrlReviewedByLabel: @js($overviewSrlReviewedByLabel),
+            initialSrlNotedByLabel: @js($overviewSrlNotedByLabel),
             showClearConfirm: false,
             pendingType: null,
             showTypeSwitchConfirm: false,
@@ -459,6 +551,9 @@ for ($i = 0; $i < $count; $i++) {
                     this.trlNotedByPosition = this.initialTrlNotedByPosition;
                     this.approvedBy = this.initialApprovedBy;
                     this.approvedByPosition = this.initialApprovedByPosition;
+                    this.preparedByLabel = this.initialPreparedByLabel;
+                    this.trlNotedByLabel = this.initialTrlNotedByLabel;
+                    this.approvedByLabel = this.initialApprovedByLabel;
                 } else if (type === 'MRL') {
                     this.mrlEvaluatedBy = this.initialMrlEvaluatedBy;
                     this.mrlReviewedBy = this.initialMrlReviewedBy;
@@ -466,6 +561,9 @@ for ($i = 0; $i < $count; $i++) {
                     this.mrlEvaluatedByPosition = this.initialMrlEvaluatedByPosition;
                     this.mrlReviewedByPosition = this.initialMrlReviewedByPosition;
                     this.mrlNotedByPosition = this.initialMrlNotedByPosition;
+                    this.mrlEvaluatedByLabel = this.initialMrlEvaluatedByLabel;
+                    this.mrlReviewedByLabel = this.initialMrlReviewedByLabel;
+                    this.mrlNotedByLabel = this.initialMrlNotedByLabel;
                 } else if (type === 'TMRL') {
                     this.tmrlEvaluatedBy = this.initialTmrlEvaluatedBy;
                     this.tmrlReviewedBy = this.initialTmrlReviewedBy;
@@ -473,6 +571,9 @@ for ($i = 0; $i < $count; $i++) {
                     this.tmrlEvaluatedByPosition = this.initialTmrlEvaluatedByPosition;
                     this.tmrlReviewedByPosition = this.initialTmrlReviewedByPosition;
                     this.tmrlNotedByPosition = this.initialTmrlNotedByPosition;
+                    this.tmrlEvaluatedByLabel = this.initialTmrlEvaluatedByLabel;
+                    this.tmrlReviewedByLabel = this.initialTmrlReviewedByLabel;
+                    this.tmrlNotedByLabel = this.initialTmrlNotedByLabel;
                 } else if (type === 'SRL') {
                     this.srlEvaluatedBy = this.initialSrlEvaluatedBy;
                     this.srlEvaluatedByPosition = this.initialSrlEvaluatedByPosition;
@@ -480,6 +581,9 @@ for ($i = 0; $i < $count; $i++) {
                     this.srlReviewedByPosition = this.initialSrlReviewedByPosition;
                     this.srlNotedBy = this.initialSrlNotedBy;
                     this.srlNotedByPosition = this.initialSrlNotedByPosition;
+                    this.srlEvaluatedByLabel = this.initialSrlEvaluatedByLabel;
+                    this.srlReviewedByLabel = this.initialSrlReviewedByLabel;
+                    this.srlNotedByLabel = this.initialSrlNotedByLabel;
                 }
             },
             // Same per-type field ownership as discardChangesFor() above —
@@ -500,7 +604,10 @@ for ($i = 0; $i < $count; $i++) {
                         || this.trlNotedBy !== this.initialTrlNotedBy
                         || this.trlNotedByPosition !== this.initialTrlNotedByPosition
                         || this.approvedBy !== this.initialApprovedBy
-                        || this.approvedByPosition !== this.initialApprovedByPosition;
+                        || this.approvedByPosition !== this.initialApprovedByPosition
+                        || this.preparedByLabel !== this.initialPreparedByLabel
+                        || this.trlNotedByLabel !== this.initialTrlNotedByLabel
+                        || this.approvedByLabel !== this.initialApprovedByLabel;
                 }
 
                 if (type === 'MRL') {
@@ -510,7 +617,10 @@ for ($i = 0; $i < $count; $i++) {
                         || this.mrlNotedBy !== this.initialMrlNotedBy
                         || this.mrlEvaluatedByPosition !== this.initialMrlEvaluatedByPosition
                         || this.mrlReviewedByPosition !== this.initialMrlReviewedByPosition
-                        || this.mrlNotedByPosition !== this.initialMrlNotedByPosition;
+                        || this.mrlNotedByPosition !== this.initialMrlNotedByPosition
+                        || this.mrlEvaluatedByLabel !== this.initialMrlEvaluatedByLabel
+                        || this.mrlReviewedByLabel !== this.initialMrlReviewedByLabel
+                        || this.mrlNotedByLabel !== this.initialMrlNotedByLabel;
                 }
 
                 if (type === 'TMRL') {
@@ -520,11 +630,17 @@ for ($i = 0; $i < $count; $i++) {
                         || this.tmrlNotedBy !== this.initialTmrlNotedBy
                         || this.tmrlEvaluatedByPosition !== this.initialTmrlEvaluatedByPosition
                         || this.tmrlReviewedByPosition !== this.initialTmrlReviewedByPosition
-                        || this.tmrlNotedByPosition !== this.initialTmrlNotedByPosition;
+                        || this.tmrlNotedByPosition !== this.initialTmrlNotedByPosition
+                        || this.tmrlEvaluatedByLabel !== this.initialTmrlEvaluatedByLabel
+                        || this.tmrlReviewedByLabel !== this.initialTmrlReviewedByLabel
+                        || this.tmrlNotedByLabel !== this.initialTmrlNotedByLabel;
                 }
 
                 // SRL
                 return progressDirty || dateDirty
+                    || this.srlEvaluatedByLabel !== this.initialSrlEvaluatedByLabel
+                    || this.srlReviewedByLabel !== this.initialSrlReviewedByLabel
+                    || this.srlNotedByLabel !== this.initialSrlNotedByLabel
                     || this.srlEvaluatedBy !== this.initialSrlEvaluatedBy
                     || this.srlEvaluatedByPosition !== this.initialSrlEvaluatedByPosition
                     || this.srlReviewedBy !== this.initialSrlReviewedBy
@@ -562,12 +678,24 @@ for ($i = 0; $i < $count; $i++) {
                     || this.trlNotedByPosition !== this.initialTrlNotedByPosition
                     || this.approvedBy !== this.initialApprovedBy
                     || this.approvedByPosition !== this.initialApprovedByPosition
+                    || this.preparedByLabel !== this.initialPreparedByLabel
+                    || this.trlNotedByLabel !== this.initialTrlNotedByLabel
+                    || this.approvedByLabel !== this.initialApprovedByLabel
                     || this.srlEvaluatedBy !== this.initialSrlEvaluatedBy
                     || this.srlEvaluatedByPosition !== this.initialSrlEvaluatedByPosition
                     || this.srlReviewedBy !== this.initialSrlReviewedBy
                     || this.srlReviewedByPosition !== this.initialSrlReviewedByPosition
                     || this.srlNotedBy !== this.initialSrlNotedBy
-                    || this.srlNotedByPosition !== this.initialSrlNotedByPosition;
+                    || this.srlNotedByPosition !== this.initialSrlNotedByPosition
+                    || this.mrlEvaluatedByLabel !== this.initialMrlEvaluatedByLabel
+                    || this.mrlReviewedByLabel !== this.initialMrlReviewedByLabel
+                    || this.mrlNotedByLabel !== this.initialMrlNotedByLabel
+                    || this.tmrlEvaluatedByLabel !== this.initialTmrlEvaluatedByLabel
+                    || this.tmrlReviewedByLabel !== this.initialTmrlReviewedByLabel
+                    || this.tmrlNotedByLabel !== this.initialTmrlNotedByLabel
+                    || this.srlEvaluatedByLabel !== this.initialSrlEvaluatedByLabel
+                    || this.srlReviewedByLabel !== this.initialSrlReviewedByLabel
+                    || this.srlNotedByLabel !== this.initialSrlNotedByLabel;
             },
             // The official 0-9 score (matches ReadinessRubric::scoreFromProgress()
             // server-side): the weighted fraction-per-level sum, rounded to 1
@@ -621,6 +749,9 @@ for ($i = 0; $i < $count; $i++) {
                     this.trlNotedByPosition = '';
                     this.approvedBy = '';
                     this.approvedByPosition = '';
+                    this.preparedByLabel = '';
+                    this.trlNotedByLabel = '';
+                    this.approvedByLabel = '';
                 } else if (type === 'MRL') {
                     this.mrlEvaluatedBy = '';
                     this.mrlReviewedBy = '';
@@ -628,6 +759,9 @@ for ($i = 0; $i < $count; $i++) {
                     this.mrlEvaluatedByPosition = '';
                     this.mrlReviewedByPosition = '';
                     this.mrlNotedByPosition = '';
+                    this.mrlEvaluatedByLabel = '';
+                    this.mrlReviewedByLabel = '';
+                    this.mrlNotedByLabel = '';
                 } else if (type === 'TMRL') {
                     this.tmrlEvaluatedBy = '';
                     this.tmrlReviewedBy = '';
@@ -635,6 +769,9 @@ for ($i = 0; $i < $count; $i++) {
                     this.tmrlEvaluatedByPosition = '';
                     this.tmrlReviewedByPosition = '';
                     this.tmrlNotedByPosition = '';
+                    this.tmrlEvaluatedByLabel = '';
+                    this.tmrlReviewedByLabel = '';
+                    this.tmrlNotedByLabel = '';
                 } else if (type === 'SRL') {
                     this.srlEvaluatedBy = '';
                     this.srlEvaluatedByPosition = '';
@@ -642,6 +779,9 @@ for ($i = 0; $i < $count; $i++) {
                     this.srlReviewedByPosition = '';
                     this.srlNotedBy = '';
                     this.srlNotedByPosition = '';
+                    this.srlEvaluatedByLabel = '';
+                    this.srlReviewedByLabel = '';
+                    this.srlNotedByLabel = '';
                 }
 
                 this.showClearConfirm = false;
@@ -740,7 +880,7 @@ for ($i = 0; $i < $count; $i++) {
                 </div>
 
                 <form method="POST" action="{{ route('admin.assessment-hub.assessments.update', $selectedStartup) }}" id="assessment-form"
-                    @submit="const problem = formProblem(); if (problem) { $event.preventDefault(); $store.toast.error('Cannot save yet', problem); } else { $store.navigation.hasUnsavedChanges = false }">
+                    @submit="trySubmit($event)">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="stage" value="{{ $selectedStage }}">
@@ -778,12 +918,24 @@ for ($i = 0; $i < $count; $i++) {
                     <input type="hidden" name="trl_noted_by_position" :value="trlNotedByPosition">
                     <input type="hidden" name="approved_by" :value="approvedBy">
                     <input type="hidden" name="approved_by_position" :value="approvedByPosition">
+                    <input type="hidden" name="prepared_by_label" :value="preparedByLabel">
+                    <input type="hidden" name="trl_noted_by_label" :value="trlNotedByLabel">
+                    <input type="hidden" name="approved_by_label" :value="approvedByLabel">
                     <input type="hidden" name="srl_evaluated_by" :value="srlEvaluatedBy">
                     <input type="hidden" name="srl_evaluated_by_position" :value="srlEvaluatedByPosition">
                     <input type="hidden" name="srl_reviewed_by" :value="srlReviewedBy">
                     <input type="hidden" name="srl_reviewed_by_position" :value="srlReviewedByPosition">
                     <input type="hidden" name="srl_noted_by" :value="srlNotedBy">
                     <input type="hidden" name="srl_noted_by_position" :value="srlNotedByPosition">
+                    <input type="hidden" name="mrl_evaluated_by_label" :value="mrlEvaluatedByLabel">
+                    <input type="hidden" name="mrl_reviewed_by_label" :value="mrlReviewedByLabel">
+                    <input type="hidden" name="mrl_noted_by_label" :value="mrlNotedByLabel">
+                    <input type="hidden" name="tmrl_evaluated_by_label" :value="tmrlEvaluatedByLabel">
+                    <input type="hidden" name="tmrl_reviewed_by_label" :value="tmrlReviewedByLabel">
+                    <input type="hidden" name="tmrl_noted_by_label" :value="tmrlNotedByLabel">
+                    <input type="hidden" name="srl_evaluated_by_label" :value="srlEvaluatedByLabel">
+                    <input type="hidden" name="srl_reviewed_by_label" :value="srlReviewedByLabel">
+                    <input type="hidden" name="srl_noted_by_label" :value="srlNotedByLabel">
 
                     @foreach ($rubricLevels as $type => $levels)
                     <div x-show="activeType === '{{ $type }}'" @if ($type !=='TRL' ) x-cloak @endif>
@@ -1091,89 +1243,147 @@ for ($i = 0; $i < $count; $i++) {
 
                     <div x-show="activeType === 'TRL'" x-cloak class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Prepared By:</p>
+                            <input type="text" x-model="preparedByLabel" maxlength="60" placeholder="Prepared By:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged('preparedBy')">
                             <input type="text" x-model="preparedBy" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('preparedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('preparedBy')">
                             <input type="text" x-model="preparedByPosition" data-person-name placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('preparedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('preparedBy')">
                         </div>
 
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
+                            <input type="text" x-model="trlNotedByLabel" maxlength="60" placeholder="Noted By:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged('trlNotedBy')">
                             <input type="text" x-model="trlNotedBy" placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('trlNotedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('trlNotedBy')">
                             <input type="text" x-model="trlNotedByPosition" placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('trlNotedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('trlNotedBy')">
                         </div>
 
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Approved by:</p>
+                            <input type="text" x-model="approvedByLabel" maxlength="60" placeholder="Approved by:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged('approvedBy')">
                             <input type="text" x-model="approvedBy" placeholder="Input Name" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('approvedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('approvedBy')">
                             <textarea x-model="approvedByPosition" placeholder="Position" data-person-name rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('approvedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('approvedBy')"></textarea>
                         </div>
                     </div>
 
                     <div x-show="activeType === 'MRL' || activeType === 'TMRL'" x-cloak class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
+                            <input type="text" x-model="evaluatedByLabel" maxlength="60" placeholder="Evaluated by:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')">
                             <input type="text" x-model="evaluatedBy" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')">
                             @if ($isPostAssessment)
                             <input type="text" x-model="evaluatedByPosition" data-person-name placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')">
                             @else
                             <textarea x-model="evaluatedByPosition" placeholder="Position" data-person-name rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')"></textarea>
                             @endif
                         </div>
 
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
+                            <input type="text" x-model="reviewedByLabel" maxlength="60" placeholder="Reviewed by:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy')">
                             <input type="text" x-model="reviewedBy" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy')">
                             <input type="text" x-model="reviewedByPosition" placeholder="Position" data-person-name
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy')">
                         </div>
 
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
+                            <input type="text" x-model="notedByLabel" maxlength="60" placeholder="Noted by:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy')">
                             <input type="text" x-model="notedBy" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy')">
                             <textarea x-model="notedByPosition" placeholder="Position" data-person-name rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy')"></textarea>
                         </div>
                     </div>
 
                     <div x-show="activeType === 'SRL'" x-cloak class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
+                            <input type="text" x-model="srlEvaluatedByLabel" maxlength="60" placeholder="Evaluated by:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged('srlEvaluatedBy')">
                             <input type="text" x-model="srlEvaluatedBy" placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('srlEvaluatedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('srlEvaluatedBy')">
                             @if ($isPostAssessment)
                             <input type="text" x-model="srlEvaluatedByPosition" placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('srlEvaluatedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('srlEvaluatedBy')">
                             @else
                             <textarea x-model="srlEvaluatedByPosition" placeholder="Position" rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('srlEvaluatedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('srlEvaluatedBy')"></textarea>
                             @endif
                         </div>
 
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
+                            <input type="text" x-model="srlReviewedByLabel" maxlength="60" placeholder="Reviewed by:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged('srlReviewedBy')">
                             <input type="text" x-model="srlReviewedBy" placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('srlReviewedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('srlReviewedBy')">
                             <input type="text" x-model="srlReviewedByPosition" placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('srlReviewedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('srlReviewedBy')">
                         </div>
 
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
+                            <input type="text" x-model="srlNotedByLabel" maxlength="60" placeholder="Noted by:" title="Click to edit this label"
+                                class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                                @input="sigLabelChanged('srlNotedBy')">
                             <input type="text" x-model="srlNotedBy" placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('srlNotedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('srlNotedBy')">
                             <textarea x-model="srlNotedByPosition" placeholder="Position" rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="sigBad('srlNotedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
+                                :disabled="! sigHasLabel('srlNotedBy')"></textarea>
                         </div>
                     </div>
 

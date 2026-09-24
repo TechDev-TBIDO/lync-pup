@@ -35,6 +35,9 @@
         }
         $seed['noted_by'] = $doc6Data['noted_by'] ?? '';
         $seed['noted_by_position'] = $doc6Data['noted_by_position'] ?? '';
+        // Editable signatory captions.
+        $seed['prepared_by_label'] = $doc6Data['prepared_by_label'] ?? '';
+        $seed['noted_by_label'] = $doc6Data['noted_by_label'] ?? '';
 
         return $seed;
     };
@@ -60,6 +63,8 @@
         $seed['prepared_by_position'] = $doc7Data['prepared_by_position'] ?? '';
         $seed['noted_by_name'] = $doc7Data['noted_by_name'] ?? '';
         $seed['noted_by_position'] = $doc7Data['noted_by_position'] ?? '';
+        $seed['prepared_by_label'] = $doc7Data['prepared_by_label'] ?? '';
+        $seed['noted_by_label'] = $doc7Data['noted_by_label'] ?? '';
 
         return $seed;
     };
@@ -102,6 +107,9 @@
         $seed['noted_by_position'] = $doc8Data['noted_by_position'] ?? '';
         $seed['approved_by_name'] = $doc8Data['approved_by_name'] ?? '';
         $seed['approved_by_position'] = $doc8Data['approved_by_position'] ?? '';
+        $seed['validated_by_label'] = $doc8Data['validated_by_label'] ?? '';
+        $seed['noted_by_label'] = $doc8Data['noted_by_label'] ?? '';
+        $seed['approved_by_label'] = $doc8Data['approved_by_label'] ?? '';
 
         return $seed;
     };
@@ -227,7 +235,57 @@
 
             return window.LyncFormat.firstProblem(list);
         },
+        // A filled-in signatory label makes that signatory's name and position
+        // required (see LyncFormat.signatoryCheck). Only the open document
+        // is checked, same as formProblem().
+        sigTried: false,
+        sigRules() {
+            const one = (doc, where, role, nameKey) => ({
+                label: `${doc}.${role}_label`,
+                name: `${doc}.${nameKey || role + '_name'}`,
+                position: `${doc}.${role}_position`,
+                where,
+            });
+            if (this.activeDoc === 6) {
+                return [
+                    {
+                        label: 'doc6.prepared_by_label',
+                        rows: (this.doc6.prepared_by || []).map((row, i) => [`doc6.prepared_by[${i}].name`, `doc6.prepared_by[${i}].position`]),
+                        where: 'Document 6',
+                    },
+                    one('doc6', 'Document 6', 'noted_by', 'noted_by'),
+                ];
+            }
+            if (this.activeDoc === 7) {
+                return [one('doc7', 'Document 7', 'prepared_by'), one('doc7', 'Document 7', 'noted_by')];
+            }
+            if (this.activeDoc === 8) {
+                return ['validated_by', 'noted_by', 'approved_by'].map(role => one('doc8', 'Document 8', role));
+            }
+            return [];
+        },
+        // No label = no signatory: its name and position boxes are locked
+        // (and emptied when the label is cleared).
+        sigHasLabel(labelPath) {
+            return window.LyncFormat.filled(window.LyncFormat.pathGet(this, labelPath));
+        },
+        sigLabelChanged(labelPath, fieldPaths) {
+            if (this.sigHasLabel(labelPath)) return;
+            fieldPaths.forEach(path => window.LyncFormat.pathSet(this, path, ''));
+        },
+        sigBad(path) {
+            if (! this.sigTried) return false;
+            return window.LyncFormat.signatoryCheck(this, this.sigRules()).missing.includes(path);
+        },
         trySubmit(event) {
+            const sig = window.LyncFormat.signatoryCheck(this, this.sigRules());
+            if (sig.message) {
+                event.preventDefault();
+                this.sigTried = true;
+                this.$store.toast.error('Cannot save yet', sig.message);
+                return;
+            }
+
             const problem = this.formProblem();
             if (problem) {
                 event.preventDefault();
@@ -438,24 +496,36 @@
                 @endforeach
 
                 <div class="mt-8 border-t border-gray-200 pt-6">
-                    <p class="mb-4 text-sm font-semibold text-gray-700">Prepared By:</p>
+                    <input type="text" x-model="doc6.prepared_by_label" maxlength="60" placeholder="Prepared By:" title="Click to edit this label"
+                        class="mb-4 max-w-xs w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                            @input="sigLabelChanged('doc6.prepared_by_label', (doc6.prepared_by || []).flatMap((row, i) => [`doc6.prepared_by[${i}].name`, `doc6.prepared_by[${i}].position`]))">
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
                         @for ($i = 0; $i < 3; $i++)
                         <div>
                             <input type="text" x-model="doc6.prepared_by[{{ $i }}].name" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc6.prepared_by[' + {{ $i }} + '].name') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc6.prepared_by_label')">
                             <input type="text" x-model="doc6.prepared_by[{{ $i }}].position" placeholder="Position" data-person-name
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc6.prepared_by[' + {{ $i }} + '].position') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc6.prepared_by_label')">
                         </div>
                         @endfor
                     </div>
 
-                    <p class="mb-2 mt-6 text-sm font-semibold text-gray-700">Noted By:</p>
+                    <input type="text" x-model="doc6.noted_by_label" maxlength="60" placeholder="Noted By:" title="Click to edit this label"
+                        class="mb-2 mt-6 max-w-xs w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                            @input="sigLabelChanged('doc6.noted_by_label', ['doc6.noted_by', 'doc6.noted_by_position'])">
                     <div class="max-w-xs">
                         <input type="text" x-model="doc6.noted_by" data-person-name placeholder="Input Name"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc6.noted_by') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc6.noted_by_label')">
                         <input type="text" x-model="doc6.noted_by_position" placeholder="Position" data-person-name
-                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc6.noted_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc6.noted_by_label')">
                     </div>
                 </div>
             </div>
@@ -554,19 +624,31 @@
 
                 <div class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-2">
                     <div>
-                        <p class="mb-2 text-sm font-semibold text-gray-700">Prepared By:</p>
+                        <input type="text" x-model="doc7.prepared_by_label" maxlength="60" placeholder="Prepared By:" title="Click to edit this label"
+                        class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                            @input="sigLabelChanged('doc7.prepared_by_label', ['doc7.prepared_by_name', 'doc7.prepared_by_position'])">
                         <input type="text" x-model="doc7.prepared_by_name" data-person-name placeholder="Input Name"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc7.prepared_by_name') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc7.prepared_by_label')">
                         <input type="text" x-model="doc7.prepared_by_position" placeholder="Position" data-person-name
-                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc7.prepared_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc7.prepared_by_label')">
                     </div>
 
                     <div>
-                        <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
+                        <input type="text" x-model="doc7.noted_by_label" maxlength="60" placeholder="Noted By:" title="Click to edit this label"
+                        class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                            @input="sigLabelChanged('doc7.noted_by_label', ['doc7.noted_by_name', 'doc7.noted_by_position'])">
                         <input type="text" x-model="doc7.noted_by_name" data-person-name placeholder="Input Name"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc7.noted_by_name') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc7.noted_by_label')">
                         <input type="text" x-model="doc7.noted_by_position" placeholder="Position" data-person-name
-                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                            class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc7.noted_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc7.noted_by_label')">
                     </div>
                 </div>
             </div>
@@ -756,49 +838,69 @@
                 </div>
 
                 <div class="mt-8 border-t border-gray-200 pt-6">
-                    <p class="mb-3 text-sm font-semibold text-gray-700">Validated By:</p>
+                    <input type="text" x-model="doc8.validated_by_label" maxlength="60" placeholder="Validated By:" title="Click to edit this label"
+                        class="mb-3 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                            @input="sigLabelChanged('doc8.validated_by_label', ['doc8.validated_by_name', 'doc8.validated_by_position', 'doc8.validated_by_contact', 'doc8.validated_by_date'])">
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Name</p>
                             <input type="text" x-model="doc8.validated_by_name" placeholder="Input Name" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc8.validated_by_name') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc8.validated_by_label')">
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Position / Affiliation</p>
                             <input type="text" x-model="doc8.validated_by_position" placeholder="Position" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc8.validated_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc8.validated_by_label')">
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Contact No.</p>
                             <input type="text" x-model="doc8.validated_by_contact" data-ph-mobile placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                                 maxlength="13" inputmode="tel"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                :class="doc8.validated_by_contact && ! /^(09\d{9}|\+639\d{9})$/.test(doc8.validated_by_contact) ? 'border-red-400' : ''">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :class="doc8.validated_by_contact && ! /^(09\d{9}|\+639\d{9})$/.test(doc8.validated_by_contact) ? 'border-red-400' : ''"
+                            :disabled="! sigHasLabel('doc8.validated_by_label')">
                             <p x-show="doc8.validated_by_contact && ! /^(09\d{9}|\+639\d{9})$/.test(doc8.validated_by_contact)" x-cloak
                                 class="mt-1 text-xs text-red-600">Use format 09XXXXXXXXX or +639XXXXXXXXX.</p>
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Date</p>
                             <input type="date" x-model="doc8.validated_by_date"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :disabled="! sigHasLabel('doc8.validated_by_label')">
                         </div>
                     </div>
 
                     <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
+                            <input type="text" x-model="doc8.noted_by_label" maxlength="60" placeholder="Noted By:" title="Click to edit this label"
+                        class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                            @input="sigLabelChanged('doc8.noted_by_label', ['doc8.noted_by_name', 'doc8.noted_by_position'])">
                             <input type="text" x-model="doc8.noted_by_name" placeholder="Input Name" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc8.noted_by_name') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc8.noted_by_label')">
                             <input type="text" x-model="doc8.noted_by_position" placeholder="Position" data-person-name
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc8.noted_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc8.noted_by_label')">
                         </div>
 
                         <div>
-                            <p class="mb-2 text-sm font-semibold text-gray-700">Approved By:</p>
+                            <input type="text" x-model="doc8.approved_by_label" maxlength="60" placeholder="Approved By:" title="Click to edit this label"
+                        class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                            @input="sigLabelChanged('doc8.approved_by_label', ['doc8.approved_by_name', 'doc8.approved_by_position'])">
                             <input type="text" x-model="doc8.approved_by_name" placeholder="Input Name" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc8.approved_by_name') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc8.approved_by_label')">
                             <textarea x-model="doc8.approved_by_position" placeholder="Position" data-person-name rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            :class="sigBad('doc8.approved_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                            :disabled="! sigHasLabel('doc8.approved_by_label')"></textarea>
                         </div>
                     </div>
                 </div>

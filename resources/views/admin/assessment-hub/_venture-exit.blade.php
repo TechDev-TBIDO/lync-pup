@@ -45,6 +45,10 @@
     $veSeed['reviewed_by_position'] = $veData['reviewed_by_position'] ?? '';
     $veSeed['noted_by_name'] = $veData['noted_by_name'] ?? '';
     $veSeed['noted_by_position'] = $veData['noted_by_position'] ?? '';
+    // Editable signatory captions.
+    $veSeed['evaluated_by_label'] = $veData['evaluated_by_label'] ?? '';
+    $veSeed['reviewed_by_label'] = $veData['reviewed_by_label'] ?? '';
+    $veSeed['noted_by_label'] = $veData['noted_by_label'] ?? '';
 
     // Exit status — mutually exclusive per the reference definitions:
     // "Completed" (finished the cohort with requirements still missing) vs
@@ -199,7 +203,39 @@
 
             return window.LyncFormat.firstProblem(list);
         },
+        // A filled-in signatory label makes that signatory's name and position
+        // required (see LyncFormat.signatoryCheck).
+        sigTried: false,
+        sigRules() {
+            return ['evaluated_by', 'reviewed_by', 'noted_by'].map(role => ({
+                label: `ve.${role}_label`,
+                name: `ve.${role}_name`,
+                position: `ve.${role}_position`,
+                where: 'Venture Exit',
+            }));
+        },
+        // No label = no signatory: its name and position boxes are locked
+        // (and emptied when the label is cleared).
+        sigHasLabel(labelPath) {
+            return window.LyncFormat.filled(window.LyncFormat.pathGet(this, labelPath));
+        },
+        sigLabelChanged(labelPath, fieldPaths) {
+            if (this.sigHasLabel(labelPath)) return;
+            fieldPaths.forEach(path => window.LyncFormat.pathSet(this, path, ''));
+        },
+        sigBad(path) {
+            if (! this.sigTried) return false;
+            return window.LyncFormat.signatoryCheck(this, this.sigRules()).missing.includes(path);
+        },
         trySubmit(event) {
+            const sig = window.LyncFormat.signatoryCheck(this, this.sigRules());
+            if (sig.message) {
+                event.preventDefault();
+                this.sigTried = true;
+                this.$store.toast.error('Cannot save yet', sig.message);
+                return;
+            }
+
             const problem = this.formProblem();
             if (problem) {
                 event.preventDefault();
@@ -405,27 +441,45 @@
 
             <div class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
                 <div>
-                    <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
+                    <input type="text" x-model="ve.evaluated_by_label" maxlength="60" placeholder="Evaluated by:" title="Click to edit this label"
+                        class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                        @input="sigLabelChanged('ve.evaluated_by_label', ['ve.evaluated_by_name', 've.evaluated_by_position'])">
                     <input type="text" x-model="ve.evaluated_by_name" data-person-name placeholder="Input Name"
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :class="sigBad('ve.evaluated_by_name') && '!border-red-500 ring-1 ring-red-500'"
+                        :disabled="! sigHasLabel('ve.evaluated_by_label')">
                     <input type="text" x-model="ve.evaluated_by_position" placeholder="Position" data-person-name
-                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :class="sigBad('ve.evaluated_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                        :disabled="! sigHasLabel('ve.evaluated_by_label')">
                 </div>
 
                 <div>
-                    <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
+                    <input type="text" x-model="ve.reviewed_by_label" maxlength="60" placeholder="Reviewed by:" title="Click to edit this label"
+                        class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                        @input="sigLabelChanged('ve.reviewed_by_label', ['ve.reviewed_by_name', 've.reviewed_by_position'])">
                     <input type="text" x-model="ve.reviewed_by_name" data-person-name placeholder="Input Name"
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :class="sigBad('ve.reviewed_by_name') && '!border-red-500 ring-1 ring-red-500'"
+                        :disabled="! sigHasLabel('ve.reviewed_by_label')">
                     <input type="text" x-model="ve.reviewed_by_position" placeholder="Position" data-person-name
-                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :class="sigBad('ve.reviewed_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                        :disabled="! sigHasLabel('ve.reviewed_by_label')">
                 </div>
 
                 <div>
-                    <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
+                    <input type="text" x-model="ve.noted_by_label" maxlength="60" placeholder="Noted by:" title="Click to edit this label"
+                        class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
+                        @input="sigLabelChanged('ve.noted_by_label', ['ve.noted_by_name', 've.noted_by_position'])">
                     <input type="text" x-model="ve.noted_by_name" data-person-name placeholder="Input Name"
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :class="sigBad('ve.noted_by_name') && '!border-red-500 ring-1 ring-red-500'"
+                        :disabled="! sigHasLabel('ve.noted_by_label')">
                     <input type="text" x-model="ve.noted_by_position" placeholder="Position" data-person-name
-                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :class="sigBad('ve.noted_by_position') && '!border-red-500 ring-1 ring-red-500'"
+                        :disabled="! sigHasLabel('ve.noted_by_label')">
                 </div>
             </div>
 
