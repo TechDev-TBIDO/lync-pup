@@ -265,7 +265,7 @@ class WordDocumentExporter
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
         $inList = fn(array $list, string $needle) => in_array($needle, $list, true);
         $processor->setValue('company_name', $v($startup->company_name));
-        $processor->setValue('assessment_date', $d($assessment?->assessment_date));
+        $processor->setValue('assessment_date', $d($assessment?->trl_assessment_date ?? $assessment?->assessment_date));
         $processor->setValue('founder', $v($overview['founder'] ?? ''));
         $processor->setValue('contact_info', $v($overview['contact_info'] ?? ''));
         $processor->setValue('tech_lead', $v($overview['tech_lead'] ?? ''));
@@ -408,7 +408,7 @@ class WordDocumentExporter
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
-        $processor->setValue('assessment_date', $d($assessment?->assessment_date));
+        $processor->setValue('assessment_date', $d($assessment?->mrl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('MRL') as $level => $definition) {
             $criteriaChecked = $progress[$level] ?? $progress[(string) $level] ?? [];
@@ -472,7 +472,7 @@ class WordDocumentExporter
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
-        $processor->setValue('assessment_date', $d($assessment?->assessment_date));
+        $processor->setValue('assessment_date', $d($assessment?->tmrl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('TMRL') as $level => $definition) {
             $criteriaChecked = $progress[$level] ?? $progress[(string) $level] ?? [];
@@ -538,7 +538,7 @@ class WordDocumentExporter
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
-        $processor->setValue('assessment_date', $d($assessment?->assessment_date));
+        $processor->setValue('assessment_date', $d($assessment?->srl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('SRL') as $level => $definition) {
             $criteriaChecked = $progress[$level] ?? $progress[(string) $level] ?? [];
@@ -666,7 +666,7 @@ class WordDocumentExporter
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
-        $processor->setValue('assessment_date', $d($assessment?->assessment_date));
+        $processor->setValue('assessment_date', $d($assessment?->mrl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('MRL') as $level => $definition) {
             $criteriaChecked = $progress[$level] ?? $progress[(string) $level] ?? [];
@@ -728,7 +728,7 @@ class WordDocumentExporter
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
-        $processor->setValue('assessment_date', $d($assessment?->assessment_date));
+        $processor->setValue('assessment_date', $d($assessment?->tmrl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('TMRL') as $level => $definition) {
             $criteriaChecked = $progress[$level] ?? $progress[(string) $level] ?? [];
@@ -790,7 +790,7 @@ class WordDocumentExporter
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
-        $processor->setValue('assessment_date', $d($assessment?->assessment_date));
+        $processor->setValue('assessment_date', $d($assessment?->srl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('SRL') as $level => $definition) {
             $criteriaChecked = $progress[$level] ?? $progress[(string) $level] ?? [];
@@ -1081,14 +1081,14 @@ class WordDocumentExporter
             }
             $avg = \App\Support\ActiveAssessmentForms::averageRating(data_get($data, "ratings.$catKey", []));
             $categoryAverages[$catKey] = $avg;
-            $processor->setValue("avg_{$catKey}", $avg !== null ? (string) $avg : '');
+            $processor->setValue("avg_{$catKey}", $avg !== null ? number_format($avg, 1) : '');
             $processor->setValue("interp_{$catKey}", (string) (\App\Support\ActiveAssessmentForms::scoreInterpretation($avg) ?? ''));
-            $processor->setValue("sum_{$catKey}", $avg !== null ? (string) $avg : '');
+            $processor->setValue("sum_{$catKey}", $avg !== null ? number_format($avg, 1) : '');
         }
 
         $filledAverages = array_filter($categoryAverages, fn($a) => $a !== null);
-        $overallAvg = $filledAverages ? \App\Support\ActiveAssessmentForms::averageRating($filledAverages) : null;
-        $processor->setValue('sum_total', $overallAvg !== null ? (string) $overallAvg : '');
+        $overallAvg = $filledAverages ? \App\Support\ActiveAssessmentForms::averageRating($filledAverages, 2) : null;
+        $processor->setValue('sum_total', $overallAvg !== null ? number_format($overallAvg, 2) : '');
         $processor->setValue('sum_overall_interp', (string) (\App\Support\ActiveAssessmentForms::scoreInterpretation($overallAvg) ?? ''));
 
         $processor->setValue('validated_by_label', htmlspecialchars((string) data_get($data, 'validated_by_label', ''), ENT_XML1));

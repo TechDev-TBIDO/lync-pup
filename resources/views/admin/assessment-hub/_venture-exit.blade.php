@@ -243,6 +243,18 @@
                 return;
             }
 
+            // Date of Assessment follows the last edit: when something else on
+            // the form changed and the admin didn't pick a date by hand, it
+            // becomes today. Written straight into the posted JSON too, since
+            // the form submits before Alpine re-renders the hidden input.
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            if ((this.ve.date_of_assessment === this.initialVe.date_of_assessment && this.isDirty()) || ! this.ve.date_of_assessment) {
+                this.ve.date_of_assessment = today;
+            }
+            const payload = event.target.querySelector('input[name=document_13]');
+            if (payload) payload.value = JSON.stringify(this.ve);
+
             // Submission is actually going through (full page reload) —
             // same as the other assessment forms' @submit reset, so the
             // beforeunload guard doesn't fire a native 'leave site?' prompt
@@ -444,42 +456,42 @@
                     <input type="text" x-model="ve.evaluated_by_label" maxlength="60" placeholder="Evaluated by:" title="Click to edit this label"
                         class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                         @input="sigLabelChanged('ve.evaluated_by_label', ['ve.evaluated_by_name', 've.evaluated_by_position'])">
-                    <input type="text" x-model="ve.evaluated_by_name" data-person-name placeholder="Input Name"
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    <textarea rows="1" data-auto-grow x-effect="ve.evaluated_by_name; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="ve.evaluated_by_name" data-person-name placeholder="Input Name"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                         :class="sigBad('ve.evaluated_by_name') && '!border-red-500 ring-1 ring-red-500'"
-                        :disabled="! sigHasLabel('ve.evaluated_by_label')">
-                    <input type="text" x-model="ve.evaluated_by_position" placeholder="Position" data-person-name
-                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :disabled="! sigHasLabel('ve.evaluated_by_label')"></textarea>
+                    <textarea rows="1" data-auto-grow x-effect="ve.evaluated_by_position; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="ve.evaluated_by_position" placeholder="Position" data-person-name
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                         :class="sigBad('ve.evaluated_by_position') && '!border-red-500 ring-1 ring-red-500'"
-                        :disabled="! sigHasLabel('ve.evaluated_by_label')">
+                        :disabled="! sigHasLabel('ve.evaluated_by_label')"></textarea>
                 </div>
 
                 <div>
                     <input type="text" x-model="ve.reviewed_by_label" maxlength="60" placeholder="Reviewed by:" title="Click to edit this label"
                         class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                         @input="sigLabelChanged('ve.reviewed_by_label', ['ve.reviewed_by_name', 've.reviewed_by_position'])">
-                    <input type="text" x-model="ve.reviewed_by_name" data-person-name placeholder="Input Name"
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    <textarea rows="1" data-auto-grow x-effect="ve.reviewed_by_name; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="ve.reviewed_by_name" data-person-name placeholder="Input Name"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                         :class="sigBad('ve.reviewed_by_name') && '!border-red-500 ring-1 ring-red-500'"
-                        :disabled="! sigHasLabel('ve.reviewed_by_label')">
-                    <input type="text" x-model="ve.reviewed_by_position" placeholder="Position" data-person-name
-                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :disabled="! sigHasLabel('ve.reviewed_by_label')"></textarea>
+                    <textarea rows="1" data-auto-grow x-effect="ve.reviewed_by_position; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="ve.reviewed_by_position" placeholder="Position" data-person-name
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                         :class="sigBad('ve.reviewed_by_position') && '!border-red-500 ring-1 ring-red-500'"
-                        :disabled="! sigHasLabel('ve.reviewed_by_label')">
+                        :disabled="! sigHasLabel('ve.reviewed_by_label')"></textarea>
                 </div>
 
                 <div>
                     <input type="text" x-model="ve.noted_by_label" maxlength="60" placeholder="Noted by:" title="Click to edit this label"
                         class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                         @input="sigLabelChanged('ve.noted_by_label', ['ve.noted_by_name', 've.noted_by_position'])">
-                    <input type="text" x-model="ve.noted_by_name" data-person-name placeholder="Input Name"
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    <textarea rows="1" data-auto-grow x-effect="ve.noted_by_name; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="ve.noted_by_name" data-person-name placeholder="Input Name"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                         :class="sigBad('ve.noted_by_name') && '!border-red-500 ring-1 ring-red-500'"
-                        :disabled="! sigHasLabel('ve.noted_by_label')">
-                    <input type="text" x-model="ve.noted_by_position" placeholder="Position" data-person-name
-                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        :disabled="! sigHasLabel('ve.noted_by_label')"></textarea>
+                    <textarea rows="1" data-auto-grow x-effect="ve.noted_by_position; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="ve.noted_by_position" placeholder="Position" data-person-name
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                         :class="sigBad('ve.noted_by_position') && '!border-red-500 ring-1 ring-red-500'"
-                        :disabled="! sigHasLabel('ve.noted_by_label')">
+                        :disabled="! sigHasLabel('ve.noted_by_label')"></textarea>
                 </div>
             </div>
 

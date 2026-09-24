@@ -51,7 +51,7 @@
     <table class="bordered" style="margin-top: 4px;">
         <tr>
             <td width="50%"><b>Startup / Company Name:</b> {!! $v($startup->company_name) !!}</td>
-            <td width="50%"><b>Date of Assessment:</b> {!! $d($assessment?->assessment_date) !!}</td>
+            <td width="50%"><b>Date of Assessment:</b> {!! $d($assessment?->{strtolower($type).'_assessment_date'} ?? $assessment?->assessment_date) !!}</td>
         </tr>
         <tr>
             <td><b>Founder:</b> {!! $v(data_get($overview, 'founder')) !!}</td>
@@ -140,7 +140,7 @@
     <div class="section-title">SECTION 2: {{ strtoupper($meta['label']) }} ({{ $type }})</div>
 @else
     <div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($startup->company_name) !!}
-        &nbsp;&nbsp;&nbsp;<span class="field-label">Date:</span> {!! $d($assessment?->assessment_date) !!}
+        &nbsp;&nbsp;&nbsp;<span class="field-label">Date:</span> {!! $d($assessment?->{strtolower($type).'_assessment_date'} ?? $assessment?->assessment_date) !!}
         &nbsp;&nbsp;&nbsp;<span class="field-label">Score:</span> {!! $score !== null ? number_format($score, 1).'/9' : '&nbsp;' !!}
     </div>
 @endif

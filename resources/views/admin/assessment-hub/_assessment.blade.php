@@ -46,7 +46,11 @@ for ($i = 0; $i < $count; $i++) {
             || str_contains(strtolower($member->designation ?? ''), 'tech lead')
             || str_contains(strtolower($member->role ?? ''), 'cto'))
         ?->full_name;
-    $overviewAssessmentDateInput = ($currentAssessment?->assessment_date ?? now())->format('Y-m-d');
+    // Each type (TRL / MRL / TMRL / SRL) has its own Date of Assessment,
+    // starting at today; see trySubmit() for how it follows edits.
+    $overviewAssessmentDates = collect(\App\Support\ReadinessRubric::TYPES)->mapWithKeys(fn ($type) => [
+        $type => ($currentAssessment?->{strtolower($type).'_assessment_date'} ?? $currentAssessment?->assessment_date ?? now())->format('Y-m-d'),
+    ])->all();
 
     // MRL and TMRL's own independent signatory blocks — used to be one
     // shared set of columns/variables (see the migration that split them),
@@ -334,7 +338,7 @@ for ($i = 0; $i < $count; $i++) {
             expanded: { TRL: null, MRL: null, TMRL: null, SRL: null },
             progress: @js($seedProgress),
             trlOverview: @js($trlOverviewSeed),
-            assessmentDate: @js($overviewAssessmentDateInput),
+            assessmentDates: @js($overviewAssessmentDates),
             // MRL and TMRL's own independent signatory state — used to be
             // one shared evaluatedBy/reviewedBy/notedBy set, which is
             // exactly why typing into one type's block used to show up on
@@ -420,6 +424,24 @@ for ($i = 0; $i < $count; $i++) {
                     return;
                 }
 
+                // A type that was changed in this save gets today's date,
+                // unless the admin picked its date by hand. Untouched types
+                // keep theirs, so each date follows when that document was
+                // last worked on. Written straight into the hidden inputs
+                // too, since the form submits before Alpine re-renders.
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                ['TRL', 'MRL', 'TMRL', 'SRL'].forEach(type => {
+                    if (this.assessmentDates[type] === this.initialAssessmentDates[type] && this.isDirtyFor(type)) {
+                        this.assessmentDates[type] = today;
+                    }
+                    if (! this.assessmentDates[type]) {
+                        this.assessmentDates[type] = today;
+                    }
+                    const input = event.target.querySelector(`input[name='${type.toLowerCase()}_assessment_date']`);
+                    if (input) input.value = this.assessmentDates[type];
+                });
+
                 this.$store.navigation.hasUnsavedChanges = false;
             },
             formProblem() {
@@ -465,7 +487,7 @@ for ($i = 0; $i < $count; $i++) {
             srlNotedByLabel: @js($overviewSrlNotedByLabel),
             initialProgress: @js($seedProgress),
             initialTrlOverview: @js($trlOverviewSeed),
-            initialAssessmentDate: @js($overviewAssessmentDateInput),
+            initialAssessmentDates: @js($overviewAssessmentDates),
             initialMrlEvaluatedBy: @js($overviewMrlEvaluatedBy),
             initialMrlEvaluatedByPosition: @js($overviewMrlEvaluatedByPosition),
             initialMrlReviewedBy: @js($overviewMrlReviewedBy),
@@ -537,11 +559,10 @@ for ($i = 0; $i < $count; $i++) {
             // (mrlEvaluatedBy/tmrlEvaluatedBy etc. — see the x-data fields
             // above) instead of sharing one, so each branch below reads/
             // writes only its own type's fields, never the other's.
-            // assessmentDate is shared by all four types' own 'Date of
-            // Assessment' field, so it's included everywhere.
+            // Each type has its own Date of Assessment (assessmentDates[type]).
             discardChangesFor(type) {
                 this.progress[type] = JSON.parse(JSON.stringify(this.initialProgress[type]));
-                this.assessmentDate = this.initialAssessmentDate;
+                this.assessmentDates[type] = this.initialAssessmentDates[type];
 
                 if (type === 'TRL') {
                     this.trlOverview = JSON.parse(JSON.stringify(this.initialTrlOverview));
@@ -594,7 +615,7 @@ for ($i = 0; $i < $count; $i++) {
             // since Save persists all four types together in one request.
             isDirtyFor(type) {
                 const progressDirty = JSON.stringify(this.progress[type]) !== JSON.stringify(this.initialProgress[type]);
-                const dateDirty = this.assessmentDate !== this.initialAssessmentDate;
+                const dateDirty = this.assessmentDates[type] !== this.initialAssessmentDates[type];
 
                 if (type === 'TRL') {
                     return progressDirty || dateDirty
@@ -659,7 +680,7 @@ for ($i = 0; $i < $count; $i++) {
             isDirty() {
                 return JSON.stringify(this.progress) !== JSON.stringify(this.initialProgress)
                     || JSON.stringify(this.trlOverview) !== JSON.stringify(this.initialTrlOverview)
-                    || this.assessmentDate !== this.initialAssessmentDate
+                    || JSON.stringify(this.assessmentDates) !== JSON.stringify(this.initialAssessmentDates)
                     || this.mrlEvaluatedBy !== this.initialMrlEvaluatedBy
                     || this.mrlReviewedBy !== this.initialMrlReviewedBy
                     || this.mrlNotedBy !== this.initialMrlNotedBy
@@ -891,7 +912,9 @@ for ($i = 0; $i < $count; $i++) {
                     @if ($showTrlOverview)
                     <input type="hidden" name="trl_overview" :value="JSON.stringify(trlOverview)">
                     @endif
-                    <input type="hidden" name="assessment_date" :value="assessmentDate">
+                    @foreach (\App\Support\ReadinessRubric::TYPES as $dateType)
+                    <input type="hidden" name="{{ strtolower($dateType) }}_assessment_date" :value="assessmentDates['{{ $dateType }}']">
+                    @endforeach
                     {{-- MRL and TMRL each submit their own independent
                          signatory fields now (see the migration that split
                          these from one shared evaluated_by/reviewed_by/
@@ -1004,7 +1027,7 @@ for ($i = 0; $i < $count; $i++) {
                                     <div class="flex flex-col gap-5">
                                         <div>
                                             <p class="mb-1.5 text-sm font-semibold text-gray-700">Date of Assessment</p>
-                                            <input type="date" x-model="assessmentDate"
+                                            <input type="date" x-model="assessmentDates.TRL"
                                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                                         </div>
 
@@ -1027,8 +1050,9 @@ for ($i = 0; $i < $count; $i++) {
                                                     <input type="checkbox" x-model="trlOverview.industry_focus_other_enabled" class="mt-0.5 shrink-0">
                                                     Others:
                                                 </label>
-                                                <input type="text" x-show="trlOverview.industry_focus_other_enabled" x-model="trlOverview.industry_focus_other_text"
-                                                    class="w-40 rounded-md border border-gray-300 px-2 py-1 text-sm">
+                                                <textarea rows="1" x-show="trlOverview.industry_focus_other_enabled" x-model="trlOverview.industry_focus_other_text"
+                                                data-auto-grow @keydown.enter.prevent x-effect="trlOverview.industry_focus_other_text; trlOverview.industry_focus_other_enabled; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))"
+                                                class="w-full basis-full block min-w-0 resize-none overflow-hidden rounded-md border border-gray-300 px-2 py-1 text-sm"></textarea>
                                             </div>
                                         </div>
 
@@ -1065,8 +1089,9 @@ for ($i = 0; $i < $count; $i++) {
                                                 <input type="checkbox" x-model="trlOverview.technical_challenges_other_enabled" class="mt-0.5 shrink-0">
                                                 Others:
                                             </label>
-                                            <input type="text" x-show="trlOverview.technical_challenges_other_enabled" x-model="trlOverview.technical_challenges_other_text"
-                                                class="ml-6 w-[calc(100%-1.5rem)] rounded-md border border-gray-300 px-2 py-1 text-sm">
+                                            <textarea rows="1" x-show="trlOverview.technical_challenges_other_enabled" x-model="trlOverview.technical_challenges_other_text"
+                                                data-auto-grow @keydown.enter.prevent x-effect="trlOverview.technical_challenges_other_text; trlOverview.technical_challenges_other_enabled; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))"
+                                                class="ml-6 w-[calc(100%-1.5rem)] block min-w-0 resize-none overflow-hidden rounded-md border border-gray-300 px-2 py-1 text-sm"></textarea>
                                         </div>
                                     </div>
 
@@ -1107,7 +1132,12 @@ for ($i = 0; $i < $count; $i++) {
                                         <div class="flex flex-col gap-1.5 p-4">
                                             @foreach (\App\Support\TrlOverviewForm::TEAM_MATURITY_LEVELS as $option)
                                             <label class="flex items-start gap-2 text-sm text-gray-700">
-                                                <input type="radio" value="{{ $option }}" x-model="trlOverview.team_maturity_level" class="mt-0.5 shrink-0">
+                                                {{-- Square checkbox, still one level only: ticking a box picks that
+                                                     level (unticking the others), ticking the ticked one clears it. --}}
+                                                <input type="checkbox"
+                                                    :checked="trlOverview.team_maturity_level === @js($option)"
+                                                    @click="trlOverview.team_maturity_level = (trlOverview.team_maturity_level === @js($option) ? '' : @js($option))"
+                                                    class="mt-0.5 shrink-0">
                                                 {{ $option }}
                                             </label>
                                             @endforeach
@@ -1164,8 +1194,9 @@ for ($i = 0; $i < $count; $i++) {
                                                 <input type="checkbox" x-model="trlOverview.mode_of_communication_other_enabled" class="mt-0.5 shrink-0">
                                                 Others:
                                             </label>
-                                            <input type="text" x-show="trlOverview.mode_of_communication_other_enabled" x-model="trlOverview.mode_of_communication_other_text"
-                                                class="w-48 rounded-md border border-gray-300 px-2 py-1 text-sm">
+                                            <textarea rows="1" x-show="trlOverview.mode_of_communication_other_enabled" x-model="trlOverview.mode_of_communication_other_text"
+                                                data-auto-grow @keydown.enter.prevent x-effect="trlOverview.mode_of_communication_other_text; trlOverview.mode_of_communication_other_enabled; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))"
+                                                class="ml-6 w-[calc(100%-1.5rem)] block min-w-0 resize-none overflow-hidden rounded-md border border-gray-300 px-2 py-1 text-sm"></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -1190,7 +1221,7 @@ for ($i = 0; $i < $count; $i++) {
                             </div>
                             <div>
                                 <p class="mb-1.5 text-sm font-semibold text-gray-700">Date of Assessment</p>
-                                <input type="date" x-model="assessmentDate"
+                                <input type="date" x-model="assessmentDates['{{ $type }}']"
                                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             </div>
                         </div>
@@ -1246,40 +1277,40 @@ for ($i = 0; $i < $count; $i++) {
                             <input type="text" x-model="preparedByLabel" maxlength="60" placeholder="Prepared By:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged('preparedBy')">
-                            <input type="text" x-model="preparedBy" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="preparedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="preparedBy" data-person-name placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('preparedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('preparedBy')">
-                            <input type="text" x-model="preparedByPosition" data-person-name placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :disabled="! sigHasLabel('preparedBy')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="preparedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="preparedByPosition" data-person-name placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('preparedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('preparedBy')">
+                                :disabled="! sigHasLabel('preparedBy')"></textarea>
                         </div>
 
                         <div>
                             <input type="text" x-model="trlNotedByLabel" maxlength="60" placeholder="Noted By:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged('trlNotedBy')">
-                            <input type="text" x-model="trlNotedBy" placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="trlNotedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="trlNotedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('trlNotedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('trlNotedBy')">
-                            <input type="text" x-model="trlNotedByPosition" placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :disabled="! sigHasLabel('trlNotedBy')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="trlNotedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="trlNotedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('trlNotedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('trlNotedBy')">
+                                :disabled="! sigHasLabel('trlNotedBy')"></textarea>
                         </div>
 
                         <div>
                             <input type="text" x-model="approvedByLabel" maxlength="60" placeholder="Approved by:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged('approvedBy')">
-                            <input type="text" x-model="approvedBy" placeholder="Input Name" data-person-name
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="approvedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="approvedBy" placeholder="Input Name" data-person-name
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('approvedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('approvedBy')">
-                            <textarea x-model="approvedByPosition" placeholder="Position" data-person-name rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :disabled="! sigHasLabel('approvedBy')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="approvedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="approvedByPosition" placeholder="Position" data-person-name
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('approvedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
                                 :disabled="! sigHasLabel('approvedBy')"></textarea>
                         </div>
@@ -1290,18 +1321,18 @@ for ($i = 0; $i < $count; $i++) {
                             <input type="text" x-model="evaluatedByLabel" maxlength="60" placeholder="Evaluated by:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')">
-                            <input type="text" x-model="evaluatedBy" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="evaluatedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="evaluatedBy" data-person-name placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')">
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')"></textarea>
                             @if ($isPostAssessment)
-                            <input type="text" x-model="evaluatedByPosition" data-person-name placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="evaluatedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="evaluatedByPosition" data-person-name placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')">
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')"></textarea>
                             @else
-                            <textarea x-model="evaluatedByPosition" placeholder="Position" data-person-name rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="evaluatedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="evaluatedByPosition" placeholder="Position" data-person-name
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
                                 :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'EvaluatedBy')"></textarea>
                             @endif
@@ -1311,26 +1342,26 @@ for ($i = 0; $i < $count; $i++) {
                             <input type="text" x-model="reviewedByLabel" maxlength="60" placeholder="Reviewed by:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy')">
-                            <input type="text" x-model="reviewedBy" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="reviewedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="reviewedBy" data-person-name placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy')">
-                            <input type="text" x-model="reviewedByPosition" placeholder="Position" data-person-name
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="reviewedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="reviewedByPosition" placeholder="Position" data-person-name
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy')">
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'ReviewedBy')"></textarea>
                         </div>
 
                         <div>
                             <input type="text" x-model="notedByLabel" maxlength="60" placeholder="Noted by:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy')">
-                            <input type="text" x-model="notedBy" data-person-name placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="notedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="notedBy" data-person-name placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy')">
-                            <textarea x-model="notedByPosition" placeholder="Position" data-person-name rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="notedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="notedByPosition" placeholder="Position" data-person-name
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
                                 :disabled="! sigHasLabel((activeType === 'MRL' ? 'mrl' : 'tmrl') + 'NotedBy')"></textarea>
                         </div>
@@ -1341,18 +1372,18 @@ for ($i = 0; $i < $count; $i++) {
                             <input type="text" x-model="srlEvaluatedByLabel" maxlength="60" placeholder="Evaluated by:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged('srlEvaluatedBy')">
-                            <input type="text" x-model="srlEvaluatedBy" placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="srlEvaluatedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="srlEvaluatedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('srlEvaluatedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('srlEvaluatedBy')">
+                                :disabled="! sigHasLabel('srlEvaluatedBy')"></textarea>
                             @if ($isPostAssessment)
-                            <input type="text" x-model="srlEvaluatedByPosition" placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="srlEvaluatedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="srlEvaluatedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('srlEvaluatedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('srlEvaluatedBy')">
+                                :disabled="! sigHasLabel('srlEvaluatedBy')"></textarea>
                             @else
-                            <textarea x-model="srlEvaluatedByPosition" placeholder="Position" rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="srlEvaluatedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="srlEvaluatedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('srlEvaluatedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
                                 :disabled="! sigHasLabel('srlEvaluatedBy')"></textarea>
                             @endif
@@ -1362,26 +1393,26 @@ for ($i = 0; $i < $count; $i++) {
                             <input type="text" x-model="srlReviewedByLabel" maxlength="60" placeholder="Reviewed by:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged('srlReviewedBy')">
-                            <input type="text" x-model="srlReviewedBy" placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="srlReviewedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="srlReviewedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('srlReviewedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('srlReviewedBy')">
-                            <input type="text" x-model="srlReviewedByPosition" placeholder="Position"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :disabled="! sigHasLabel('srlReviewedBy')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="srlReviewedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="srlReviewedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('srlReviewedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('srlReviewedBy')">
+                                :disabled="! sigHasLabel('srlReviewedBy')"></textarea>
                         </div>
 
                         <div>
                             <input type="text" x-model="srlNotedByLabel" maxlength="60" placeholder="Noted by:" title="Click to edit this label"
                                 class="mb-2 w-full rounded-md border border-dashed border-gray-300 bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-400 focus:border-rose-900 focus:outline-none focus:ring-1 focus:ring-rose-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400"
                                 @input="sigLabelChanged('srlNotedBy')">
-                            <input type="text" x-model="srlNotedBy" placeholder="Input Name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            <textarea rows="1" data-auto-grow x-effect="srlNotedBy; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" @keydown.enter.prevent x-model="srlNotedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('srlNotedBy', 'name') && '!border-red-500 ring-1 ring-red-500'"
-                                :disabled="! sigHasLabel('srlNotedBy')">
-                            <textarea x-model="srlNotedByPosition" placeholder="Position" rows="2"
-                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                :disabled="! sigHasLabel('srlNotedBy')"></textarea>
+                            <textarea rows="1" data-auto-grow x-effect="srlNotedByPosition; activeType; $nextTick(() => window.LyncFormat.autoGrow($el))" x-model="srlNotedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:italic placeholder:font-normal placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 block resize-none overflow-hidden"
                                 :class="sigBad('srlNotedBy', 'position') && '!border-red-500 ring-1 ring-red-500'"
                                 :disabled="! sigHasLabel('srlNotedBy')"></textarea>
                         </div>

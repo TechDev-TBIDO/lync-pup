@@ -58,6 +58,29 @@
                 if (target != null) target[last] = value;
             },
             filled: function (v) { return String(v == null ? '' : v).trim() !== ''; },
+            // Single-row textareas (data-auto-grow) grow taller as the text
+            // wraps and shrink back when it's shortened. Skipped while hidden
+            // (on another tab), where there is nothing to measure.
+            autoGrow: function (el) {
+                if (!el || el.offsetParent === null) return;
+                el.style.height = 'auto';
+                el.style.height = el.scrollHeight + 'px';
+            },
+            // Table rows of auto-growing textareas (data-fit-row): every box
+            // in a row takes the height of the row's longest entry, so a row
+            // reads as one even block instead of boxes of different sizes.
+            fitRow: function (el) {
+                var row = el && el.closest ? el.closest('tr') : null;
+                var boxes = row ? row.querySelectorAll('textarea[data-fit-row]') : [el];
+                var tallest = 0;
+                Array.prototype.forEach.call(boxes, function (box) {
+                    box.style.height = 'auto';
+                    tallest = Math.max(tallest, box.scrollHeight);
+                });
+                Array.prototype.forEach.call(boxes, function (box) {
+                    box.style.height = tallest + 'px';
+                });
+            },
             signatoryCheck: function (scope, rules) {
                 var get = function (path) {
                     return String(path).replace(/\[(\d+)\]/g, '.$1').split('.')
@@ -95,6 +118,23 @@
                 return result;
             },
         };
+
+        var refitTimer = null;
+        window.addEventListener('resize', function () {
+            clearTimeout(refitTimer);
+            refitTimer = setTimeout(function () {
+                var seen = new Set();
+                document.querySelectorAll('textarea[data-auto-grow]').forEach(function (box) {
+                    window.LyncFormat.autoGrow(box);
+                });
+                document.querySelectorAll('textarea[data-fit-row]').forEach(function (box) {
+                    var row = box.closest('tr');
+                    if (row && seen.has(row)) return;
+                    if (row) seen.add(row);
+                    window.LyncFormat.fitRow(box);
+                });
+            }, 100);
+        });
 
         var NAME_BAD = /[^\p{L}\p{M}\s\/\-'’.,]/gu;
 

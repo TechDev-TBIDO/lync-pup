@@ -42,6 +42,12 @@ class AssessmentController extends Controller
             // Editable Date of Assessment picker — also only present on that
             // same TRL Pre-Assessment tab; falls back to today when absent.
             'assessment_date' => ['nullable', 'date'],
+            // Each type's own Date of Assessment (the page moves a type's date
+            // to today when that type is changed and its date wasn't).
+            'trl_assessment_date' => ['nullable', 'date'],
+            'mrl_assessment_date' => ['nullable', 'date'],
+            'tmrl_assessment_date' => ['nullable', 'date'],
+            'srl_assessment_date' => ['nullable', 'date'],
             // TRL's own signatory block ("Prepared By" / "Noted By" /
             // "Approved by") — distinct from the MRL/TMRL blocks below.
             // "Approved by" is editable but arrives pre-filled with the
@@ -194,7 +200,18 @@ class AssessmentController extends Controller
         $assessment->srl_evaluated_by_label = $validated['srl_evaluated_by_label'] ?? null;
         $assessment->srl_reviewed_by_label = $validated['srl_reviewed_by_label'] ?? null;
         $assessment->srl_noted_by_label = $validated['srl_noted_by_label'] ?? null;
-        $assessment->assessment_date = $validated['assessment_date'] ?? now();
+        // Each type keeps its own date; one that isn't sent keeps its saved
+        // date (or today on a brand-new assessment). assessment_date is the
+        // latest of the four.
+        $typeDates = [];
+        foreach (ReadinessRubric::TYPES as $type) {
+            $column = strtolower($type).'_assessment_date';
+            $assessment->{$column} = $validated[$column]
+                ?? $assessment->{$column}
+                ?? ($validated['assessment_date'] ?? now());
+            $typeDates[] = \Illuminate\Support\Carbon::parse($assessment->{$column});
+        }
+        $assessment->assessment_date = collect($typeDates)->max();
 
         // Captured before recomputeScores() so the notification below fires
         // exactly once — on the save that first produces a score. The admin

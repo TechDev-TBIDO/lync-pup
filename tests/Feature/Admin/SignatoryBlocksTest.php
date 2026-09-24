@@ -364,6 +364,17 @@ class SignatoryBlocksTest extends TestCase
         }
     }
 
+    /** Nothing after the last signatory: no trailing blank lines, page breaks or extra sections. */
+    protected function assertNothingAfterSignatories(string $xml, string $lastText): void
+    {
+        $all = array_column($this->signatoryParagraphs($xml), 0);
+        $at = array_search($lastText, $all, true);
+        $this->assertNotFalse($at);
+        $this->assertSame([], array_slice($all, $at + 1), 'Blank lines after the last signatory can spill onto an extra page.');
+        $this->assertSame(1, substr_count($xml, '<w:sectPr'), 'An extra section break adds a blank page.');
+        $this->assertStringNotContainsString('w:type="page"', substr($xml, strrpos($xml, '</w:tbl>')), 'A page break after the signatories adds a blank page.');
+    }
+
     /** Asserts exactly $count blank lines between the last table and the first signatory. */
     protected function assertBlankLinesAfterTable(string $xml, int $count): void
     {
@@ -415,6 +426,7 @@ class SignatoryBlocksTest extends TestCase
         $this->assertBlankLinesAfterTable($xml, 2);
         $this->assertTwoBlankLinesBefore($xml, 'Label 2:');
         $this->assertStringContainsString($rightIndent, $this->paragraphContaining($xml, 'Label 3:'));
+        $this->assertNothingAfterSignatories($xml, 'Title 3');
     }
 
     #[DataProvider('assessmentDocuments')]
@@ -482,6 +494,7 @@ class SignatoryBlocksTest extends TestCase
         if ($doc !== 8) {
             $this->assertBlankLinesAfterTable($xml, 2);
         }
+        $this->assertNothingAfterSignatories($xml, 'Title '.count($roles));
         $this->assertStringContainsString($rightIndent, $this->paragraphContaining($xml, 'Label '.count($roles).':'));
     }
 
