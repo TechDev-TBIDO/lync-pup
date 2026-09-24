@@ -157,7 +157,7 @@
                             </div>
                         </div>
                     </div>
-                    <p class="text-sm text-[#6D0D23] mt-3">Pre RL's {{ $stats['assessed_startup']['pre_rl_trend'] >= 0 ? 'up' : 'down' }} {{ abs($stats['assessed_startup']['pre_rl_trend']) }}% | Post RL's {{ $stats['assessed_startup']['post_rl_trend'] >= 0 ? 'up' : 'down' }} {{ abs($stats['assessed_startup']['post_rl_trend']) }}%</p>
+                    <p class="text-sm text-[#6D0D23] mt-3">Pre RL's {{ $stats['assessed_startup']['pre_rl_pct'] }}% | Post RL's {{ $stats['assessed_startup']['post_rl_pct'] }}%</p>
                 </div>
             </div>
 
