@@ -319,15 +319,12 @@ class DashboardController extends Controller
             ->where('stage', 'Post-Assessment')->whereNotNull('overall_score')
             ->pluck('startup_id')->flip();
 
-        // Row existence alone isn't "filled" here: clearAll() in
-        // _venture-exit.blade.php intentionally leaves Startup Name
-        // untouched when an admin hits "Clear Form" (so the form doesn't
-        // forget which startup it belongs to), so a cleared-and-resaved
-        // document still leaves behind a row with a non-blank `data` array
-        // — see ActiveAssessmentForms::isVentureExitFilled() for the actual
-        // "has real content" check, same one Milestone Completion below and
-        // the Assessment Hub Overview pill both use, so every "is Venture
-        // Exit actually started" check in the app agrees.
+        // Row existence (or any other field being filled in) isn't enough
+        // here — only an actual Exit Status of Graduated/Completed counts
+        // as reached (see ActiveAssessmentForms::isVentureExitFilled()),
+        // the same single rule Milestone Completion below and the
+        // Assessment Hub Overview pill both use, so every "is Venture Exit
+        // done" check in the app agrees.
         $ventureExitIds = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
@@ -532,16 +529,17 @@ class DashboardController extends Controller
             ->where('stage', 'Post-Assessment')->whereNotNull('overall_score')
             ->distinct('startup_id')->count('startup_id');
 
-        // Per direct testing feedback: the Venture Exit document row can
-        // exist while still blank (nothing stops an empty AssessmentDocument
-        // from being saved), so require its two core fields — the
-        // assessment date and the progress summary — to actually be filled
-        // rather than just checking the row exists.
+        // Venture Exit only counts as reached once its Exit Status is
+        // actually set to Graduated or Completed — same single rule the
+        // Incubation Progress donut above and the Assessment Hub Overview
+        // pill both use (see ActiveAssessmentForms::isVentureExitFilled()),
+        // so every "is Venture Exit done" check in the app agrees. A
+        // startup that's merely typed something into the form without
+        // choosing an Exit Status doesn't count, no matter which field.
         $ventureExit = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
-            ->filter(fn (AssessmentDocument $doc) => filled($doc->data['date_of_assessment'] ?? null)
-                && filled($doc->data['summary_of_progress'] ?? null))
+            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitFilled($doc->data ?? []))
             ->pluck('startup_id')->unique()->count();
 
         $pct = fn ($count) => round(($count / $totalStartups) * 100, 1);

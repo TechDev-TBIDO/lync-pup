@@ -141,8 +141,22 @@ class StartupProfileController extends Controller
         return view('admin.startups.show', compact('startup'));
     }
 
+    /**
+     * 5-minute cooldown, enforced here (not just the button disabling
+     * itself client-side in admin.startups.show) — a double-click, a slow
+     * connection triggering a second click before the page updates, or a
+     * second browser tab open on the same profile can all still reach this
+     * route a second time. Without a server-side check, any of those sends
+     * the founder a duplicate "pitch deck requested" email.
+     */
     public function requestPitchDeck(Startup $startup): RedirectResponse
     {
+        if ($startup->pitch_deck_requested_at && $startup->pitch_deck_requested_at->gt(now()->subMinutes(5))) {
+            return redirect()
+                ->route('admin.startups.show', $startup)
+                ->with('status', 'Pitch deck was already requested a few minutes ago — please wait before requesting again.');
+        }
+
         Mail::to($startup->user->email)->send(new PitchDeckRequested($startup));
 
         $startup->update(['pitch_deck_requested_at' => now()]);
