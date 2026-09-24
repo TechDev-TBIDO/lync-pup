@@ -11,6 +11,7 @@ use App\Notifications\ReadinessResultsReleased;
 use App\Notifications\WeeklyCheckInPosted;
 use App\Rules\PersonName;
 use App\Rules\PhMobile;
+use App\Support\ActiveAssessmentForms;
 use App\Support\ChangeLog;
 use App\Support\HistoryFields;
 use App\Support\ReadinessRubric;
@@ -220,6 +221,30 @@ class AssessmentController extends Controller
 
             if (array_key_exists($key, $validated)) {
                 $this->assertFieldFormats('Document '.$documentNumber, json_decode($validated[$key], true), $key);
+            }
+        }
+
+        // Active-Assessment documents can't be saved with a blank signatory
+        // (Prepared / Noted / Validated / Approved By) - same rule the Save
+        // button enforces in the browser; see ActiveAssessmentForms::documentProblems(). Only the
+        // documents the admin actually changed this time are held to it
+        // (changed_documents, sent by the form), since all three are posted
+        // on every save and an untouched tab must not block saving another.
+        if ($validated['stage'] === 'Active-Assessment') {
+            $changed = array_map('intval', (array) (json_decode((string) $request->input('changed_documents', '[]'), true) ?: []));
+
+            foreach ([6, 7, 8] as $documentNumber) {
+                $key = 'document_'.$documentNumber;
+
+                if (! in_array($documentNumber, $changed, true) || ! array_key_exists($key, $validated)) {
+                    continue;
+                }
+
+                $problems = ActiveAssessmentForms::documentProblems($documentNumber, json_decode((string) $validated[$key], true) ?: []);
+
+                if ($problems !== []) {
+                    throw ValidationException::withMessages([$key => $problems]);
+                }
             }
         }
 
