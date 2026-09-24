@@ -46,12 +46,15 @@
             // card order still reads as the onboarding-to-exit pipeline.
             $stats = [
             ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => collect($cohortBreakdown)->push(['count' => $totals['applicant'], 'label' => 'Applicants'])],
-            ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#BFDBFE]', 'bg' => 'bg-[#F8FBFF]', 'note' => $pct($totals['active'], $totals['total']).'% startup are active'],
+            ['label' => 'Graduated/Completed', 'value' => $totals['graduated'] + $totals['completed'], 'icon' => 'graduate.svg', 'border' => 'border-[#A5F3FC]', 'bg' => 'bg-[#ECFEFF]', 'breakdown' => collect([
+                ['count' => $totals['graduated'], 'label' => 'Graduated'],
+                ['count' => $totals['completed'], 'label' => 'Completed'],
+            ])],
             ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['needsCoordinator'], $totals['total']).'% startup needs assigned coordinator'],
-            ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $pct($totals['pending'], $totals['total']).'% startup is under evaluation'],
-            ['label' => 'Applicant', 'value' => $totals['applicant'], 'icon' => 'person-loading.svg', 'border' => 'border-[#A7F3D0]', 'bg' => 'bg-[#F2FFFA]', 'note' => $pct($totals['applicant'], $totals['total']).'% startup is still applying'],
-            ['label' => 'Graduated', 'value' => $totals['graduated'], 'icon' => 'rocket.svg', 'border' => 'border-[#C7D2FE]', 'bg' => 'bg-[#F5F6FF]', 'note' => $pct($totals['graduated'], $totals['total']).'% startup have graduated'],
-            ['label' => 'Completed', 'value' => $totals['completed'], 'icon' => 'check-shield.svg', 'border' => 'border-[#A5F3FC]', 'bg' => 'bg-[#ECFEFF]', 'note' => $pct($totals['completed'], $totals['total']).'% startup have completed'],
+            ['label' => 'Pending/Applicant', 'value' => $totals['pending'] + $totals['applicant'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'breakdown' => collect([
+                ['count' => $totals['pending'], 'label' => 'Pending'],
+                ['count' => $totals['applicant'], 'label' => 'Applicant'],
+            ])],
             ];
             @endphp
 
@@ -93,12 +96,9 @@
                 }
             </style>
 
-            {{-- Seven cards now that Graduated/Completed joined Total/Active/Assign
-                 Coordinator/Pending/Applicant: 2-up on phones, stepping up through
-                 3-up/4-up so nothing sits alone on its own row, and all 7 across only
-                 once there's room at 2xl (matches the mentors/coordinators pages'
-                 same progressive-breakpoint approach to a wide card row). --}}
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-3 sm:gap-4 mb-8">
+            {{-- Four cards: Total, Graduated/Completed, Assign Coordinator,
+                 Pending/Applicant. 2-up on phones/tablets, all 4 across from lg. --}}
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
                 @foreach ($stats as $stat)
                 {{-- relative + overflow-hidden are what let the silhouette bleed off the card
              edge without spilling into the grid gap. --}}
@@ -169,7 +169,7 @@
                     <a
                         href="{{ route('admin.startups.index', ['tab' => $key]) }}"
                         class="
-                    px-6 sm:px-10 lg:px-16
+                    px-4
                     py-3
                     text-sm
                     font-medium
