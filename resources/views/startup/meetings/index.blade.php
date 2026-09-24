@@ -103,11 +103,6 @@
 
             <hr class="border-gray-200 mb-6">
 
-            <div class="flex items-center gap-2 mb-4">
-                <span class="icon-mask h-8 w-8 text-[#6D0D23] sm:h-10 sm:w-10"
-                    style="--icon: url('{{ asset('images/icons/coordProfile.svg') }}')"></span>
-                <h2 class="font-bold text-gray-900">Meetings</h2>
-            </div>
 
             {{-- Tabs --}}
             <div class="border-b border-gray-200 mb-6">
