@@ -45,6 +45,48 @@ trait SheetRowRules
         }
     }
 
+    /**
+     * Items 25, 26 and 35 (Incubation, L&D, References) are optional as whole
+     * tables: the table may be left empty, and every cell of a row that IS
+     * added may be blank too. Text and hours cells also accept N/A; dates,
+     * email and phone accept a real value or blank only, since N/A would
+     * break those columns. A completely blank new row is simply not saved.
+     *
+     * An optional prose cell: blank, N/A, or text that passes $rules.
+     *
+     * @param  list<mixed>  $rules
+     * @return list<mixed>
+     */
+    protected function optionalText(array $rules): array
+    {
+        return ['nullable', 'string', function ($attribute, $value, $fail) use ($rules) {
+            if (! is_string($value) || strcasecmp(trim($value), 'N/A') === 0) {
+                return;
+            }
+
+            $validator = \Illuminate\Support\Facades\Validator::make([$attribute => $value], [$attribute => $rules]);
+
+            if ($validator->fails()) {
+                $fail($validator->errors()->first($attribute));
+            }
+        }];
+    }
+
+    /** An optional hour count: blank, N/A, or a whole number of at least 1. */
+    protected function optionalHours(): array
+    {
+        return ['nullable', 'string', 'max:20', 'regex:/^(n\/a|[1-9]\d*)$/i'];
+    }
+
+    /** end date >= start date, checked only when both are given. */
+    protected function optionalDateTo(): array
+    {
+        return array_values(array_filter([
+            'nullable', 'date',
+            $this->filled('date_from') ? 'after_or_equal:date_from' : null,
+        ]));
+    }
+
     /** Letters only, plus the punctuation real names carry. */
     protected function rowName(int $max): array
     {

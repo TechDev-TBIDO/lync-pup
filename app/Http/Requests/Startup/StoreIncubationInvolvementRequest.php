@@ -30,26 +30,26 @@ class StoreIncubationInvolvementRequest extends FormRequest
             // neither "1234" nor "1234567890a" can pass as an organization
             // name. min:10 on top of that: a combined name-and-address is
             // never genuinely this short.
-            'organization_name_address' => [
-                'required', 'string', 'max:255', 'min:10',
+            'organization_name_address' => $this->optionalText([
+                'string', 'max:255', 'min:10',
                 'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\-\/\&\(\)]*$/iu',
                 $this->meaningfulText('Please enter a valid organization name and address.'),
-            ],
-            'date_from' => ['required', 'date', 'after:1900-01-01'],
-            'date_to' => ['required', 'date', 'after_or_equal:date_from'],
-            // A whole, positive number of hours - no decimals, no N/A. Unlike
-            // rowHours() (shared with L&D, which does allow N/A), this row
-            // always has to report a real figure.
-            'number_of_hours' => ['required', 'integer', 'min:1'],
+            ]),
+            // Item 25 is optional as a whole table - see SheetRowRules::optionalText().
+            'date_from' => ['nullable', 'date', 'after:1900-01-01'],
+            'date_to' => $this->optionalDateTo(),
+            'number_of_hours' => $this->optionalHours(),
             // Free-form description - only markup characters are blocked,
             // same as the sheet's other prose fields - but letters still
             // have to outnumber digits (meaningfulText()), and min:5 rules
             // out a short junk answer like "h1" on its own.
-            'incubation_program_focus' => [
-                'required', 'string', 'max:255', 'min:5',
+            // Required once an organization is entered (not N/A) - the table
+            // itself stays optional, so no asterisk on the page.
+            'incubation_program_focus' => [\Illuminate\Validation\Rule::requiredIf(fn () => ($org = trim((string) $this->input('organization_name_address'))) !== '' && strcasecmp($org, 'N/A') !== 0), ...$this->optionalText([
+                'string', 'max:255', 'min:5',
                 'regex:/^[^<>{}|\\^~]*$/u',
                 $this->meaningfulText('Please enter a valid incubation program or focus.'),
-            ],
+            ])],
         ];
     }
 
@@ -66,8 +66,7 @@ class StoreIncubationInvolvementRequest extends FormRequest
             'date_to.date' => 'Please enter a valid end date.',
             'date_to.after_or_equal' => 'End date must be on or after the start date.',
             'number_of_hours.required' => 'Please enter the number of hours.',
-            'number_of_hours.integer' => 'Please enter a valid number of hours.',
-            'number_of_hours.min' => 'Hours must be greater than 0.',
+            'number_of_hours.regex' => 'Enter a whole number of hours, N/A, or leave it blank.',
             'incubation_program_focus.required' => 'Please enter the incubation program or focus.',
             'incubation_program_focus.regex' => 'Please enter a valid incubation program or focus.',
             'incubation_program_focus.min' => 'Please enter a valid incubation program or focus.',

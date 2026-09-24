@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\InformationSheet;
 use App\Rules\PersonName;
 use App\Rules\PhMobile;
 use App\Support\SheetOptions;
@@ -219,6 +220,19 @@ class UpdateInformationSheetRequest extends FormRequest
 
                 $fieldIsNA = $isNA($data[$field] ?? null);
 
+                // Year Graduated is optional: N/A or blank is always fine (e.g.
+                // still studying). Only a real year under an N/A school is a
+                // contradiction.
+                if ($field === $key.'_year_graduated') {
+                    $blankYear = trim((string) ($data[$field] ?? '')) === '';
+
+                    if ($schoolIsNA && ! $fieldIsNA && ! $blankYear) {
+                        $validator->errors()->add($field, "The {$label} name is N/A, so this must be N/A or blank.");
+                    }
+
+                    continue;
+                }
+
                 if (! $schoolIsNA && $fieldIsNA) {
                     $validator->errors()->add(
                         $field,
@@ -267,27 +281,6 @@ class UpdateInformationSheetRequest extends FormRequest
             'required', 'string', 'max:'.$max,
             'regex:/^(n\/a|[\p{L}][\p{L}\s\.\-\x{2019}\']*)$/iu',
             new PersonName,
-        ];
-
-        // A Philippine government/business ID number: digits and hyphens
-        // only - no spaces - that must total an exact digit count once the
-        // hyphens are stripped out. Each agency's number has a fixed,
-        // well-known length: GSIS 11, Pag-IBIG 12, PhilHealth 12, SSS 10,
-        // business TIN 12 (matching the "123-456-789-000" placeholder).
-        $govId = fn (int $digits, string $label) => [
-            'required', 'string', 'max:20',
-            'regex:/^(n\/a|[0-9\-]+)$/i',
-            function ($attribute, $value, $fail) use ($digits, $label) {
-                if (is_string($value) && strcasecmp(trim($value), 'N/A') === 0) {
-                    return;
-                }
-
-                $count = strlen(preg_replace('/[^0-9]/', '', (string) $value));
-
-                if ($count !== $digits) {
-                    $fail("Please enter a valid {$label}.");
-                }
-            },
         ];
 
         // Words only: letters plus the punctuation that shows up inside real
@@ -497,66 +490,6 @@ class UpdateInformationSheetRequest extends FormRequest
             }
         };
 
-        // Registration codes are deliberately mixed — "CS201812345",
-        // "DTI-0054321", "07000123". Letters, digits and hyphens only - no
-        // spaces, no slash, no period - so a junk entry (or a code typed with
-        // stray punctuation) can't pass as one. See the founder side's own
-        // $code for the full reasoning.
-        $code = fn (int $max) => [
-            'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[A-Za-z0-9][A-Za-z0-9\-]*)$/i',
-            function ($attribute, $value, $fail) {
-                if (! is_string($value) || strcasecmp(trim($value), 'N/A') === 0) {
-                    return;
-                }
-
-                $trimmed = trim($value);
-
-                if (strlen($trimmed) < 7) {
-                    $fail('Please enter a valid ID number, or N/A.');
-                    return;
-                }
-
-                $stripped = str_replace('-', '', $trimmed);
-
-                if ($stripped !== '' && preg_match('/^(.)\1*$/u', $stripped)) {
-                    $fail('Please enter a valid ID number, or N/A.');
-                }
-            },
-        ];
-
-        // SEC registration numbers are a confirmed letter+digit mix, e.g.
-        // "CS202412345" - so on top of $code's length and repeated-character
-        // checks, a real one must contain at least one letter AND at least
-        // one digit.
-        $secCode = fn (int $max) => [
-            'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[A-Za-z0-9][A-Za-z0-9\-]*)$/i',
-            function ($attribute, $value, $fail) {
-                if (! is_string($value) || strcasecmp(trim($value), 'N/A') === 0) {
-                    return;
-                }
-
-                $trimmed = trim($value);
-
-                if (strlen($trimmed) < 7) {
-                    $fail('Please enter a valid SEC registration number, or N/A.');
-                    return;
-                }
-
-                $stripped = str_replace('-', '', $trimmed);
-
-                if ($stripped !== '' && preg_match('/^(.)\1*$/u', $stripped)) {
-                    $fail('Please enter a valid SEC registration number, or N/A.');
-                    return;
-                }
-
-                if (! preg_match('/[A-Za-z]/', $stripped) || ! preg_match('/[0-9]/', $stripped)) {
-                    $fail('SEC registration number must contain both letters and numbers, e.g. CS202412345.');
-                }
-            },
-        ];
-
         // Cohort no. has no founder-side counterpart - it is a TBIDO-only
         // field and legitimately holds a space ("Cohort 3"), unlike the
         // SEC/DTI/Business-ID codes above, so it keeps its own, looser shape:
@@ -584,7 +517,13 @@ class UpdateInformationSheetRequest extends FormRequest
             },
         ];
 
-        return [
+        // Items 8-12 (GSIS, Pag-IBIG, PhilHealth, SSS, TIN) and 28-31 (SEC,
+        // Business ID, DTI, Business TIN): optional free text - no format,
+        // no digit-count check. Only the database column's own length limit
+        // (50 / 100 characters) is kept so an overlong value can't fail the save.
+        $idText = fn (int $max) => ['nullable', 'string', 'max:'.$max];
+
+        $rules = [
             // The sheet's own overview column, separate from the Startup
             // Profile's business_description (which this page no longer writes).
             'startup_overview' => $prose(5000),
@@ -606,13 +545,13 @@ class UpdateInformationSheetRequest extends FormRequest
             'height_m' => ['required', 'numeric', 'between:0.5,2.5'],
             'weight_kg' => ['required', 'numeric', 'between:20,500'],
             'blood_type' => $bloodType,
-            'gsis_no' => $govId(11, 'GSIS ID number'),
-            'pagibig_no' => $govId(12, 'PAG-IBIG number'),
-            'philhealth_no' => $govId(12, 'PhilHealth number'),
-            'sss_no' => $govId(10, 'SSS number'),
+            'gsis_no' => $idText(50),
+            'pagibig_no' => $idText(50),
+            'philhealth_no' => $idText(50),
+            'sss_no' => $idText(50),
             // Item 12 — the founder's own TIN, distinct from Item 31's
-            // business_tin.
-            'tin' => $govId(12, 'TIN'),
+            // business_tin. Free text, like the other ID numbers above.
+            'tin' => $idText(50),
             'residential_address' => $address(255),
             'permanent_address' => $address(255),
             // Both come from a fixed control now (segmented buttons / a dropdown),
@@ -653,10 +592,10 @@ class UpdateInformationSheetRequest extends FormRequest
                 $scholarshipEntry,
             ],
 
-            'sec_registration' => $secCode(100),
-            'business_id_number' => $code(100),
-            'dti_registration_number' => $govId(12, 'DTI registration number'),
-            'business_tin' => $govId(12, 'business TIN'),
+            'sec_registration' => $idText(100),
+            'business_id_number' => $idText(100),
+            'dti_registration_number' => $idText(100),
+            'business_tin' => $idText(100),
             'non_academic_distinctions' => $optionalProse(2000),
             'membership_associations' => $optionalProse(2000),
 
@@ -681,6 +620,17 @@ class UpdateInformationSheetRequest extends FormRequest
             // Required like the rest of the endorsement block.
             'director_approval_date' => ['required', 'date'],
         ];
+
+        // Optional items (see InformationSheet::OPTIONAL_FIELDS): blank is
+        // fine, and anything typed - including N/A - still has to pass the
+        // field's normal format rule.
+        foreach (InformationSheet::OPTIONAL_FIELDS as $field) {
+            if (isset($rules[$field])) {
+                $rules[$field] = array_map(fn ($rule) => $rule === 'required' ? 'nullable' : $rule, $rules[$field]);
+            }
+        }
+
+        return $rules;
     }
 
     public function messages(): array
@@ -714,17 +664,6 @@ class UpdateInformationSheetRequest extends FormRequest
             'weight_kg.numeric' => 'Please enter a valid weight.',
             'weight_kg.between' => 'Please enter a valid weight.',
             'blood_type.required' => 'Please enter the blood type or N/A.',
-
-            'gsis_no.required' => 'Please enter the GSIS ID number or N/A.',
-            'gsis_no.regex' => 'Please enter a valid GSIS ID number, or N/A.',
-            'pagibig_no.required' => 'Please enter the PAG-IBIG number or N/A.',
-            'pagibig_no.regex' => 'Please enter a valid PAG-IBIG number, or N/A.',
-            'philhealth_no.required' => 'Please enter the PhilHealth number or N/A.',
-            'philhealth_no.regex' => 'Please enter a valid PhilHealth number, or N/A.',
-            'sss_no.required' => 'Please enter the SSS number or N/A.',
-            'sss_no.regex' => 'Please enter a valid SSS number, or N/A.',
-            'tin.required' => 'Please enter the TIN or N/A.',
-            'tin.regex' => 'Please enter a valid TIN, or N/A.',
 
             'residential_address.required' => 'Please enter the residential address.',
             'residential_address.regex' => 'Letters, numbers and . , - # / & only. N/A not accepted.',
@@ -760,14 +699,6 @@ class UpdateInformationSheetRequest extends FormRequest
             'founder_email.email' => 'Please enter a valid email address.',
 
             // Business registration
-            'sec_registration.required' => 'Enter the SEC registration number, or N/A if not registered.',
-            'business_id_number.required' => 'Enter the business ID number, or N/A if there is none.',
-            'dti_registration_number.required' => 'Enter the DTI registration number, or N/A if not registered.',
-            'business_tin.required' => 'Enter the business TIN, or N/A if there is none.',
-            'business_tin.regex' => 'Digits and hyphens only, or N/A.',
-            'sec_registration.regex' => 'Please enter a valid SEC registration number.',
-            'business_id_number.regex' => 'Please enter a valid business ID number.',
-            'dti_registration_number.regex' => 'Digits only, or N/A.',
 
             // Long-form entries
             'startup_overview.required' => 'Describe what the startup does.',

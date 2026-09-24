@@ -158,8 +158,6 @@
     // still completely blank. This is the actual gate.
     requiredEndorsementFields: [
         ['cohort_no', 'Cohort No.'],
-        ['endorsed_by', 'Endorsed By'],
-        ['endorsement_date', 'Date'],
         ['director_approval_date', 'Date of Approval'],
     ],
 
@@ -216,6 +214,9 @@
     // always keeps at least one entry (same rule as the founder's page).
     savedCounts: {
         team: {{ $startup->teamMembers?->count() ?? 0 }},
+        inc: {{ $sheet?->incubationInvolvements?->count() ?? 0 }},
+        ld: {{ $sheet?->ldInterventions?->count() ?? 0 }},
+        ref: {{ $sheet?->references?->count() ?? 0 }},
     },
 
     // Rows that would still exist after this save: what loaded, minus anything
@@ -229,7 +230,9 @@
     // The x is refused when it would empty the table. A row that is already
     // marked stays clickable, otherwise it could never be undone.
     canRemoveRow(section, key) {
-        return this.isRemoving(key) || this.remainingRows(section) > 1;
+        // No table has a minimum any more - Core Team included - so every
+        // row can always be removed (or un-marked).
+        return true;
     },
 
     addRow(section) {
@@ -476,7 +479,7 @@
                     'surname' => 'e.g. Santos',
                     'first_name' => 'e.g. Maria',
                     'middle_name' => 'e.g. Reyes',
-                    'name_extension' => 'e.g. Jr., Sr., III',
+                    'name_extension' => 'e.g. Jr., Sr., III - leave blank if none',
                     'height_m' => 'e.g. 1.65',
                     'weight_kg' => 'e.g. 58',
                     'blood_type' => 'e.g. O+',
@@ -542,6 +545,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     $name === 'mobile_no' => 'data-ph-mobile inputmode="tel" maxlength="13"',
                     default => '',
                     };
+                    // Optional items (InformationSheet::OPTIONAL_FIELDS) carry no
+                    // asterisk and no `required` - blank or N/A both save.
+                    $required = $required && ! in_array($name, \App\Models\InformationSheet::OPTIONAL_FIELDS, true);
                     $star = $required ? " <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span>" : '';
                     $upperClass = in_array($name, $upperFields, true) ? 'uppercase placeholder:normal-case' : '';
                     $requiredAttr = $required ? ' required' : '';
@@ -824,7 +830,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 <th class="border px-3 py-2">NAME OF SCHOOL <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
                                 <th class="border px-3 py-2">EDUCATIONAL/DEGREE/COURSE <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
                                 <th class="border px-3 py-2">HIGHEST LEVEL UNIT <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
-                                <th class="border px-3 py-2">YEAR GRADUATED <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">YEAR GRADUATED</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -834,7 +840,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="School name" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
                                 <td class="border p-1"><textarea name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="Degree or course" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
                                 <td class="border p-1"><textarea name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="Highest level / units earned" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
-                                <td class="border p-1"><textarea name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="e.g. 2018" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
+                                <td class="border p-1"><textarea name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" :readonly="!editing" placeholder="e.g. 2018" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -865,6 +871,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
             },
 
             add() {
+                // An N/A item only stands for an empty list - adding a real
+                // entry replaces it rather than sitting above it.
+                this.rows = this.rows.filter(r => (r.text || '').trim().toUpperCase() !== 'N/A');
                 this.rows.push({ id: this.nextId++, text: '' });
                 dirty = true;
             },
@@ -888,7 +897,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
 
                         <div data-packed-box="scholarships_academic_honors" class="border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
-                                <div class="flex-1 px-3 py-3 leading-tight">SCHOLARSHIP / ACADEMIC HONORS RECEIVED <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
+                                <div class="flex-1 px-3 py-3 leading-tight">SCHOLARSHIP / ACADEMIC HONORS RECEIVED</div>
                                 <div class="w-10 flex-shrink-0"></div>
                             </div>
 
@@ -1077,7 +1086,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     {{-- Same gutter as saved rows so the columns don't shift --}}
                                     <div class="w-10 flex-shrink-0 flex items-center justify-center">
                                         <button type="button"
-                                            @click="remainingRows('team') > 1 && discardRow('team', row.id)" :disabled="! (remainingRows('team') > 1)" :class="! (remainingRows('team') > 1) && 'text-gray-300 cursor-not-allowed hover:text-gray-300'" :title="remainingRows('team') > 1 ? 'Discard entry' : 'At least one entry is required'"
+                                            @click="discardRow('team', row.id)" title="Discard entry"
                                             title="Discard entry"
                                             aria-label="Discard entry"
                                             class="text-red-600 hover:text-red-800 text-base leading-none">
@@ -1143,7 +1152,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             </div>
 
                             {{-- Saved rows --}}
-                            @forelse ($sheet?->incubationInvolvements ?? [] as $item)
+                            @foreach ($sheet?->incubationInvolvements ?? [] as $item)
                             @php
                             $rowKey = 'inc-' . $item->id;
                             $rowUpdateUrl = $url('admin.information-sheet.incubation.update', $item);
@@ -1198,12 +1207,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     @endif
                                 </div>
                             </div>
-                            @empty
-                            {{-- Sections III, IV and 35 are optional. An empty table is a real answer -
-                                     "nothing to declare" - so it reads as the N/A the paper form asks for
-                                     rather than as an unanswered blank. Nothing is stored for it. --}}
-                            <p class="text-sm text-gray-500 px-3 py-3">N/A</p>
-                            @endforelse
+                            @endforeach
+
+                            {{-- Optional table: an empty one reads as the N/A the paper form asks for
+                                 (nothing is stored for it). Driven by remainingRows(), same as the
+                                 founder page, so + Add Entry replaces the N/A straight away and
+                                 x-ing the last row brings it back. --}}
+                            <p class="text-sm text-gray-500 px-3 py-3" x-show="remainingRows('inc') === 0" x-cloak>N/A</p>
 
                             {{-- Add new --}}
                             @if ($incStoreUrl)
@@ -1294,7 +1304,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             </div>
 
                             {{-- Saved rows --}}
-                            @forelse ($sheet?->ldInterventions ?? [] as $item)
+                            @foreach ($sheet?->ldInterventions ?? [] as $item)
                             @php
                             $rowKey = 'ld-' . $item->id;
                             $rowUpdateUrl = $url('admin.information-sheet.ld.update', $item);
@@ -1349,9 +1359,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     @endif
                                 </div>
                             </div>
-                            @empty
-                            <p class="text-sm text-gray-500 px-3 py-3">N/A</p>
-                            @endforelse
+                            @endforeach
+
+                            {{-- Optional table: an empty one reads as the N/A the paper form asks for
+                                 (nothing is stored for it). Driven by remainingRows(), same as the
+                                 founder page, so + Add Entry replaces the N/A straight away and
+                                 x-ing the last row brings it back. --}}
+                            <p class="text-sm text-gray-500 px-3 py-3" x-show="remainingRows('ld') === 0" x-cloak>N/A</p>
 
                             {{-- Add new --}}
                             @if ($ldStoreUrl)
@@ -1499,6 +1513,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
             },
 
             add() {
+                // An N/A item only stands for an empty list - adding a real
+                // entry replaces it rather than sitting above it.
+                this.rows = this.rows.filter(r => (r.text || '').trim().toUpperCase() !== 'N/A');
                 this.rows.push({ id: this.nextId++, text: '' });
                 dirty = true;
             },
@@ -1514,7 +1531,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
         }"
                         x-init="$watch('editing', value => { if (!value) reset() })">
 
-                        <p class="text-xs font-semibold text-gray-700 mb-1">31.</p>
+                        <p class="text-xs font-semibold text-gray-700 mb-1">32.</p>
 
                         {{-- The real field. Hidden, but still part of the main form via form="info-sheet-form".
              x-effect writes .value directly — :value on a <textarea> only sets the attribute,
@@ -1527,7 +1544,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             {{-- Header. flex-1 label + fixed w-10 gutter, the same shape every row uses,
                  so nothing shifts between view and edit mode. --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
-                                <div class="flex-1 px-3 py-3 leading-tight">NON-ACADEMIC DISTINCTIONS / RECOGNITION / ELIGIBILITIES <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
+                                <div class="flex-1 px-3 py-3 leading-tight">NON-ACADEMIC DISTINCTIONS / RECOGNITION / ELIGIBILITIES</div>
                                 <div class="w-10 flex-shrink-0"></div>
                             </div>
 
@@ -1580,6 +1597,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
             },
 
             add() {
+                // An N/A item only stands for an empty list - adding a real
+                // entry replaces it rather than sitting above it.
+                this.rows = this.rows.filter(r => (r.text || '').trim().toUpperCase() !== 'N/A');
                 this.rows.push({ id: this.nextId++, text: '' });
                 dirty = true;
             },
@@ -1604,7 +1624,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
 
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
-                                <div class="flex-1 px-3 py-3 leading-tight">MEMBERSHIP IN ASSOCIATION/ORGANIZATION <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
+                                <div class="flex-1 px-3 py-3 leading-tight">MEMBERSHIP IN ASSOCIATION/ORGANIZATION</div>
                                 <div class="w-10 flex-shrink-0"></div>
                             </div>
 
@@ -1666,7 +1686,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         </div>
 
                         {{-- Saved rows --}}
-                        @forelse ($sheet?->references ?? [] as $reference)
+                        @foreach ($sheet?->references ?? [] as $reference)
                         @php
                         $rowKey = 'ref-' . $reference->id;
                         $rowUpdateUrl = $url('admin.information-sheet.references.update', $reference);
@@ -1717,9 +1737,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 @endif
                             </div>
                         </div>
-                        @empty
-                        <p class="text-sm text-gray-500 px-3 py-3">N/A</p>
-                        @endforelse
+                        @endforeach
+
+                        {{-- Optional table: an empty one reads as the N/A the paper form asks for
+                                 (nothing is stored for it). Driven by remainingRows(), same as the
+                                 founder page, so + Add Entry replaces the N/A straight away and
+                                 x-ing the last row brings it back. --}}
+                        <p class="text-sm text-gray-500 px-3 py-3" x-show="remainingRows('ref') === 0" x-cloak>N/A</p>
 
                         {{-- Add new --}}
                         @if ($refStoreUrl)
@@ -2335,9 +2359,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
             //    flagging it would let an incomplete team pass review with
             //    no error at all. Incubation, L&D and References stay
             //    optional, so a blank "add new" row there is still skipped.
+            // A Core Team row whose only content is N/A in the name means
+            // "no team member here" - treated exactly like a blank row.
             const rowIsBlank = (form) => Array.from(form.elements)
                 .filter((el) => el.name && ! ['_token', '_method'].includes(el.name))
-                .every(blank);
+                .every((el) => blank(el) || (el.name === 'full_name' && el.value.trim().toUpperCase() === 'N/A'));
 
             // Tracked so loop 3 below can tell whether a Core Team row
             // already got its own per-field messages here - if so, the
@@ -2351,53 +2377,30 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
 
                 const isTeamForm = form.action.includes('team-members');
 
-                if (! isTeamForm && form.classList.contains('js-addform') && rowIsBlank(form)) return;
+                if (form.classList.contains('js-addform') && rowIsBlank(form)) return;
 
+                // Items 25, 26 and 35 are optional as whole tables: no cell of
+                // theirs is ever required (see SheetRowRules::optionalText()).
+                // Only Core Team rows need every column.
                 Array.from(form.elements).forEach((el) => {
                     if (! el.name || ['_token', '_method'].includes(el.name)) return;
                     if (! blank(el)) return;
+                    // 25: once an organization is entered, its program focus is
+                    // needed too (no asterisk - the table itself is optional).
+                    if (el.name === 'incubation_program_focus') {
+                        const org = (form.elements['organization_name_address']?.value || '').trim();
+                        if (org !== '' && org.toUpperCase() !== 'N/A') flag(el, 'Please enter the incubation program or focus.');
+                        return;
+                    }
+                    if (! isTeamForm) return;
                     if (isTeamForm) teamRowFlagged = true;
-                    flag(el, requiredMessage(el, 'Required. Type N/A if it does not apply.'));
+                    flag(el, requiredMessage(el, 'Required.'));
                 });
             });
 
-            // 3. Core Team keeps at least one row - a startup always has at
-            //    least its founder. Sections III, IV and 35 are optional and may
-            //    be left empty.
-            //
-            //    Loop 2 above now flags every blank Core Team row's fields
-            //    individually (it no longer skips them the way it still does
-            //    for Incubation/L&D/References), so in the normal case a
-            //    blank starter row already stops the save on its own. This
-            //    check is the backstop for the one case loop 2 can't catch:
-            //    every row - saved or new - actually removed via
-            //    toggleRemoval()/discardRow(), leaving nothing in the DOM
-            //    for loop 2 to even iterate over. Row COUNT alone
-            //    (remaining.team) still isn't enough for that: a discarded
-            //    new row is gone entirely, but a removed *saved* row is
-            //    still counted by remainingRows() until the save actually
-            //    goes through (see canRemoveRow()) - so counting only the
-            //    NON-blank, NON-removed forms still on the page is what
-            //    correctly tells the two apart.
-            const teamForms = Array.from(root.querySelectorAll('form.js-subform'))
-                .filter((f) => f.action.includes('team-members') && ! f.classList.contains('js-skip'));
-            const teamFilled = teamForms.some((f) => ! rowIsBlank(f));
+            // 3. (Removed) Core Team used to need at least one entry - it is
+            //    optional now, like every other table on the sheet.
 
-            // Don't pile this generic line on top of the per-field messages
-            // loop 2 already put on every cell of every blank row - only the
-            // "everything got removed, nothing left to flag" case actually
-            // needs it.
-            if (! teamFilled && ! teamRowFlagged) {
-                const slot = document.querySelector('[data-table-error="team"]');
-
-                if (slot) {
-                    slot.textContent = 'Core Team Formation needs at least one entry.';
-                    slot.classList.remove('hidden');
-
-                    count++;
-                    if (! first) first = slot;
-                }
-            }
 
             if (first) {
                 first.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2419,6 +2422,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 const data = new FormData(form);
                 for (const [key, val] of data.entries()) {
                     if (['_token', '_method'].includes(key)) continue;
+                    if (key === 'full_name' && typeof val === 'string' && val.trim().toUpperCase() === 'N/A') continue;
                     if (typeof val === 'string' && val.trim() !== '') return false;
                     if (val instanceof File && val.size > 0) return false;
                 }

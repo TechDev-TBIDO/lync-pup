@@ -31,24 +31,24 @@ class StoreLdInterventionRequest extends FormRequest
             // neither "1234" nor "1234567890a" can pass as a title. min:5
             // rules out a short junk answer clearing the letter check on
             // a technicality.
-            'title' => [
-                'required', 'string', 'max:255', 'min:5',
+            'title' => $this->optionalText([
+                'string', 'max:255', 'min:5',
                 'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\-\/\&\(\)]*$/iu',
                 $this->meaningfulText('Please enter a valid title.'),
-            ],
-            'date_from' => ['required', 'date', 'after:1900-01-01'],
-            'date_to' => ['required', 'date', 'after_or_equal:date_from'],
-            // A whole, positive number of hours - no decimals, no N/A.
-            'number_of_hours' => ['required', 'integer', 'min:1'],
+            ]),
+            // Item 26 is optional as a whole table - see SheetRowRules::optionalText().
+            'date_from' => ['nullable', 'date', 'after:1900-01-01'],
+            'date_to' => $this->optionalDateTo(),
+            'number_of_hours' => $this->optionalHours(),
             // Free-form text - only markup characters are blocked, same as
             // the sheet's other prose fields - but letters still have to
             // outnumber digits (meaningfulText()), and min:5 rules out a
             // short junk answer on its own.
-            'conducted_sponsored_by' => [
-                'required', 'string', 'max:255', 'min:5',
+            'conducted_sponsored_by' => $this->optionalText([
+                'string', 'max:255', 'min:5',
                 'regex:/^[^<>{}|\\^~]*$/u',
                 $this->meaningfulText('Please enter a valid entry for who conducted or sponsored the program.'),
-            ],
+            ]),
         ];
     }
 
@@ -65,8 +65,7 @@ class StoreLdInterventionRequest extends FormRequest
             'date_to.date' => 'Please enter a valid end date.',
             'date_to.after_or_equal' => 'End date must be on or after the start date.',
             'number_of_hours.required' => 'Please enter the number of hours.',
-            'number_of_hours.integer' => 'Please enter a valid number of hours.',
-            'number_of_hours.min' => 'Hours must be greater than 0.',
+            'number_of_hours.regex' => 'Enter a whole number of hours, N/A, or leave it blank.',
             'conducted_sponsored_by.required' => 'Please enter who conducted or sponsored the program.',
             'conducted_sponsored_by.regex' => 'Please enter a valid entry for who conducted or sponsored the program.',
             'conducted_sponsored_by.min' => 'Please enter a valid entry for who conducted or sponsored the program.',

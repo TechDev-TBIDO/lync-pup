@@ -14,18 +14,21 @@ class StoreStartupReferenceRequest extends FormRequest
     }
 
     /**
-     * Item 35 of the Information Sheet. Every column is required. A
-     * reference is a real, named person, so - like Core Team - name and
-     * address use the dedicated shapes below rather than the
-     * rowName/rowText shared with rows that may genuinely be N/A.
+     * Item 35 of the Information Sheet - optional as a whole table: every
+     * column may be blank (or N/A for name/address). Anything typed must still
+     * be a real name, mobile number, email or address.
      */
     public function rules(): array
     {
         return [
-            'name' => $this->rowPersonName(150),
-            'contact' => $this->rowPhone(),
-            'email' => ['required', 'email', 'max:150'],
-            'address' => $this->rowAddress(255),
+            // Item 35 is optional as a whole table - see SheetRowRules::optionalText().
+            'name' => $this->optionalText(['string', 'max:150', new \App\Rules\PersonName]),
+            'contact' => ['nullable', 'string', 'max:13', new \App\Rules\PhMobile],
+            'email' => ['nullable', 'email', 'max:150'],
+            'address' => $this->optionalText(array_values(array_filter(
+                $this->rowAddress(255),
+                fn ($rule) => $rule !== 'required'
+            ))),
         ];
     }
 
