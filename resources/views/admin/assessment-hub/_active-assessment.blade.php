@@ -140,18 +140,9 @@
         blankDoc7: @js($doc7Blank),
         blankDoc8: @js($doc8Blank),
         showClearConfirm: false,
-        // Document 8's rating tables aren't required by anything server-side
-        // (AssessmentController::updateDocuments() stores whatever JSON it is
-        // given), so per direct testing feedback this is enforced client-side
-        // instead: a category with any unrated statement blocks Save, jumps
-        // to Document 8, and scrolls to that specific table rather than a
-        // generic error banner. doc8ValidationAttempted only flips true
-        // after a blocked save attempt no red borders on a first-time
-        // blank form but once it has, each table's own completeness
-        // re-evaluates live as the admin fills it in, so the border/message
-        // clear on their own without another failed Save.
-        doc8ValidationAttempted: false,
-        doc8InvalidCategory: null,
+        // Flips on after a blocked Save: from then on every problem field in a
+        // changed document shows a red outline, live, clearing as it's fixed.
+        showErrors: false,
         pendingDoc: null,
         showDocSwitchConfirm: false,
         isDirty() {
@@ -186,8 +177,7 @@
             this.doc6 = JSON.parse(JSON.stringify(this.initialDoc6));
             this.doc7 = JSON.parse(JSON.stringify(this.initialDoc7));
             this.doc8 = JSON.parse(JSON.stringify(this.initialDoc8));
-            this.doc8ValidationAttempted = false;
-            this.doc8InvalidCategory = null;
+            this.showErrors = false;
         },
         doc8CategoryIncomplete(category) {
             return this.doc8.ratings[category].some(v => v === null || v === '');
@@ -202,46 +192,87 @@
         // existing red-ring + warning-message UI below can keep gently
         // pointing it out — it just no longer calls event.preventDefault()
         // or blocks the actual submit the way it used to.
-        // Names/positions must be letters (and / - ' . , only) and the contact
-        // number must be 09XXXXXXXXX / +639XXXXXXXXX — anything else stops the
-        // whole save (the server re-checks the same rules).
-        formProblem() {
-            const list = [];
-            (this.doc6.prepared_by || []).forEach((row, i) => {
-                list.push([`Document 6 - Prepared By #${i + 1} name`, row.name, 'name']);
-                list.push([`Document 6 - Prepared By #${i + 1} position`, row.position, 'name']);
-            });
-            list.push(['Document 6 - Noted By name', this.doc6.noted_by, 'name']);
-            list.push(['Document 6 - Noted By position', this.doc6.noted_by_position, 'name']);
-            ['prepared_by', 'noted_by'].forEach(k => {
-                list.push([`Document 7 - ${k === 'prepared_by' ? 'Prepared' : 'Noted'} By name`, this.doc7[k + '_name'], 'name']);
-                list.push([`Document 7 - ${k === 'prepared_by' ? 'Prepared' : 'Noted'} By position`, this.doc7[k + '_position'], 'name']);
-            });
-            ['validated', 'noted', 'approved'].forEach(k => {
-                const label = k.charAt(0).toUpperCase() + k.slice(1);
-                list.push([`Document 8 - ${label} By name`, this.doc8[k + '_by_name'], 'name']);
-                list.push([`Document 8 - ${label} By position`, this.doc8[k + '_by_position'], 'name']);
-            });
-            list.push(['Document 8 - Validated By contact number', this.doc8.validated_by_contact, 'phone']);
+        // Signatories (Prepared / Noted / Validated / Approved By) must be filled
+        // in and in the right format before a document can be saved - names and
+        // positions: letters and / - ' . , only; contact number: 09XXXXXXXXX /
+        // +639XXXXXXXXX. The rest of each document can still be saved partially.
+        // Only documents changed since the last save are checked (all three are
+        // posted together, and an untouched tab must not block saving another).
+        // The server re-checks the same rules: ActiveAssessmentForms::
+        // documentProblems() + AssessmentController::assertFieldFormats().
+        docDirty(n) {
+            return JSON.stringify(this['doc' + n]) !== JSON.stringify(this['initialDoc' + n]);
+        },
+        isBlank(v) {
+            return v === null || v === undefined || String(v).trim() === '';
+        },
+        docProblems(n) {
+            const out = [];
+            const F = window.LyncFormat;
+            const req = (path, label, value, kind) => {
+                if (this.isBlank(value)) { out.push({ path, msg: `${label} is required.` }); return; }
+                if (kind === 'name' && ! F.nameOk(value)) out.push({ path, msg: `${label} may only contain letters and / - ' . , (no numbers or other symbols).` });
+                if (kind === 'phone' && ! F.phoneOk(value)) out.push({ path, msg: `${label} must use the format 09XXXXXXXXX or +639XXXXXXXXX.` });
+            };
 
-            return window.LyncFormat.firstProblem(list);
+            if (n === 6) {
+                const d = this.doc6;
+                (d.prepared_by || []).forEach((row, i) => {
+                    req(`doc6.prepared_by.${i}.name`, `Prepared By #${i + 1} name`, row.name, 'name');
+                    req(`doc6.prepared_by.${i}.position`, `Prepared By #${i + 1} position`, row.position, 'name');
+                });
+                req('doc6.noted_by', 'Noted By name', d.noted_by, 'name');
+                req('doc6.noted_by_position', 'Noted By position', d.noted_by_position, 'name');
+            } else if (n === 7) {
+                const d = this.doc7;
+                req('doc7.prepared_by_name', 'Prepared By name', d.prepared_by_name, 'name');
+                req('doc7.prepared_by_position', 'Prepared By position', d.prepared_by_position, 'name');
+                req('doc7.noted_by_name', 'Noted By name', d.noted_by_name, 'name');
+                req('doc7.noted_by_position', 'Noted By position', d.noted_by_position, 'name');
+            } else if (n === 8) {
+                const d = this.doc8;
+                req('doc8.validated_by_name', 'Validated By name', d.validated_by_name, 'name');
+                req('doc8.validated_by_position', 'Validated By position / affiliation', d.validated_by_position, 'name');
+                req('doc8.validated_by_contact', 'Validated By contact number', d.validated_by_contact, 'phone');
+                req('doc8.validated_by_date', 'Validated By date', d.validated_by_date);
+                req('doc8.noted_by_name', 'Noted By name', d.noted_by_name, 'name');
+                req('doc8.noted_by_position', 'Noted By position', d.noted_by_position, 'name');
+                req('doc8.approved_by_name', 'Approved By name', d.approved_by_name, 'name');
+                req('doc8.approved_by_position', 'Approved By position', d.approved_by_position, 'name');
+            }
+            return out;
+        },
+        // Red outline for one field, only after a blocked Save and only in a
+        // document that's actually being saved (i.e. changed).
+        bad(path) {
+            if (! this.showErrors) return false;
+            const n = Number(path.charAt(3));
+            return this.docDirty(n) && this.docProblems(n).some(p => p.path === path);
         },
         trySubmit(event) {
-            const problem = this.formProblem();
-            if (problem) {
+            // The open tab first, so its problems are the ones shown.
+            const order = [this.activeDoc, ...[6, 7, 8].filter(n => n !== this.activeDoc)];
+            for (const n of order) {
+                if (! this.docDirty(n)) continue;
+                const problems = this.docProblems(n);
+                if (! problems.length) continue;
+
                 event.preventDefault();
-                this.$store.toast.error('Cannot save yet', problem);
+                this.showErrors = true;
+                this.activeDoc = n;
+                const more = problems.length > 1 ? ` (${problems.length - 1} more field${problems.length > 2 ? 's' : ''} need fixing - outlined in red.)` : '';
+                this.$store.toast.error(`Cannot save Document ${n} yet`, problems[0].msg + more);
+                this.$nextTick(() => {
+                    const el = document.querySelector(`[data-path='${problems[0].path}']`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        if (typeof el.focus === 'function' && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) el.focus({ preventScroll: true });
+                    }
+                });
                 return;
             }
 
-            if (this.activeDoc !== 8) {
-                this.doc8InvalidCategory = null;
-                this.$store.navigation.hasUnsavedChanges = false;
-                return;
-            }
-
-            this.doc8ValidationAttempted = true;
-            this.doc8InvalidCategory = Object.keys(this.doc8.ratings).find(cat => this.doc8CategoryIncomplete(cat)) || null;
+            this.showErrors = false;
             this.$store.navigation.hasUnsavedChanges = false;
         },
         addRow(doc, section, columns) {
@@ -295,10 +326,6 @@
         clearAll() {
             this['doc' + this.activeDoc] = JSON.parse(JSON.stringify(this['blankDoc' + this.activeDoc]));
 
-            if (this.activeDoc === 8) {
-                this.doc8ValidationAttempted = false;
-                this.doc8InvalidCategory = null;
-            }
 
             this.showClearConfirm = false;
         },
@@ -364,6 +391,7 @@
         @method('PUT')
         <input type="hidden" name="stage" value="Active-Assessment">
         <input type="hidden" name="active_document" :value="activeDoc">
+        <input type="hidden" name="changed_documents" :value="JSON.stringify([6, 7, 8].filter(n => docDirty(n)))">
         <input type="hidden" name="document_6" :value="JSON.stringify(doc6)">
         <input type="hidden" name="document_7" :value="JSON.stringify(doc7)">
         <input type="hidden" name="document_8" :value="JSON.stringify(doc8)">
@@ -441,9 +469,9 @@
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
                         @for ($i = 0; $i < 3; $i++)
                         <div>
-                            <input type="text" x-model="doc6.prepared_by[{{ $i }}].name" data-person-name placeholder="Input Name"
+                            <input type="text" x-model="doc6.prepared_by[{{ $i }}].name" data-path="doc6.prepared_by.{{ $i }}.name" :class="bad('doc6.prepared_by.{{ $i }}.name') && 'ring-2 ring-rose-600'" data-person-name placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <input type="text" x-model="doc6.prepared_by[{{ $i }}].position" data-person-name
+                            <input type="text" x-model="doc6.prepared_by[{{ $i }}].position" data-path="doc6.prepared_by.{{ $i }}.position" :class="bad('doc6.prepared_by.{{ $i }}.position') && 'ring-2 ring-rose-600'" data-person-name
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                         </div>
                         @endfor
@@ -451,9 +479,9 @@
 
                     <p class="mb-2 mt-6 text-sm font-semibold text-gray-700">Noted By:</p>
                     <div class="max-w-xs">
-                        <input type="text" x-model="doc6.noted_by" data-person-name placeholder="Input Name"
+                        <input type="text" x-model="doc6.noted_by" data-path="doc6.noted_by" :class="bad('doc6.noted_by') && 'ring-2 ring-rose-600'" data-person-name placeholder="Input Name"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                        <input type="text" x-model="doc6.noted_by_position" data-person-name
+                        <input type="text" x-model="doc6.noted_by_position" data-path="doc6.noted_by_position" :class="bad('doc6.noted_by_position') && 'ring-2 ring-rose-600'" data-person-name
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                     </div>
                 </div>
@@ -554,17 +582,17 @@
                 <div class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-2">
                     <div>
                         <p class="mb-2 text-sm font-semibold text-gray-700">Prepared By:</p>
-                        <input type="text" x-model="doc7.prepared_by_name" data-person-name placeholder="Input Name"
+                        <input type="text" x-model="doc7.prepared_by_name" data-path="doc7.prepared_by_name" :class="bad('doc7.prepared_by_name') && 'ring-2 ring-rose-600'" data-person-name placeholder="Input Name"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                        <input type="text" x-model="doc7.prepared_by_position" data-person-name
+                        <input type="text" x-model="doc7.prepared_by_position" data-path="doc7.prepared_by_position" :class="bad('doc7.prepared_by_position') && 'ring-2 ring-rose-600'" data-person-name
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                     </div>
 
                     <div>
                         <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
-                        <input type="text" x-model="doc7.noted_by_name" data-person-name placeholder="Input Name"
+                        <input type="text" x-model="doc7.noted_by_name" data-path="doc7.noted_by_name" :class="bad('doc7.noted_by_name') && 'ring-2 ring-rose-600'" data-person-name placeholder="Input Name"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                        <input type="text" x-model="doc7.noted_by_position" data-person-name
+                        <input type="text" x-model="doc7.noted_by_position" data-path="doc7.noted_by_position" :class="bad('doc7.noted_by_position') && 'ring-2 ring-rose-600'" data-person-name
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                     </div>
                 </div>
@@ -620,11 +648,21 @@
                                         {{ $opt }}
                                     </label>
                                 @endforeach
-                                <label class="flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="checkbox" x-model="doc8.{{ $group['key'] }}.others_checked" class="h-4 w-4 rounded border-gray-300">
-                                    Others:
-                                    <input type="text" x-model="doc8.{{ $group['key'] }}.others_text" class="flex-1 border-b border-gray-300 px-1 text-sm focus:outline-none">
-                                </label>
+                                {{-- The text field is only editable while "Others" is ticked. It sits
+                                     outside the <label> so clicking the locked field doesn't tick the box.
+                                     Unticking keeps the typed text (re-ticking restores it); the export
+                                     already ignores others_text unless others_checked is true. --}}
+                                <div class="flex items-center gap-2 text-sm text-gray-700">
+                                    <label class="flex items-center gap-2">
+                                        <input type="checkbox" x-model="doc8.{{ $group['key'] }}.others_checked"
+                                            @change="if ($event.target.checked) $nextTick(() => $refs.others_{{ $group['key'] }}.focus())"
+                                            class="h-4 w-4 rounded border-gray-300">
+                                        Others:
+                                    </label>
+                                    <input type="text" x-ref="others_{{ $group['key'] }}" x-model="doc8.{{ $group['key'] }}.others_text"
+                                        :disabled="! doc8.{{ $group['key'] }}.others_checked"
+                                        class="flex-1 border-b border-gray-300 px-1 text-sm focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">
+                                </div>
                             </div>
                         </div>
                     @endforeach
@@ -657,7 +695,7 @@
                         <div>
                             <div class="overflow-x-auto rounded"
                                 id="doc8-cat-{{ $catKey }}"
-                                :class="doc8ValidationAttempted && doc8CategoryIncomplete('{{ $catKey }}') ? 'ring-2 ring-rose-600' : ''">
+                                :class="showErrors && doc8CategoryIncomplete('{{ $catKey }}') ? 'ring-2 ring-rose-600' : ''">
                                 <table class="w-full border text-sm">
                                     <thead>
                                         <tr class="bg-gray-50">
@@ -701,7 +739,7 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <p x-show="doc8ValidationAttempted && doc8CategoryIncomplete('{{ $catKey }}')" x-cloak
+                            <p x-show="showErrors && doc8CategoryIncomplete('{{ $catKey }}')" x-cloak
                                 class="mt-1.5 text-xs font-semibold text-rose-600">
                                 Please rate every statement in this section before saving.
                             </p>
@@ -749,26 +787,26 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Name</p>
-                            <input type="text" x-model="doc8.validated_by_name" data-person-name
+                            <input type="text" x-model="doc8.validated_by_name" data-path="doc8.validated_by_name" :class="bad('doc8.validated_by_name') && 'ring-2 ring-rose-600'" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Position / Affiliation</p>
-                            <input type="text" x-model="doc8.validated_by_position" data-person-name
+                            <input type="text" x-model="doc8.validated_by_position" data-path="doc8.validated_by_position" :class="bad('doc8.validated_by_position') && 'ring-2 ring-rose-600'" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Contact No.</p>
-                            <input type="text" x-model="doc8.validated_by_contact" data-ph-mobile placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+                            <input type="text" x-model="doc8.validated_by_contact" data-path="doc8.validated_by_contact" data-ph-mobile placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                                 maxlength="13" inputmode="tel"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                :class="doc8.validated_by_contact && ! /^(09\d{9}|\+639\d{9})$/.test(doc8.validated_by_contact) ? 'border-red-400' : ''">
+                                :class="[doc8.validated_by_contact && ! /^(09\d{9}|\+639\d{9})$/.test(doc8.validated_by_contact) ? 'border-red-400' : '', bad('doc8.validated_by_contact') ? 'ring-2 ring-rose-600' : '']">
                             <p x-show="doc8.validated_by_contact && ! /^(09\d{9}|\+639\d{9})$/.test(doc8.validated_by_contact)" x-cloak
                                 class="mt-1 text-xs text-red-600">Use format 09XXXXXXXXX or +639XXXXXXXXX.</p>
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Date</p>
-                            <input type="date" x-model="doc8.validated_by_date"
+                            <input type="date" x-model="doc8.validated_by_date" data-path="doc8.validated_by_date" :class="bad('doc8.validated_by_date') && 'ring-2 ring-rose-600'"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         </div>
                     </div>
@@ -776,17 +814,17 @@
                     <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
-                            <input type="text" x-model="doc8.noted_by_name" data-person-name
+                            <input type="text" x-model="doc8.noted_by_name" data-path="doc8.noted_by_name" :class="bad('doc8.noted_by_name') && 'ring-2 ring-rose-600'" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <input type="text" x-model="doc8.noted_by_position" data-person-name
+                            <input type="text" x-model="doc8.noted_by_position" data-path="doc8.noted_by_position" :class="bad('doc8.noted_by_position') && 'ring-2 ring-rose-600'" data-person-name
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                         </div>
 
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Approved By:</p>
-                            <input type="text" x-model="doc8.approved_by_name" data-person-name
+                            <input type="text" x-model="doc8.approved_by_name" data-path="doc8.approved_by_name" :class="bad('doc8.approved_by_name') && 'ring-2 ring-rose-600'" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <textarea x-model="doc8.approved_by_position" data-person-name rows="2"
+                            <textarea x-model="doc8.approved_by_position" data-path="doc8.approved_by_position" :class="bad('doc8.approved_by_position') && 'ring-2 ring-rose-600'" data-person-name rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                         </div>
                     </div>
