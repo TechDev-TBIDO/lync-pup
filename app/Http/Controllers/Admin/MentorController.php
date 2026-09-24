@@ -154,6 +154,44 @@ class MentorController extends Controller
 
     public function destroy(Mentor $mentor): RedirectResponse
     {
+        // History stays when a mentor profile is deleted. The mentor_id FK
+        // is ON DELETE SET NULL, so the mentor's name is captured onto every
+        // roadblock whose session already happened (Pending Review, Resolved,
+        // Failed, Deleted by Admin) BEFORE the delete — Roadblock Management,
+        // the founder's Archive, etc. then show it as "Name (Deleted)".
+        //
+        // Sweep first, so a Scheduled session whose time has already passed
+        // is treated as Pending Review (it happened) rather than reset.
+        Roadblock::promoteEndedMeetingsToPendingReview();
+
+        $mentor->roadblocks()
+            ->whereIn('status', ['Pending Review', 'Resolved', 'Failed', 'Deleted by Admin'])
+            ->update(['assignee_name_snapshot' => $mentor->display_name]);
+
+        // Only a session that hasn't happened yet goes back to Pending, so
+        // the admin can assign someone else — there's no history for it yet.
+        $mentor->roadblocks()
+            ->where('status', 'Scheduled')
+            ->get()
+            ->each(fn (Roadblock $roadblock) => $roadblock->update(Roadblock::pendingResetAttributes()));
+
+        if ($mentor->mentor_photo_path) {
+                Storage::disk('public')->delete($mentor->mentor_photo_path);
+            }
+            $data['mentor_photo_path'] = $newPhotoPath;
+        }
+
+        // Which fields this save really changed (see ChangeLog) — a save that
+        // changes nothing isn't logged at all.
+        $changes = ChangeLog::track($mentor, HistoryFields::mentor(), fn () => $mentor->update($data));
+
+        VersionHistory::recordChanges(null, 'Mentor Profile', 'update_mentor', $changes, $mentor->display_name);
+
+        return redirect()->route('admin.mentors.index')->with('status', 'Mentor updated successfully.');
+    }
+
+    public function destroy(Mentor $mentor): RedirectResponse
+    {
         // The mentor_id FK is ON DELETE SET NULL, so deleting this mentor
         // would otherwise leave any roadblock still assigned to them stuck
         // as "Scheduled"/"Pending Review" with a blank assignee column

@@ -196,7 +196,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3 text-center align-middle">{{ $roadblock->assignee?->display_name }}</td>
+                            <td class="px-4 py-3 text-center align-middle">{{ $roadblock->assignee_display_name }}</td>
 
                             <td class="px-3 py-3 align-middle sm:px-4">
                                 {{-- Stacked on phones: two buttons side by side squeeze the column --}}
@@ -300,7 +300,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                                         <div class="grid gap-3 md:grid-cols-2 md:gap-x-6 lg:w-[80%]">
                                                             <div>
                                                                 <label class="{{ $lbl }}">{{ $assigneeLabel }}</label>
-                                                                <p class="{{ $pill }} truncate">{{ $assignee?->display_name ?? '—' }}</p>
+                                                                <p class="{{ $pill }} truncate">{{ $roadblock->assignee_display_name ?? '—' }}</p>
                                                             </div>
 
                                                             <div>

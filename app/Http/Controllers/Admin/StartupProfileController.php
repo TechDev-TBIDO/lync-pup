@@ -58,7 +58,11 @@ class StartupProfileController extends Controller
 
         $scopedTotal = fn () => $applyCohort(Startup::applicationApproved());
 
-        $totalStartups = $scopedTotal()->count();
+        // Total Startup leaves Applicants out — a startup only starts
+        // counting toward the total once it's past the Applicant stage.
+        $countedInTotal = fn () => $scopedTotal()->whereNot(fn ($q) => $q->onboarding());
+
+        $totalStartups = $countedInTotal()->count();
         $activeStartups = $scopedTotal()->active()->count();
         $needsCoordinatorStartups = $scopedTotal()->needsCoordinator()->count();
         // Surfaced as its own summary card below (see 'applicant' in
@@ -113,7 +117,9 @@ class StartupProfileController extends Controller
             // specific cohort is selected, this only ever includes that one
             // cohort's row — it used to always list every cohort at once
             // regardless of what's actually selected on this page.
-            'cohortBreakdown' => $applyCohort(Startup::query()->applicationApproved())
+            // Applicants left out here too, so the per-cohort lines still add
+            // up to the Total Startup number.
+            'cohortBreakdown' => $countedInTotal()
                 ->whereNotNull('cohort_number')
                 ->selectRaw('cohort_number, count(*) as total')
                 ->groupBy('cohort_number')

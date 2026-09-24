@@ -162,6 +162,57 @@ class CoordinatorProfileController extends Controller
             ->where('assignment_status', 'Active')
             ->update(['assignment_status' => 'Inactive']);
 
+        // Same as MentorController::destroy(): keep the name on every
+        // roadblock whose session already happened, and only send a
+        // not-yet-held Scheduled session back to Pending.
+        Roadblock::promoteEndedMeetingsToPendingReview();
+
+        $coordinator->roadblocks()
+            ->whereIn('status', ['Pending Review', 'Resolved', 'Failed', 'Deleted by Admin'])
+            ->update(['assignee_name_snapshot' => $coordinator->display_name]);
+
+        $coordinator->roadblocks()
+            ->where('status', 'Scheduled')
+            ->get()
+            ->each(fn (Roadblock $roadblock) => $roadblock->update(Roadblock::pendingResetAttributes()));
+
+        if ($coordinator->coordinator_photo_path) {
+                Storage::disk('public')->delete($coordinator->coordinator_photo_path);
+            }
+            $data['coordinator_photo_path'] = $newPhotoPath;
+        }
+
+        // Which fields this save really changed (see ChangeLog) — a save that
+        // changes nothing isn't logged at all.
+        $changes = ChangeLog::track($coordinator, HistoryFields::coordinator(), fn () => $coordinator->update($data));
+
+        VersionHistory::recordChanges(null, 'Coordinator Profile', 'update_coordinator', $changes, $coordinator->name);
+
+        return redirect()->route('admin.coordinators.index')->with('status', 'Coordinator updated successfully.');
+    }
+
+    public function destroy(Coordinator $coordinator): RedirectResponse
+    {
+        // Snapshot the name onto every assignment row — Active or already
+        // Completed — before coordinator_id gets nulled out from under them
+        // (see the migration that added this column + made the FK SET NULL
+        // instead of CASCADE). Without this, coordinator_assignments — a
+        // startup's whole coordination history — used to be hard-deleted
+        // outright the moment its coordinator was; now the rows survive,
+        // but would still lose the coordinator's name once coordinator_id
+        // has nothing left to look it up by.
+        $coordinator->assignments()->update(['coordinator_name_snapshot' => $coordinator->name]);
+
+        // An Active assignment can't sensibly stay "Active" once its
+        // coordinator is gone — mirrors sending a still-open roadblock back
+        // to Pending below: the startup should read as needing a
+        // coordinator again, not as still having one that's now null.
+        // Already-Completed assignments are left as Completed — they're
+        // closed-out history either way.
+        $coordinator->assignments()
+            ->where('assignment_status', 'Active')
+            ->update(['assignment_status' => 'Inactive']);
+
         // Same fix as MentorController::destroy() — see its comment. The
         // coordinator_id FK is ON DELETE SET NULL, so without this, any
         // roadblock still assigned to this coordinator would be left stuck

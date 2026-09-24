@@ -17,12 +17,6 @@
 </head>
 <body class="antialiased font-['Poppins'] bg-white">
     <div class="max-w-2xl mx-auto px-6 py-12">
-        <a href="javascript:history.back()" class="inline-flex text-gray-500 hover:text-gray-800 mb-6">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-        </a>
-
         <h1 class="text-2xl font-bold text-gray-900 mb-2">Terms of Service</h1>
         <p class="text-sm text-gray-400 mb-8">Placeholder text — to be replaced with PUP TBIDO's final Terms of Service.</p>
 

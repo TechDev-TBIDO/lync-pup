@@ -259,6 +259,25 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             this.$store.navigation.hasUnsavedChanges = false;
         },
 
+        // Tab switching gets the same Unsaved Changes guard as leaving the
+        // page: moving off the Roadblock tab with a draft asks Stay/Leave,
+        // and Leave discards the draft (the modal says edits will be lost).
+        switchTab(target) {
+            if (target === this.tab) return;
+
+            if (this.tab === 'roadblock' && this.isDirty) {
+                this.$store.navigation.nextUrl = null;
+                this.$store.navigation.pendingAction = () => {
+                    this.resetForm();
+                    this.tab = target;
+                };
+                this.$store.navigation.showLeaveModal = true;
+                return;
+            }
+
+            this.tab = target;
+        },
+
         get isDirty() {
             return this.category !== ''
                 || this.categoryOther.trim() !== ''
@@ -311,9 +330,9 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         {{-- Tabs scroll rather than wrap on narrow phones --}}
         <div class="border-b border-gray-200 mb-6">
             <nav class="flex gap-5 overflow-x-auto sm:gap-8">
-                <button type="button" @click="tab = 'roadblock'" :class="tab === 'roadblock' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Roadblock</button>
-                <button type="button" @click="tab = 'update'" :class="tab === 'update' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Update</button>
-                <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive</button>
+                <button type="button" @click="switchTab('roadblock')" :class="tab === 'roadblock' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Roadblock</button>
+                <button type="button" @click="switchTab('update')" :class="tab === 'update' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Update</button>
+                <button type="button" @click="switchTab('archive')" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive</button>
             </nav>
         </div>
 
