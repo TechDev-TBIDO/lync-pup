@@ -142,6 +142,26 @@ class CoordinatorProfileController extends Controller
 
     public function destroy(Coordinator $coordinator): RedirectResponse
     {
+        // Snapshot the name onto every assignment row — Active or already
+        // Completed — before coordinator_id gets nulled out from under them
+        // (see the migration that added this column + made the FK SET NULL
+        // instead of CASCADE). Without this, coordinator_assignments — a
+        // startup's whole coordination history — used to be hard-deleted
+        // outright the moment its coordinator was; now the rows survive,
+        // but would still lose the coordinator's name once coordinator_id
+        // has nothing left to look it up by.
+        $coordinator->assignments()->update(['coordinator_name_snapshot' => $coordinator->name]);
+
+        // An Active assignment can't sensibly stay "Active" once its
+        // coordinator is gone — mirrors sending a still-open roadblock back
+        // to Pending below: the startup should read as needing a
+        // coordinator again, not as still having one that's now null.
+        // Already-Completed assignments are left as Completed — they're
+        // closed-out history either way.
+        $coordinator->assignments()
+            ->where('assignment_status', 'Active')
+            ->update(['assignment_status' => 'Inactive']);
+
         // Same fix as MentorController::destroy() — see its comment. The
         // coordinator_id FK is ON DELETE SET NULL, so without this, any
         // roadblock still assigned to this coordinator would be left stuck

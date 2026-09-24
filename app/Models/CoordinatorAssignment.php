@@ -11,7 +11,7 @@ class CoordinatorAssignment extends Model
 
     protected $primaryKey = 'assignment_id';
 
-    protected $fillable = ['startup_id', 'coordinator_id', 'assigned_date', 'assignment_status'];
+    protected $fillable = ['startup_id', 'coordinator_id', 'coordinator_name_snapshot', 'assigned_date', 'assignment_status'];
 
     protected function casts(): array
     {
@@ -26,5 +26,23 @@ class CoordinatorAssignment extends Model
     public function coordinator()
     {
         return $this->belongsTo(Coordinator::class, 'coordinator_id');
+    }
+
+    /**
+     * Display-safe coordinator name for this assignment, even after the
+     * actual Coordinator row is gone — falls back to the name captured in
+     * coordinator_name_snapshot, tagged "(Deleted)", once coordinator_id
+     * has been nulled out by CoordinatorProfileController::destroy().
+     * Mirrors Roadblock::getAssigneeDisplayNameAttribute().
+     */
+    public function getCoordinatorDisplayNameAttribute(): ?string
+    {
+        if ($this->coordinator) {
+            return $this->coordinator->name;
+        }
+
+        return $this->coordinator_name_snapshot
+            ? "{$this->coordinator_name_snapshot} (Deleted)"
+            : null;
     }
 }
