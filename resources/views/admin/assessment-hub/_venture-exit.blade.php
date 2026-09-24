@@ -37,15 +37,14 @@
         ];
     }
 
-    // Venture Exit's own signatory block — editable-but-prefilled the
-    // same way as the assessment form's own signatory blocks. Noted by
-    // has no title/position, per how it was given.
+    // Venture Exit's own signatory block. Nothing is pre-filled - every
+    // name and position starts blank.
     $veSeed['evaluated_by_name'] = $veData['evaluated_by_name'] ?? '';
-    $veSeed['evaluated_by_position'] = $veData['evaluated_by_position'] ?? 'Portfolio Coordinator, TBIDO';
+    $veSeed['evaluated_by_position'] = $veData['evaluated_by_position'] ?? '';
     $veSeed['reviewed_by_name'] = $veData['reviewed_by_name'] ?? '';
-    $veSeed['reviewed_by_position'] = $veData['reviewed_by_position'] ?? 'Incubation Management Chief, TBIDO';
+    $veSeed['reviewed_by_position'] = $veData['reviewed_by_position'] ?? '';
     $veSeed['noted_by_name'] = $veData['noted_by_name'] ?? '';
-    $veSeed['noted_by_position'] = $veData['noted_by_position'] ?? 'Director, TBIDO';
+    $veSeed['noted_by_position'] = $veData['noted_by_position'] ?? '';
 
     // Exit status — mutually exclusive per the reference definitions:
     // "Completed" (finished the cohort with requirements still missing) vs
@@ -409,7 +408,7 @@
                     <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
                     <input type="text" x-model="ve.evaluated_by_name" data-person-name placeholder="Input Name"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                    <input type="text" x-model="ve.evaluated_by_position" data-person-name
+                    <input type="text" x-model="ve.evaluated_by_position" placeholder="Position" data-person-name
                         class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                 </div>
 
@@ -417,7 +416,7 @@
                     <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
                     <input type="text" x-model="ve.reviewed_by_name" data-person-name placeholder="Input Name"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                    <input type="text" x-model="ve.reviewed_by_position" data-person-name
+                    <input type="text" x-model="ve.reviewed_by_position" placeholder="Position" data-person-name
                         class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                 </div>
 
@@ -425,7 +424,7 @@
                     <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
                     <input type="text" x-model="ve.noted_by_name" data-person-name placeholder="Input Name"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                    <input type="text" x-model="ve.noted_by_position" data-person-name
+                    <input type="text" x-model="ve.noted_by_position" placeholder="Position" data-person-name
                         class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                 </div>
             </div>

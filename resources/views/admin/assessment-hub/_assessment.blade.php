@@ -51,14 +51,12 @@ for ($i = 0; $i < $count; $i++) {
     // MRL and TMRL's own independent signatory blocks — used to be one
     // shared set of columns/variables (see the migration that split them),
     // so typing into one type's "Evaluated by" visibly overwrote the
-    // other's. Evaluated by defaults to the logged-in admin (matching the
-    // old auto-filled behavior) the first time each type is saved;
-    // Reviewed by / Noted by have no sensible default and start blank
-    // until someone fills them in.
-    $overviewMrlEvaluatedBy = $currentAssessment?->mrl_evaluated_by ?? (auth()->user()?->name ?? '');
+    // other's. No signatory is pre-filled - every name and position starts
+    // blank until someone fills it in.
+    $overviewMrlEvaluatedBy = $currentAssessment?->mrl_evaluated_by ?? '';
     $overviewMrlReviewedBy = $currentAssessment?->mrl_reviewed_by ?? '';
     $overviewMrlNotedBy = $currentAssessment?->mrl_noted_by ?? '';
-    $overviewTmrlEvaluatedBy = $currentAssessment?->tmrl_evaluated_by ?? (auth()->user()?->name ?? '');
+    $overviewTmrlEvaluatedBy = $currentAssessment?->tmrl_evaluated_by ?? '';
     $overviewTmrlReviewedBy = $currentAssessment?->tmrl_reviewed_by ?? '';
     $overviewTmrlNotedBy = $currentAssessment?->tmrl_noted_by ?? '';
 
@@ -71,47 +69,30 @@ for ($i = 0; $i < $count; $i++) {
     $overviewTrlNotedBy = $currentAssessment?->trl_noted_by ?? '';
     $overviewTrlNotedByPosition = $currentAssessment?->trl_noted_by_position ?? '';
 
-    // "Approved by" is editable but arrives pre-filled with the
-    // director's fixed signature/title, rather than being fully static —
-    // the assessor can correct it later without touching code.
-    $overviewApprovedBy = $currentAssessment?->approved_by ?? 'DR. PHILIP P. ERMITA , PIE, PDQM, ASEAN ENG.';
-    $overviewApprovedByPosition = $currentAssessment?->approved_by_position
-        ?? "Director, Technology Business Incubation and Development Office\nProject Leader, DOST-HEIRIT";
+    // "Approved by" starts blank like every other signatory.
+    $overviewApprovedBy = $currentAssessment?->approved_by ?? '';
+    $overviewApprovedByPosition = $currentAssessment?->approved_by_position ?? '';
 
-    // MRL and TMRL's own three position/title lines — same
-    // editable-but-prefilled treatment as approved_by_position above, now
-    // kept independently per type instead of one shared set. Evaluated by
-    // only gets its second line on Pre-Assessment — the real
-    // Post-Assessment form only ever prints one position line.
-    $overviewMrlEvaluatedByPosition = $currentAssessment?->mrl_evaluated_by_position
-        ?? ($isPostAssessment
-            ? 'Portfolio Coordinator, TBIDO'
-            : "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT");
-    $overviewMrlReviewedByPosition = $currentAssessment?->mrl_reviewed_by_position ?? 'Startup Development Chief, TBIDO';
-    $overviewMrlNotedByPosition = $currentAssessment?->mrl_noted_by_position
-        ?? "Director, TBIDO\nProject Leader, DOST HEIRIT";
-    $overviewTmrlEvaluatedByPosition = $currentAssessment?->tmrl_evaluated_by_position
-        ?? ($isPostAssessment
-            ? 'Portfolio Coordinator, TBIDO'
-            : "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT");
-    $overviewTmrlReviewedByPosition = $currentAssessment?->tmrl_reviewed_by_position ?? 'Startup Development Chief, TBIDO';
-    $overviewTmrlNotedByPosition = $currentAssessment?->tmrl_noted_by_position
-        ?? "Director, TBIDO\nProject Leader, DOST HEIRIT";
+    // MRL and TMRL's own three position/title lines, kept independently per
+    // type. They start blank (no pre-filled titles); Evaluated by is a
+    // 2-line box on Pre-Assessment and a single line on Post-Assessment.
+    $overviewMrlEvaluatedByPosition = $currentAssessment?->mrl_evaluated_by_position ?? '';
+    $overviewMrlReviewedByPosition = $currentAssessment?->mrl_reviewed_by_position ?? '';
+    $overviewMrlNotedByPosition = $currentAssessment?->mrl_noted_by_position ?? '';
+    $overviewTmrlEvaluatedByPosition = $currentAssessment?->tmrl_evaluated_by_position ?? '';
+    $overviewTmrlReviewedByPosition = $currentAssessment?->tmrl_reviewed_by_position ?? '';
+    $overviewTmrlNotedByPosition = $currentAssessment?->tmrl_noted_by_position ?? '';
 
     // SRL's own Evaluated/Reviewed/Noted by block — distinct storage
     // from MRL/TMRL's above since its "Reviewed by" default title differs.
     // Same Pre/Post one-vs-two-line rule for Evaluated by as the MRL/TMRL
     // block above.
     $overviewSrlEvaluatedBy = $currentAssessment?->srl_evaluated_by ?? '';
-    $overviewSrlEvaluatedByPosition = $currentAssessment?->srl_evaluated_by_position
-        ?? ($isPostAssessment
-            ? 'Portfolio Coordinator, TBIDO'
-            : "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT");
+    $overviewSrlEvaluatedByPosition = $currentAssessment?->srl_evaluated_by_position ?? '';
     $overviewSrlReviewedBy = $currentAssessment?->srl_reviewed_by ?? '';
-    $overviewSrlReviewedByPosition = $currentAssessment?->srl_reviewed_by_position ?? 'Incubation Management Chief, TBIDO';
+    $overviewSrlReviewedByPosition = $currentAssessment?->srl_reviewed_by_position ?? '';
     $overviewSrlNotedBy = $currentAssessment?->srl_noted_by ?? '';
-    $overviewSrlNotedByPosition = $currentAssessment?->srl_noted_by_position
-        ?? "Director, TBIDO\nProject Leader, DOST HEIRIT";
+    $overviewSrlNotedByPosition = $currentAssessment?->srl_noted_by_position ?? '';
 
     // Always seed a full object shape (never a bare empty array) so
     // @js() below emits a JS object — an empty PHP array would otherwise
@@ -1127,9 +1108,9 @@ for ($i = 0; $i < $count; $i++) {
 
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Approved by:</p>
-                            <input type="text" x-model="approvedBy" data-person-name
+                            <input type="text" x-model="approvedBy" placeholder="Input Name" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <textarea x-model="approvedByPosition" data-person-name rows="2"
+                            <textarea x-model="approvedByPosition" placeholder="Position" data-person-name rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                         </div>
                     </div>
@@ -1143,7 +1124,7 @@ for ($i = 0; $i < $count; $i++) {
                             <input type="text" x-model="evaluatedByPosition" data-person-name placeholder="Position"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                             @else
-                            <textarea x-model="evaluatedByPosition" data-person-name rows="2"
+                            <textarea x-model="evaluatedByPosition" placeholder="Position" data-person-name rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                             @endif
                         </div>
@@ -1152,15 +1133,15 @@ for ($i = 0; $i < $count; $i++) {
                             <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
                             <input type="text" x-model="reviewedBy" data-person-name placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <input type="text" x-model="reviewedByPosition" data-person-name
+                            <input type="text" x-model="reviewedByPosition" placeholder="Position" data-person-name
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                         </div>
 
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
-                            <input type="text" x-model="notedBy" data-person-name placeholder="Input name"
+                            <input type="text" x-model="notedBy" data-person-name placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <textarea x-model="notedByPosition" data-person-name rows="2"
+                            <textarea x-model="notedByPosition" placeholder="Position" data-person-name rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                         </div>
                     </div>
@@ -1174,7 +1155,7 @@ for ($i = 0; $i < $count; $i++) {
                             <input type="text" x-model="srlEvaluatedByPosition" placeholder="Position"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                             @else
-                            <textarea x-model="srlEvaluatedByPosition" rows="2"
+                            <textarea x-model="srlEvaluatedByPosition" placeholder="Position" rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                             @endif
                         </div>
@@ -1183,15 +1164,15 @@ for ($i = 0; $i < $count; $i++) {
                             <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
                             <input type="text" x-model="srlReviewedBy" placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <input type="text" x-model="srlReviewedByPosition"
+                            <input type="text" x-model="srlReviewedByPosition" placeholder="Position"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                         </div>
 
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
-                            <input type="text" x-model="srlNotedBy" placeholder="Input name"
+                            <input type="text" x-model="srlNotedBy" placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <textarea x-model="srlNotedByPosition" rows="2"
+                            <textarea x-model="srlNotedByPosition" placeholder="Position" rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                         </div>
                     </div>

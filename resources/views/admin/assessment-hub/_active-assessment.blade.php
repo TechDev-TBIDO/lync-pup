@@ -23,14 +23,9 @@
         }
 
         // Document 6's own signatory block — three "Prepared By" signatories
-        // (each with a fixed default title/position, editable-but-prefilled
-        // like the assessment form's other signatory blocks) plus a single
-        // "Noted By" name with no accompanying title.
-        $doc6PreparedByDefaults = [
-            'Startup Development Chief, TBIDO',
-            'Incubation Management Chief, TBIDO',
-            'Technology Development Chief, TBIDO',
-        ];
+        // plus a "Noted By". Nothing is pre-filled: every name and position
+        // starts blank (the inputs show "Input Name" / "Position" placeholders).
+        $doc6PreparedByDefaults = ['', '', ''];
         $seed['prepared_by'] = [];
         foreach ($doc6PreparedByDefaults as $i => $defaultPosition) {
             $seed['prepared_by'][] = [
@@ -39,7 +34,7 @@
             ];
         }
         $seed['noted_by'] = $doc6Data['noted_by'] ?? '';
-        $seed['noted_by_position'] = $doc6Data['noted_by_position'] ?? 'Director, TBIDO';
+        $seed['noted_by_position'] = $doc6Data['noted_by_position'] ?? '';
 
         return $seed;
     };
@@ -62,9 +57,9 @@
         // both editable-but-prefilled like the assessment form's other
         // signatory blocks.
         $seed['prepared_by_name'] = $doc7Data['prepared_by_name'] ?? '';
-        $seed['prepared_by_position'] = $doc7Data['prepared_by_position'] ?? 'Portfolio Coordinator, TBIDO';
+        $seed['prepared_by_position'] = $doc7Data['prepared_by_position'] ?? '';
         $seed['noted_by_name'] = $doc7Data['noted_by_name'] ?? '';
-        $seed['noted_by_position'] = $doc7Data['noted_by_position'] ?? 'Assigned Chief, TBIDO';
+        $seed['noted_by_position'] = $doc7Data['noted_by_position'] ?? '';
 
         return $seed;
     };
@@ -103,11 +98,10 @@
         $seed['validated_by_position'] = $doc8Data['validated_by_position'] ?? '';
         $seed['validated_by_contact'] = $doc8Data['validated_by_contact'] ?? '';
         $seed['validated_by_date'] = $doc8Data['validated_by_date'] ?? '';
-        $seed['noted_by_name'] = $doc8Data['noted_by_name'] ?? 'DR. JUANCHO D. ESPINELI';
-        $seed['noted_by_position'] = $doc8Data['noted_by_position'] ?? 'Chief, Technology Development Section, PUP';
-        $seed['approved_by_name'] = $doc8Data['approved_by_name'] ?? 'DR. PHILIP P. ERMITA, PIE, PDQM, ASEAN ENG.';
-        $seed['approved_by_position'] = $doc8Data['approved_by_position']
-            ?? "Director, Technology Business Incubation and Development Office, PUP\nProject Leader, DOST-HEIRIT";
+        $seed['noted_by_name'] = $doc8Data['noted_by_name'] ?? '';
+        $seed['noted_by_position'] = $doc8Data['noted_by_position'] ?? '';
+        $seed['approved_by_name'] = $doc8Data['approved_by_name'] ?? '';
+        $seed['approved_by_position'] = $doc8Data['approved_by_position'] ?? '';
 
         return $seed;
     };
@@ -450,7 +444,7 @@
                         <div>
                             <input type="text" x-model="doc6.prepared_by[{{ $i }}].name" data-person-name placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <input type="text" x-model="doc6.prepared_by[{{ $i }}].position" data-person-name
+                            <input type="text" x-model="doc6.prepared_by[{{ $i }}].position" placeholder="Position" data-person-name
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                         </div>
                         @endfor
@@ -460,7 +454,7 @@
                     <div class="max-w-xs">
                         <input type="text" x-model="doc6.noted_by" data-person-name placeholder="Input Name"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                        <input type="text" x-model="doc6.noted_by_position" data-person-name
+                        <input type="text" x-model="doc6.noted_by_position" placeholder="Position" data-person-name
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                     </div>
                 </div>
@@ -563,7 +557,7 @@
                         <p class="mb-2 text-sm font-semibold text-gray-700">Prepared By:</p>
                         <input type="text" x-model="doc7.prepared_by_name" data-person-name placeholder="Input Name"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                        <input type="text" x-model="doc7.prepared_by_position" data-person-name
+                        <input type="text" x-model="doc7.prepared_by_position" placeholder="Position" data-person-name
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                     </div>
 
@@ -571,7 +565,7 @@
                         <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
                         <input type="text" x-model="doc7.noted_by_name" data-person-name placeholder="Input Name"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                        <input type="text" x-model="doc7.noted_by_position" data-person-name
+                        <input type="text" x-model="doc7.noted_by_position" placeholder="Position" data-person-name
                             class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                     </div>
                 </div>
@@ -766,12 +760,12 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Name</p>
-                            <input type="text" x-model="doc8.validated_by_name" data-person-name
+                            <input type="text" x-model="doc8.validated_by_name" placeholder="Input Name" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         </div>
                         <div>
                             <p class="mb-1 text-xs text-gray-500">Position / Affiliation</p>
-                            <input type="text" x-model="doc8.validated_by_position" data-person-name
+                            <input type="text" x-model="doc8.validated_by_position" placeholder="Position" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                         </div>
                         <div>
@@ -793,17 +787,17 @@
                     <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
-                            <input type="text" x-model="doc8.noted_by_name" data-person-name
+                            <input type="text" x-model="doc8.noted_by_name" placeholder="Input Name" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <input type="text" x-model="doc8.noted_by_position" data-person-name
+                            <input type="text" x-model="doc8.noted_by_position" placeholder="Position" data-person-name
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                         </div>
 
                         <div>
                             <p class="mb-2 text-sm font-semibold text-gray-700">Approved By:</p>
-                            <input type="text" x-model="doc8.approved_by_name" data-person-name
+                            <input type="text" x-model="doc8.approved_by_name" placeholder="Input Name" data-person-name
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                            <textarea x-model="doc8.approved_by_position" data-person-name rows="2"
+                            <textarea x-model="doc8.approved_by_position" placeholder="Position" data-person-name rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
                         </div>
                     </div>
