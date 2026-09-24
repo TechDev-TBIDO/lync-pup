@@ -97,6 +97,20 @@ class InformationSheetController extends Controller
             return redirect()->route('startup.information-sheet.edit')->with('status', 'Information Sheet saved. Submit it for review once it\'s complete.');
         }
 
+        // A rejected startup's founder can revise and resubmit here — when
+        // they do, any evaluation booking that predates the rejection is now
+        // stale (it was for the submission that just got rejected) and must
+        // not keep blocking this startup from reappearing in "Awaiting
+        // Schedule": AssessmentHubController's Awaiting Schedule list
+        // excludes any startup that still has a 'Scheduled' row, and its
+        // Missed list picks up exactly this kind of already-passed one
+        // instead, showing a stale date as if nobody had ever decided on it.
+        // Only fires on an actual resubmission after a rejection — a
+        // startup's very first submission has no schedule rows to clean up.
+        if ($sheet->approval_status === 'Rejected') {
+            $startup->evaluationSchedules()->delete();
+        }
+
         $data['approval_status'] = 'Pending';
         $data['submission_date'] = now();
 
