@@ -150,7 +150,9 @@ pendingRemoval: [],
     // The x is refused when it would empty the table. A row that is already
     // marked stays clickable, otherwise the founder could never undo it.
     canRemoveRow(section, key) {
-        return this.isRemoving(key) || this.remainingRows(section) > 1;
+        // No table has a minimum any more - Core Team included - so every
+        // row can always be removed (or un-marked).
+        return true;
     },
 
     // Grows a one-row textarea to fit its content, so a long answer wraps
@@ -394,7 +396,7 @@ pendingRemoval: [],
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
                 <ul class="list-disc pl-4 space-y-0.5 italic marker:text-[#11386A]">
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are required before you can submit.</span> Type <span class="font-bold">N/A</span> where one does not apply - except dates, email, phone, height and weight, which need a real value. Anything without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> can be left empty.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are required before you can submit.</span> Type <span class="font-bold">N/A</span> where a required one does not apply - except dates, email, phone, height and weight, which need a real value. Fields without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are optional: leave them blank or type <span class="font-bold">N/A</span>.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Save keeps your progress without submitting anything.</span> Come back anytime before your evaluation day to fill in more - a saved-but-incomplete sheet is never sent to TBIDO.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Submit for Review sends it to TBIDO.</span> Every required field needs an answer first - nothing is final until they approve it, and you can keep editing and resubmitting until then.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Your name, mobile and email start from your Startup Profile.</span> Edit them here freely - your Profile will not change.</li>
@@ -427,7 +429,7 @@ pendingRemoval: [],
                     'surname' => 'e.g. Santos',
                     'first_name' => 'e.g. Maria',
                     'middle_name' => 'e.g. Reyes',
-                    'name_extension' => 'e.g. Jr., Sr., III',
+                    'name_extension' => 'e.g. Jr., Sr., III - leave blank if none',
                     'height_m' => 'e.g. 1.65',
                     'weight_kg' => 'e.g. 58',
                     'blood_type' => 'e.g. O+',
@@ -480,6 +482,11 @@ pendingRemoval: [],
                     ];
 
 $field = function ($name, $label, $number = null, $type = 'text', $note = null) use ($sheet, $prefill, $hints, $upperFields, $upperPlaceholderFields, $dobMin, $dobMax) {
+                    // Optional items (InformationSheet::OPTIONAL_FIELDS) carry no
+                    // asterisk and no `required` - blank or N/A both save.
+                    $isRequired = ! in_array($name, \App\Models\InformationSheet::OPTIONAL_FIELDS, true);
+                    $requiredAttr = $isRequired ? ' required' : '';
+                    $star = $isRequired ? " <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span>" : '';
                     // Falls back to the Startup Profile value only while the column is
                     // still empty — a prefill the user reviews, never an overwrite.
                     $stored = $sheet?->{$name};
@@ -514,12 +521,12 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     // sight: everything except a date picker is an auto-growing
                     // textarea. Enter is swallowed so these stay single-value fields.
                     $control = $type === 'date'
-                    ? "<input type=\"date\" name=\"{$name}\" value=\"".e($value)."\" form=\"info-sheet-form\" required
+                    ? "<input type=\"date\" name=\"{$name}\" value=\"".e($value)."\" form=\"info-sheet-form\"{$requiredAttr}
                                 min=\"{$dobMin}\" max=\"{$dobMax}\"
                                 :readonly=\"!editing\"
                                 class='w-full border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500'
                                 @click=\"if(!editing){ lastClickedInput=\$el.name }\" @input=\"dirty=true\">"
-                    : "<textarea name=\"{$name}\" rows=\"1\" form=\"info-sheet-form\" required {$guard}
+                    : "<textarea name=\"{$name}\" rows=\"1\" form=\"info-sheet-form\"{$requiredAttr} {$guard}
                                 :readonly=\"!editing\" placeholder=\"{$placeholder}\"
                                 x-init=\"autoGrow(\$el)\"
                                 @keydown.enter.prevent
@@ -530,7 +537,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     $noteHtml = $note ? "<p class='mt-1 text-xs text-gray-400'>" . e($note) . "</p>" : '';
 
                     return "<div class='flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2'>
-                        <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'>{$numHtml}".e($label).": <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span></label>
+                        <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'>{$numHtml}".e($label).":{$star}</label>
                         <div class='flex-1 min-w-0'>
                             {$control}
                             {$noteHtml}
@@ -732,7 +739,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 <th class="border px-3 py-2">NAME OF SCHOOL <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
                                 <th class="border px-3 py-2">EDUCATIONAL/DEGREE/COURSE <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
                                 <th class="border px-3 py-2">HIGHEST LEVEL UNIT <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
-                                <th class="border px-3 py-2">YEAR GRADUATED <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">YEAR GRADUATED</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -770,7 +777,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
                                 <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="{{ $row['degree_course'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
                                 <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="{{ $row['highest_level_unit'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -801,6 +808,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             },
 
             add() {
+                // An N/A item only stands for an empty list - adding a real
+                // entry replaces it rather than sitting above it.
+                this.rows = this.rows.filter(r => (r.text || '').trim().toUpperCase() !== 'N/A');
                 this.rows.push({ id: this.nextId++, text: '' });
                 dirty = true;
             },
@@ -1024,7 +1034,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     {{-- Pareho ng gutter ng saved rows para hindi mag-shift ang columns --}}
                                     <div class="w-10 flex-shrink-0 flex items-center justify-center">
                                         <button type="button"
-                                            @click="remainingRows('team') > 1 && discardRow('team', row.id)" :disabled="! (remainingRows('team') > 1)" :class="! (remainingRows('team') > 1) && 'text-gray-300 cursor-not-allowed hover:text-gray-300'" :title="remainingRows('team') > 1 ? 'Discard entry' : 'At least one entry is required'"
+                                            @click="discardRow('team', row.id)" title="Discard entry"
                                             title="Discard entry"
                                             aria-label="Discard entry"
                                             class="text-red-600 hover:text-red-800 text-base leading-none">
@@ -1443,6 +1453,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             },
 
             add() {
+                // An N/A item only stands for an empty list - adding a real
+                // entry replaces it rather than sitting above it.
+                this.rows = this.rows.filter(r => (r.text || '').trim().toUpperCase() !== 'N/A');
                 this.rows.push({ id: this.nextId++, text: '' });
                 dirty = true;
             },
@@ -1458,7 +1471,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
         }"
                         x-init="$watch('editing', value => { if (!value) reset() })">
 
-                        <p class="text-xs font-semibold text-gray-700 mb-1">31.</p>
+                        <p class="text-xs font-semibold text-gray-700 mb-1">32.</p>
 
                         {{-- The real field. Hidden, but still part of the main form via form="info-sheet-form".
              x-effect writes .value directly — :value on a <textarea> only sets the attribute,
@@ -1524,6 +1537,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             },
 
             add() {
+                // An N/A item only stands for an empty list - adding a real
+                // entry replaces it rather than sitting above it.
+                this.rows = this.rows.filter(r => (r.text || '').trim().toUpperCase() !== 'N/A');
                 this.rows.push({ id: this.nextId++, text: '' });
                 dirty = true;
             },
@@ -2398,9 +2414,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             //    flagging it would let an incomplete team pass review with
             //    no error at all. Incubation, L&D and References stay
             //    optional, so a blank "add new" row there is still skipped.
+            // A Core Team row whose only content is N/A in the name means
+            // "no team member here" - treated exactly like a blank row.
             const rowIsBlank = (form) => Array.from(form.elements)
                 .filter((el) => el.name && ! ['_token', '_method'].includes(el.name))
-                .every(blank);
+                .every((el) => blank(el) || (el.name === 'full_name' && el.value.trim().toUpperCase() === 'N/A'));
 
             // Tracked so loop 3 below can tell whether a Core Team row
             // already got its own per-field messages here - if so, the
@@ -2414,53 +2432,30 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
 
                 const isTeamForm = form.action.includes('team-members');
 
-                if (! isTeamForm && form.classList.contains('js-addform') && rowIsBlank(form)) return;
+                if (form.classList.contains('js-addform') && rowIsBlank(form)) return;
 
+                // Items 25, 26 and 35 are optional as whole tables: no cell of
+                // theirs is ever required (see SheetRowRules::optionalText()).
+                // Only Core Team rows need every column.
                 Array.from(form.elements).forEach((el) => {
                     if (! el.name || ['_token', '_method'].includes(el.name)) return;
                     if (! blank(el)) return;
+                    // 25: once an organization is entered, its program focus is
+                    // needed too (no asterisk - the table itself is optional).
+                    if (el.name === 'incubation_program_focus') {
+                        const org = (form.elements['organization_name_address']?.value || '').trim();
+                        if (org !== '' && org.toUpperCase() !== 'N/A') flag(el, 'Please enter the incubation program or focus.');
+                        return;
+                    }
+                    if (! isTeamForm) return;
                     if (isTeamForm) teamRowFlagged = true;
-                    flag(el, requiredMessage(el, 'Required. Type N/A if it does not apply.'));
+                    flag(el, requiredMessage(el, 'Required.'));
                 });
             });
 
-            // 3. Core Team keeps at least one row - a startup always has at
-            //    least its founder. Sections III, IV and 35 are optional and may
-            //    be left empty.
-            //
-            //    Loop 2 above now flags every blank Core Team row's fields
-            //    individually (it no longer skips them the way it still does
-            //    for Incubation/L&D/References), so in the normal case a
-            //    blank starter row already stops the save on its own. This
-            //    check is the backstop for the one case loop 2 can't catch:
-            //    every row - saved or new - actually removed via
-            //    toggleRemoval()/discardRow(), leaving nothing in the DOM
-            //    for loop 2 to even iterate over. Row COUNT alone
-            //    (remaining.team) still isn't enough for that: a discarded
-            //    new row is gone entirely, but a removed *saved* row is
-            //    still counted by remainingRows() until the save actually
-            //    goes through (see canRemoveRow()) - so counting only the
-            //    NON-blank, NON-removed forms still on the page is what
-            //    correctly tells the two apart.
-            const teamForms = Array.from(root.querySelectorAll('form.js-subform'))
-                .filter((f) => f.action.includes('team-members') && ! f.classList.contains('js-skip'));
-            const teamFilled = teamForms.some((f) => ! rowIsBlank(f));
+            // 3. (Removed) Core Team used to need at least one entry - it is
+            //    optional now, like every other table on the sheet.
 
-            // Don't pile this generic line on top of the per-field messages
-            // loop 2 already put on every cell of every blank row - only the
-            // "everything got removed, nothing left to flag" case actually
-            // needs it.
-            if (! teamFilled && ! teamRowFlagged) {
-                const slot = document.querySelector('[data-table-error="team"]');
-
-                if (slot) {
-                    slot.textContent = 'Core Team Formation needs at least one entry.';
-                    slot.classList.remove('hidden');
-
-                    count++;
-                    if (! first) first = slot;
-                }
-            }
 
             if (first) {
                 first.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2481,6 +2476,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 const data = new FormData(form);
                 for (const [key, val] of data.entries()) {
                     if (['_token', '_method'].includes(key)) continue;
+                    if (key === 'full_name' && typeof val === 'string' && val.trim().toUpperCase() === 'N/A') continue;
                     if (typeof val === 'string' && val.trim() !== '') return false;
                     if (val instanceof File && val.size > 0) return false;
                 }

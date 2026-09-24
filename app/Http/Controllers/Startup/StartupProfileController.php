@@ -172,14 +172,7 @@ class StartupProfileController extends Controller
         $this->abortIfInformationSheetLocked($startup);
 
         // The Information Sheet's Core Team table is the only caller of this
-        // route, and Section II must never drop below the 1-member minimum
-        // (see UpdateStartupProfileRequest for the same floor on the
-        // Startup Profile page's own bulk save).
-        abort_if(
-            $teamMember->startup->teamMembers()->count() <= 1,
-            422,
-            'The Core Team table must keep at least 1 entry. Add a replacement before removing this one.'
-        );
+        // route. Section II has no minimum any more - it may be left empty.
 
         $teamMember->delete();
 

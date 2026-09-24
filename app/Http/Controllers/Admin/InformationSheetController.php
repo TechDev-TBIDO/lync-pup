@@ -99,8 +99,7 @@ class InformationSheetController extends Controller
         $sheet = $startup->informationSheet;
         $missingEndorsementFields = collect([
             'cohort_no' => 'Cohort No.',
-            'endorsed_by' => 'Endorsed By',
-            'endorsement_date' => 'Endorsement Date',
+            // Endorsed By and its Date are optional (InformationSheet::OPTIONAL_FIELDS).
             'director_approval_date' => 'Date of Approval',
         ])->filter(fn ($label, $field) => blank($sheet?->{$field}))->values();
 

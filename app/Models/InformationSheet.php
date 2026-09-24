@@ -11,6 +11,27 @@ class InformationSheet extends Model
 
     protected $primaryKey = 'info_sheet_id';
 
+    /**
+     * Items on PUP-TBIDO Form No. 001 that may be left blank (or answered
+     * N/A): 4 name extension, 7 blood type, 8-12 GSIS / Pag-IBIG / PhilHealth
+     * / SSS / TIN, 22's Year Graduated column, 23 scholarships, 28-31 SEC /
+     * Business ID / DTI / Business TIN, 32 non-academic distinctions, 34
+     * memberships, and 36's Endorsed By + its Date. The single list both Information Sheet pages (no asterisk,
+     * no `required`), both UpdateInformationSheetRequests ('nullable' instead
+     * of 'required') and blankedFields() below (a saved answer here may be
+     * cleared again) read from.
+     */
+    public const OPTIONAL_FIELDS = [
+        'name_extension', 'blood_type',
+        'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
+        'secondary_year_graduated', 'vocational_year_graduated', 'college_year_graduated', 'graduate_year_graduated',
+        'scholarships_academic_honors',
+        'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
+        'non_academic_distinctions', 'membership_associations',
+        // 36. Endorsement (admin side): Endorsed By and its Date.
+        'endorsed_by', 'endorsement_date',
+    ];
+
     protected $fillable = [
         'startup_id', 'business_description', 'startup_overview', 'target_market', 'problem_statement', 'solution_offered',
         'submission_date', 'approval_status', 'approved_at', 'rejected_at', 'evaluator_remarks',
@@ -126,6 +147,11 @@ class InformationSheet extends Model
             }
 
             if ($only !== null && ! in_array($field, $only, true)) {
+                continue;
+            }
+
+            // Optional items can always be emptied again.
+            if (in_array($field, self::OPTIONAL_FIELDS, true)) {
                 continue;
             }
 
