@@ -324,14 +324,14 @@ class DashboardController extends Controller
         // untouched when an admin hits "Clear Form" (so the form doesn't
         // forget which startup it belongs to), so a cleared-and-resaved
         // document still leaves behind a row with a non-blank `data` array
-        // — see ActiveAssessmentForms::isVentureExitFilled() for the actual
-        // "has real content" check, same one Milestone Completion below and
-        // the Assessment Hub Overview pill both use, so every "is Venture
-        // Exit actually started" check in the app agrees.
+        // — so it uses ActiveAssessmentForms::isVentureExitCompleted(): only a
+        // ticked Exit Status (Completed/Graduated) counts. Same check Milestone
+        // Completion below and the Assessment Hub Overview pill use, so every
+        // "is Venture Exit done" check in the app agrees.
         $ventureExitIds = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
-            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitFilled($doc->data ?? []))
+            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitCompleted($doc->data ?? []))
             ->pluck('startup_id')->flip();
 
         foreach ($startupIds as $id) {
@@ -540,8 +540,8 @@ class DashboardController extends Controller
         $ventureExit = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
-            ->filter(fn (AssessmentDocument $doc) => filled($doc->data['date_of_assessment'] ?? null)
-                && filled($doc->data['summary_of_progress'] ?? null))
+            // Counted only once Exit Status is ticked (Completed/Graduated).
+            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitCompleted($doc->data ?? []))
             ->pluck('startup_id')->unique()->count();
 
         $pct = fn ($count) => round(($count / $totalStartups) * 100, 1);

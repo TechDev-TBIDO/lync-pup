@@ -47,12 +47,7 @@ return [
             'report' => false,
         ],
 
-        // Uses Cloudflare R2 when it's configured in .env (R2_BUCKET set);
-        // otherwise falls back to local storage/app/public so the app still
-        // runs on machines without R2 credentials (local dev, testers).
-        // Either way URLs stay root-relative "/storage/..." and are served
-        // through StorageController.
-        'public' => env('R2_BUCKET') ? [
+        'public' => [
             'driver' => 's3',
             'key' => env('R2_ACCESS_KEY_ID'),
             'secret' => env('R2_SECRET_ACCESS_KEY'),
@@ -75,14 +70,6 @@ return [
             // documents without going through this app's own access checks first.
             'url' => env('ASSET_URL') ? rtrim(env('ASSET_URL'), '/').'/storage' : '/storage',
             'visibility' => 'private',
-            'throw' => false,
-            'report' => false,
-        ] : [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => env('ASSET_URL') ? rtrim(env('ASSET_URL'), '/').'/storage' : '/storage',
-            'visibility' => 'public',
-            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

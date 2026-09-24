@@ -187,7 +187,7 @@ class ActiveAssessmentForms
             6 => self::isDocument6Filled($data),
             7 => self::isDocument7Filled($data),
             8 => self::isDocument8Filled($data),
-            \App\Support\VentureExitForm::DOCUMENT_NUMBER => self::isVentureExitFilled($data),
+            \App\Support\VentureExitForm::DOCUMENT_NUMBER => self::isVentureExitCompleted($data),
             default => ! empty($data),
         };
     }
@@ -267,6 +267,18 @@ class ActiveAssessmentForms
      * same reasoning as isDocument8Filled(): they're fixed institutional
      * defaults ("Portfolio Coordinator, TBIDO", etc.), not admin-entered.
      */
+    /**
+     * Venture Exit only counts as COMPLETED (green pill / progress credit)
+     * once its Exit Status checkbox is ticked — Completed or Graduated.
+     * Filling the rest of the form while leaving Exit Status blank is still
+     * in progress, not done. isVentureExitFilled() below remains the looser
+     * "has anything been entered" check.
+     */
+    public static function isVentureExitCompleted(array $data): bool
+    {
+        return in_array($data['exit_status'] ?? null, \App\Models\Startup::EXIT_STATUSES, true);
+    }
+
     public static function isVentureExitFilled(array $data): bool
     {
         if (filled($data['date_of_assessment'] ?? null)

@@ -139,7 +139,15 @@ class AssessmentHubController extends Controller
         // the Missed list even when the approval came in late. The Today row still
         // reads MISSED for that slot (it is the truth - the time did run out), but
         // the list stays a queue of things that still need doing.
-        $missedEvaluations = $activeSchedules->filter->isMissed()->sortByDesc('evaluation_date')->values();
+        //
+        // Today's slots never land here, even once their time has run out: the
+        // Today list already shows them as MISSED in place, and the admin still
+        // has the rest of the day to approve (which flips it to DONE). A slot
+        // only moves into Missed once its day has passed.
+        $missedEvaluations = $activeSchedules
+            ->filter(fn ($row) => $row->isMissed() && ! $row->isToday())
+            ->sortByDesc('evaluation_date')
+            ->values();
 
         $approvedStartups = Startup::with('informationSheet')
             ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
