@@ -799,7 +799,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     <div class="flex flex-col gap-1">
                                         <span class="text-xs text-gray-500">&bull; If Dual Citizenship</span>
                                         <div class="flex-1 min-w-0">
-                                            <textarea name="citizenship_dual" rows="1" form="info-sheet-form" required
+                                            <textarea name="citizenship_dual" rows="1" form="info-sheet-form"
                                             :readonly="!editing" placeholder="Second citizenship, if any"
                                             x-init="autoGrow($el)" @keydown.enter.prevent
                                             @input="dirty = true; autoGrow($el)"
@@ -834,13 +834,45 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (['secondary' => 'SECONDARY', 'vocational' => 'VOCATIONAL/TRADE COURSE', 'college' => 'COLLEGE', 'graduate' => 'GRADUATE STUDIES'] as $key => $label)
-                            <tr>
+                            @foreach ([
+                                'secondary' => ['label' => 'SECONDARY', 'school' => 'e.g., Juan Dela Cruz National High School', 'degree_course' => 'e.g., Senior High School', 'highest_level_unit' => 'e.g., Grade 12', 'year_graduated' => 'e.g., 2023'],
+                                'vocational' => ['label' => 'VOCATIONAL/TRADE COURSE', 'school' => 'e.g., TESDA Training Center', 'degree_course' => 'e.g., Computer Systems Servicing NC II', 'highest_level_unit' => 'e.g., NC II', 'year_graduated' => 'e.g., 2023'],
+                                'college' => ['label' => 'COLLEGE', 'school' => 'e.g., Polytechnic University of the Philippines', 'degree_course' => 'e.g., BS Information Technology', 'highest_level_unit' => 'e.g., 4th Year', 'year_graduated' => 'e.g., 2027'],
+                                'graduate' => ['label' => 'GRADUATE STUDIES', 'school' => 'e.g., University of the Philippines', 'degree_course' => 'e.g., Master of Information Technology', 'highest_level_unit' => 'e.g., 1st Year', 'year_graduated' => 'e.g., 2029'],
+                            ] as $key => $row)
+                            @php
+                                $label = $row['label'];
+
+                                // Efficiency shortcut: once "Name of School" for a row
+                                // is literally "N/A", the rest of that row can only
+                                // ever be "N/A" too - so auto-fill and lock them
+                                // instead of making the founder retype "N/A" three
+                                // more times. Computed here so a row that was already
+                                // saved as all-N/A renders locked immediately, not
+                                // only after the school field is touched.
+                                $rowSchoolNA = strtoupper(trim((string) old("{$key}_school", $sheet?->{"{$key}_school"}))) === 'N/A' ? 'true' : 'false';
+                            @endphp
+                            <tr x-data="{ schoolNA: {{ $rowSchoolNA }} }"
+                                x-effect="
+                                    if (schoolNA) {
+                                        [$refs.{{ $key }}Degree, $refs.{{ $key }}Unit, $refs.{{ $key }}Year].forEach(cell => {
+                                            cell.value = 'N/A';
+                                            cell.style.borderColor = '';
+                                            cell.style.boxShadow = '';
+                                            cell.removeAttribute('data-field-invalid');
+                                            if (cell.nextElementSibling?.hasAttribute('data-field-error')) cell.nextElementSibling.remove();
+                                        });
+                                    } else if ($refs.{{ $key }}Degree.value.trim().toUpperCase() === 'N/A') {
+                                        $refs.{{ $key }}Degree.value = '';
+                                        $refs.{{ $key }}Unit.value = '';
+                                        $refs.{{ $key }}Year.value = '';
+                                    }
+                                ">
                                 <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}</td>
-                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="School name" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
-                                <td class="border p-1"><textarea name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="Degree or course" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
-                                <td class="border p-1"><textarea name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="Highest level / units earned" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
-                                <td class="border p-1"><textarea name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" :readonly="!editing" placeholder="e.g. 2018" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
+                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" :readonly="!editing" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['degree_course'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['highest_level_unit'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -958,6 +990,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     ];
 
                     $teamCell = 'w-full h-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:bg-blue-50 read-only:bg-transparent read-only:text-gray-500';
+                    // Single-line inputs (email, date): no h-full, so their text sits at
+                    // the top of the cell like the auto-growing textareas beside them
+                    // instead of being centred lower down when the row grows.
+                    $teamInput = 'block w-full border-0 bg-transparent px-3 py-2.5 text-sm leading-snug focus:outline-none focus:bg-blue-50 read-only:bg-transparent read-only:text-gray-500';
                     @endphp
                     <div class="overflow-x-auto">
                         <div class="w-max min-w-full border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
@@ -996,10 +1032,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         <textarea name="address" placeholder="Address" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->address ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
-                                        <input type="date" name="date_of_birth" value="{{ $member->date_of_birth?->format('Y-m-d') }}" min="{{ $dobMin }}" max="{{ $dobMax }}" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                        <input type="date" name="date_of_birth" value="{{ $member->date_of_birth?->format('Y-m-d') }}" min="{{ $dobMin }}" max="{{ $dobMax }}" :readonly="!editing" class="{{ $teamInput }}" @input="dirty = true">
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
-                                        <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                        <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :readonly="!editing" class="{{ $teamInput }}" @input="dirty = true">
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
                                         <textarea name="citizenship" placeholder="Citizenship" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->citizenship ?? '' }}</textarea>
@@ -1040,7 +1076,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 </div>
                             </div>
                             @empty
-                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
+                            {{-- Hidden as soon as a new entry row is added below. --}}
+                            <p class="text-sm text-gray-400 px-3 py-3" x-show="! newRows.team.length">None listed yet.</p>
                             @endforelse
 
                             {{-- Add new --}}
@@ -1063,10 +1100,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                             <textarea name="address" placeholder="Address" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
-                                            <input type="date" name="date_of_birth" min="{{ $dobMin }}" max="{{ $dobMax }}" class="{{ $teamCell }}" @input="dirty = true">
+                                            <input type="date" name="date_of_birth" min="{{ $dobMin }}" max="{{ $dobMax }}" class="{{ $teamInput }}" @input="dirty = true">
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
-                                            <input type="email" name="email" placeholder="Email" class="{{ $teamCell }}" @input="dirty = true">
+                                            <input type="email" name="email" placeholder="Email" class="{{ $teamInput }}" @input="dirty = true">
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
                                             <textarea name="citizenship" placeholder="Citizenship" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
@@ -1447,7 +1484,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             class="w-full border rounded px-3 py-2 text-sm min-h-[9rem] disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300"
                             @click="if(!editing){ lastClickedInput = $el.name }"
                             @input="dirty = true">{{ old('startup_overview', filled($sheet?->startup_overview) ? $sheet->startup_overview : $sheet?->business_description) }}</textarea>
-                        <p class="text-xs text-gray-400 mt-1">Pre-filled from the founder\'s Startup Profile; edits here stay on the sheet.</p>
+                        <p class="text-xs text-gray-400 mt-1">Pre-filled from the founder's Startup Profile; edits here stay on the sheet.</p>
                     </div>
                 </div>
 
@@ -2345,6 +2382,32 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
 
                     flag(el, requiredMessage(el, 'This field is required. Enter N/A if it does not apply.'));
                 });
+
+                // 22. Educational Background: every level is optional (blank is
+                // fine, no N/A needed), but a level with any of School / Degree /
+                // Highest Level filled needs all three, and at least one level
+                // must be filled. Same rule as the server's required_with +
+                // guardAtLeastOneEducationLevel().
+                let anyLevel = false;
+                ['secondary', 'vocational', 'college', 'graduate'].forEach((level) => {
+                    const cells = ['school', 'degree_course', 'highest_level_unit']
+                        .map((col) => mainForm.elements.namedItem(`${level}_${col}`))
+                        .filter(Boolean);
+                    if (! cells.length) return;
+
+                    const school = (cells[0].value || '').trim();
+                    if (school !== '' && school.toUpperCase() !== 'N/A') anyLevel = true;
+                    if (cells.every(blank)) return;
+
+                    cells.forEach((el) => {
+                        if (blank(el)) flag(el, 'Required for this level - fill it in or clear the row.');
+                    });
+                });
+
+                const firstSchool = mainForm.elements.namedItem('secondary_school');
+                if (firstSchool && ! anyLevel && ! firstSchool.hasAttribute('data-field-invalid')) {
+                    flag(firstSchool, 'Fill in at least one level of educational background.');
+                }
             }
 
             // 2. Table rows. Every column of a row must be answered. A row that
