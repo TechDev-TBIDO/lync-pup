@@ -181,59 +181,6 @@ class ActiveAssessmentForms
      * used wherever a "Started"/"Not Started" or pill-completion status is
      * shown for these documents).
      */
-    /**
-     * Blank signatory fields on an Active-Assessment document (6, 7 or 8), as
-     * readable sentences - empty means it can be saved. Only the signatory
-     * blocks (Prepared / Noted / Validated / Approved By) are required; the
-     * rest of each document may be saved partially. Mirrors docProblems() in
-     * admin/assessment-hub/_active-assessment.blade.php (the Save button's
-     * check); this is the server-side re-check. Name/position/contact FORMAT
-     * is checked separately by AssessmentController::assertFieldFormats().
-     *
-     * @return list<string>
-     */
-    public static function documentProblems(int $documentNumber, array $data): array
-    {
-        $required = match ($documentNumber) {
-            6 => [
-                'Prepared By #1 name' => $data['prepared_by'][0]['name'] ?? null,
-                'Prepared By #1 position' => $data['prepared_by'][0]['position'] ?? null,
-                'Prepared By #2 name' => $data['prepared_by'][1]['name'] ?? null,
-                'Prepared By #2 position' => $data['prepared_by'][1]['position'] ?? null,
-                'Prepared By #3 name' => $data['prepared_by'][2]['name'] ?? null,
-                'Prepared By #3 position' => $data['prepared_by'][2]['position'] ?? null,
-                'Noted By name' => $data['noted_by'] ?? null,
-                'Noted By position' => $data['noted_by_position'] ?? null,
-            ],
-            7 => [
-                'Prepared By name' => $data['prepared_by_name'] ?? null,
-                'Prepared By position' => $data['prepared_by_position'] ?? null,
-                'Noted By name' => $data['noted_by_name'] ?? null,
-                'Noted By position' => $data['noted_by_position'] ?? null,
-            ],
-            8 => [
-                'Validated By name' => $data['validated_by_name'] ?? null,
-                'Validated By position / affiliation' => $data['validated_by_position'] ?? null,
-                'Validated By contact number' => $data['validated_by_contact'] ?? null,
-                'Validated By date' => $data['validated_by_date'] ?? null,
-                'Noted By name' => $data['noted_by_name'] ?? null,
-                'Noted By position' => $data['noted_by_position'] ?? null,
-                'Approved By name' => $data['approved_by_name'] ?? null,
-                'Approved By position' => $data['approved_by_position'] ?? null,
-            ],
-            default => [],
-        };
-
-        $problems = [];
-        foreach ($required as $label => $value) {
-            if ($value === null || (is_string($value) && trim($value) === '')) {
-                $problems[] = "{$label} is required.";
-            }
-        }
-
-        return $problems;
-    }
-
     public static function isDocumentFilled(int $documentNumber, array $data): bool
     {
         return match ($documentNumber) {
