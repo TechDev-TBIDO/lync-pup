@@ -191,6 +191,10 @@
                                 <span class="flex-1">
                                     {{ $item['label'] }}
                                 </span>
+
+                                @if (!empty(($founderSidebarBadges ?? [])[$item['route']] ?? false))
+                                <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New update" aria-label="New update"></span>
+                                @endif
                             </a>
                             @endif
                             @endforeach

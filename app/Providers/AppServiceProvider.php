@@ -78,6 +78,66 @@ class AppServiceProvider extends ServiceProvider
         // state. Keyed by route name so the nav loop can look each one up
         // directly; a module with nothing to flag simply won't have a key,
         // same as `!empty(...)` already treats a missing 'hasUnseen'.
+        // Founder sidebar red dots (components/layouts/founder.blade.php).
+        //  - Meeting: an admin set / changed / cancelled a meeting (Evaluation,
+        //    Assessment meeting, Mentorship) — the unread dashboard cards
+        //    that point at the Meeting page.
+        //  - Submission: an admin sent an update (e.g. weekly check-in), or one
+        //    of the founder's roadblocks moved to Scheduled / Resolved / Failed
+        //    / Deleted since the founder last opened Submission.
+        //  - Readiness Result: a result became available or was updated since
+        //    the founder last opened Readiness Result.
+        //  - Dashboard: any unread notification/action card at all.
+        // Each page's own dot clears on visit (unread cards for that page are
+        // marked read by MarksVisitedNotificationsRead, and the controllers
+        // stamp User::markModuleSeen()); the page currently open never shows
+        // its own dot.
+        View::composer('components.layouts.founder', function ($view) {
+            $user = auth()->user();
+            $badges = [];
+
+            if ($user && $user->isStartup()) {
+                try {
+                    $unreadRoutes = $user->unreadNotifications()
+                        ->get(['data'])
+                        ->map(fn ($n) => $n->data['route'] ?? null)
+                        ->filter()
+                        ->unique();
+
+                    $startup = $user->startup;
+
+                    $roadblockChanged = $startup && $startup->roadblocks()
+                        ->whereIn('status', ['Scheduled', 'Resolved', 'Failed', 'Deleted by Admin'])
+                        ->where('updated_at', '>', $user->moduleSeenAt('founder_submissions'))
+                        ->exists();
+
+                    $readinessChanged = $startup && $startup->readinessAssessments()
+                        ->whereNotNull('overall_score')
+                        ->where('updated_at', '>', $user->moduleSeenAt('founder_readiness'))
+                        ->exists();
+
+                    $badges = [
+                        'startup.dashboard' => $unreadRoutes->isNotEmpty(),
+                        'startup.meetings.index' => $unreadRoutes->contains('startup.meetings.index'),
+                        'startup.submissions.index' => $unreadRoutes->contains('startup.submissions.index') || $roadblockChanged,
+                        'startup.readiness.index' => $unreadRoutes->contains('startup.readiness.index') || $readinessChanged,
+                    ];
+
+                    foreach (array_keys($badges) as $route) {
+                        if (request()->routeIs($route)) {
+                            $badges[$route] = false;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // Badge-only; never break the founder's pages over it.
+                    report($e);
+                    $badges = [];
+                }
+            }
+
+            $view->with('founderSidebarBadges', $badges);
+        });
+
         View::composer('components.layouts.admin', function ($view) {
             $user = auth()->user();
 
