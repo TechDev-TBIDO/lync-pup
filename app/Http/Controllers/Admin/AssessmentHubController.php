@@ -24,6 +24,11 @@ class AssessmentHubController extends Controller
         // so this is done lazily on load — same as Roadblock Management.
         AssessmentMeeting::promoteEndedMeetingsToPendingReview();
 
+        // Opening the hub counts as having seen every evaluation that has
+        // gone MISSED so far — clears the sidebar red dot's "missed" part
+        // (see AppServiceProvider). Newer misses light it again.
+        $request->user()?->markModuleSeen('assessment_hub_missed', now());
+
         // The app-wide selected cohort (see ResolveSelectedCohort) — every
         // startup-scoped list on this page narrows to just this cohort when
         // one is selected, instead of always mixing every cohort together.
