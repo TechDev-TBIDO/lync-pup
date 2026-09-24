@@ -45,7 +45,7 @@
             // up" reason Applicant does. Appended after Applicant so the
             // card order still reads as the onboarding-to-exit pipeline.
             $stats = [
-            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => collect($cohortBreakdown)->push(['count' => $totals['applicant'], 'label' => 'Applicants'])],
+            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => collect($cohortBreakdown)],
             ['label' => 'Graduated/Completed', 'value' => $totals['graduated'] + $totals['completed'], 'icon' => 'graduate.svg', 'border' => 'border-[#A5F3FC]', 'bg' => 'bg-[#ECFEFF]', 'breakdown' => collect([
                 ['count' => $totals['graduated'], 'label' => 'Graduated'],
                 ['count' => $totals['completed'], 'label' => 'Completed'],
@@ -135,8 +135,13 @@
                             </div>
                             <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
                         @else
-                            <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
-                            <p class="stat-value-plain text-4xl font-bold mt-1">{{ $stat['value'] }}</p>
+                            {{-- No breakdown/note to show (e.g. Total Startup with no
+                                 cohorts yet) — number still sits on the right like
+                                 every other card. --}}
+                            <div class="stat-text-wrap" style="padding-right: 70px;">
+                                <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            </div>
+                            <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
                         @endif
                     </div>
                 </div>

@@ -5,7 +5,16 @@
         // (First/Middle/Last) even though users.name still stores one
         // composed string - same split InformationSheet::splitFounderName()
         // already does elsewhere, reused here instead of duplicated.
-        $founderNameParts = \App\Models\InformationSheet::splitFounderName(auth()->user()->name);
+        //
+        // Not pre-filled from the name typed at registration: the three
+        // fields start blank until the founder saves this profile for the
+        // first time (that first save is what creates the Information Sheet
+        // row - see StartupProfileController::update()). After that they
+        // show the founder's own saved name as usual.
+        $profileSavedOnce = (bool) auth()->user()->startup?->informationSheet()->exists();
+        $founderNameParts = $profileSavedOnce
+            ? \App\Models\InformationSheet::splitFounderName(auth()->user()->name)
+            : ['first_name' => '', 'middle_name' => '', 'surname' => ''];
     @endphp
 
     {{-- Cropper.js: circular crop for the startup avatar --}}
