@@ -91,22 +91,8 @@ class UpdateInformationSheetRequest extends FormRequest
             $this->merge($payload);
         }
 
-        // Items 23, 31 and 34 are optional row tables. Emptying one is a real
-        // answer - "nothing to declare" - so it is stored as the N/A the paper
-        // form asks for, rather than as a blank that reads as "unanswered" in
-        // the exports. Only touched when the field was actually submitted, so
-        // a partial request cannot wipe an existing entry.
-        $blankIsNotApplicable = [
-            'scholarships_academic_honors',
-            'non_academic_distinctions',
-            'membership_associations',
-        ];
-
-        foreach ($blankIsNotApplicable as $field) {
-            if ($this->has($field) && trim((string) $this->input($field)) === '') {
-                $this->merge([$field => 'N/A']);
-            }
-        }
+        // Items 23, 32 and 34 are optional row tables: an empty one is saved
+        // blank - N/A is not needed.
 
         // 5 & 6. The founder types a number and picks its unit; the sheet stores
         // metres and kilograms, which is what the column names promise and what
@@ -166,6 +152,7 @@ class UpdateInformationSheetRequest extends FormRequest
         $validator->after(function (Validator $validator) {
             $this->guardFilledFieldsStayFilled($validator);
             $this->guardEducationalBackgroundConsistency($validator);
+            $this->guardAtLeastOneEducationLevel($validator);
         });
     }
 
@@ -212,6 +199,35 @@ class UpdateInformationSheetRequest extends FormRequest
                 $field,
                 "This field was already filled in, so it can't be left blank - keep the current answer or replace it with a new one."
             );
+        }
+    }
+
+    /**
+     * 22. Educational Background: every level is optional on its own, but
+     * the item as a whole needs at least one level filled in. Only checked
+     * when the table was actually submitted.
+     */
+    private function guardAtLeastOneEducationLevel(Validator $validator): void
+    {
+        if ($this->isDraftSave()) {
+            return;
+        }
+
+        $levels = ['secondary', 'vocational', 'college', 'graduate'];
+
+        if (! $this->has('secondary_school')) {
+            return;
+        }
+
+        foreach ($levels as $level) {
+            $school = trim((string) $this->input("{$level}_school"));
+            if ($school !== '' && strcasecmp($school, 'N/A') !== 0) {
+                return;
+            }
+        }
+
+        if (! $validator->errors()->has('secondary_school')) {
+            $validator->errors()->add('secondary_school', 'Please fill in at least one level of your educational background.');
         }
     }
 
@@ -316,10 +332,12 @@ class UpdateInformationSheetRequest extends FormRequest
     private function looseForDraft(array $rules): array
     {
         foreach ($rules as $field => $fieldRules) {
-            $rules[$field] = array_map(
+            // A draft may leave anything unfinished - including a half-filled
+            // Educational Background row (required_with).
+            $rules[$field] = array_values(array_filter(array_map(
                 fn ($rule) => $rule === 'required' ? 'nullable' : $rule,
                 $fieldRules
-            );
+            ), fn ($rule) => ! (is_string($rule) && str_starts_with($rule, 'required_with:'))));
 
             if (! in_array('nullable', $rules[$field], true) && ! in_array('required', $rules[$field], true)) {
                 array_unshift($rules[$field], 'nullable');
@@ -469,7 +487,10 @@ class UpdateInformationSheetRequest extends FormRequest
 
         $prose = fn (int $max) => [
             'required', 'string', 'max:'.$max, 'min:50',
-            'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\!\?\'\-\(\)]*$/u',
+            // Ordinary sentence punctuation: . , ! ? ' - ( ) plus ; : / & % "
+            // and curly quotes - an overview is normal prose ("B2B; SaaS",
+            // "50% of users", "Web/Mobile").
+            'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\!\?\'\-\(\);:\/&%"\x{2018}\x{2019}\x{201C}\x{201D}]*$/u',
             $notApplicableOverview,
             $meaningfulText,
         ];
@@ -620,7 +641,8 @@ class UpdateInformationSheetRequest extends FormRequest
             'sex' => ['required', 'string', 'in:'.implode(',', SheetOptions::sexes())],
             'civil_status' => ['required', 'string', 'in:'.implode(',', SheetOptions::civilStatuses())],
             'citizenship_by_birth' => $citizenshipByBirth(100),
-            'citizenship_dual' => $words(100),
+            // Optional: blank (no second citizenship) is fine, N/A not needed.
+            'citizenship_dual' => array_values(array_diff(['nullable', ...$words(100)], ['required'])),
             'place_of_birth' => $place(150),
             // The picker is capped at the same bounds (see $dobMin / $dobMax in the
             // view). Repeated here because a request can arrive without it.
@@ -669,6 +691,23 @@ class UpdateInformationSheetRequest extends FormRequest
         foreach (InformationSheet::OPTIONAL_FIELDS as $field) {
             if (isset($rules[$field])) {
                 $rules[$field] = array_map(fn ($rule) => $rule === 'required' ? 'nullable' : $rule, $rules[$field]);
+            }
+        }
+
+        // 22. Educational Background: each level is optional on its own - a
+        // level the founder never reached can simply stay blank (N/A is not
+        // needed). But once any of a level's School / Degree / Highest Level
+        // cells is filled, all three are required for that level. (At least
+        // one level must be filled - see guardAtLeastOneEducationLevel().)
+        foreach (['secondary', 'vocational', 'college', 'graduate'] as $level) {
+            $cells = ["{$level}_school", "{$level}_degree_course", "{$level}_highest_level_unit"];
+            foreach ($cells as $cell) {
+                $others = implode(',', array_diff($cells, [$cell]));
+                $rules[$cell] = [
+                    'nullable',
+                    "required_with:{$others}",
+                    ...array_values(array_filter($rules[$cell], fn ($rule) => $rule !== 'required')),
+                ];
             }
         }
 
@@ -721,7 +760,7 @@ class UpdateInformationSheetRequest extends FormRequest
             'non_academic_distinctions.min' => 'Please enter a valid distinction, recognition, or eligibility.',
             'membership_associations.regex' => 'Please enter a valid organization or association.',
             'membership_associations.min' => 'Please enter a valid organization or association.',
-            'startup_overview.regex' => 'Please enter a valid startup overview.',
+            'startup_overview.regex' => 'Startup overview may only use letters, numbers and normal punctuation (. , ! ? ; : \' " - ( ) / & %).',
             'startup_overview.min' => 'Please describe the startup in at least 50 characters.',
             'permanent_address.required' => 'Please enter your permanent address.',
             'sex.required' => 'Please select your sex.',
@@ -768,6 +807,12 @@ class UpdateInformationSheetRequest extends FormRequest
 
         // Fallback for anything not named above.
         $messages['required'] = 'This field is required. Enter N/A if it does not apply.';
+
+        foreach (['secondary' => 'secondary school', 'vocational' => 'vocational course', 'college' => 'college', 'graduate' => 'graduate studies'] as $level => $label) {
+            $messages["{$level}_school.required_with"] = "Please enter the school name for {$label}, or clear this row.";
+            $messages["{$level}_degree_course.required_with"] = "Please enter the degree or course for {$label}, or clear this row.";
+            $messages["{$level}_highest_level_unit.required_with"] = "Please enter the highest level or units for {$label}, or clear this row.";
+        }
 
         return $messages;
     }
