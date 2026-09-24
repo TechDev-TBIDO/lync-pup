@@ -187,7 +187,7 @@ class ActiveAssessmentForms
             6 => self::isDocument6Filled($data),
             7 => self::isDocument7Filled($data),
             8 => self::isDocument8Filled($data),
-            \App\Support\VentureExitForm::DOCUMENT_NUMBER => self::isVentureExitFilled($data),
+            \App\Support\VentureExitForm::DOCUMENT_NUMBER => self::isVentureExitCompleted($data),
             default => ! empty($data),
         };
     }
@@ -272,6 +272,18 @@ class ActiveAssessmentForms
      * Startup::EXIT_STATUSES, the same accessor the founder Dashboard's
      * own graduation tracker already used correctly.
      */
+    /**
+     * Venture Exit only counts as COMPLETED (green pill / progress credit)
+     * once its Exit Status checkbox is ticked — Completed or Graduated.
+     * Filling the rest of the form while leaving Exit Status blank is still
+     * in progress, not done. isVentureExitFilled() below remains the looser
+     * "has anything been entered" check.
+     */
+    public static function isVentureExitCompleted(array $data): bool
+    {
+        return in_array($data['exit_status'] ?? null, \App\Models\Startup::EXIT_STATUSES, true);
+    }
+
     public static function isVentureExitFilled(array $data): bool
     {
         return in_array($data['exit_status'] ?? null, ['Graduated', 'Completed'], true);

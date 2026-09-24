@@ -99,20 +99,15 @@ class RiskMonitoringController extends Controller
             })()
             : $assessments;
 
-        $signature = md5(
-            $allAssessments
-                ->flatMap(fn ($assessment, $startupId) => collect($assessment['indicators'])->map(fn ($i) => $startupId.':'.$i['key']))
-                ->sort()
-                ->values()
-                ->implode(',')
-        );
+        // Which startups are at Moderate risk or higher right now — the
+        // sidebar dot lights whenever that set changes (a startup newly hits
+        // Moderate, or moves up/down a level) until this admin opens the page.
+        $signature = RiskEngine::elevatedSignatureFrom($allAssessments);
 
-        // Global "current state" for every admin to compare against, plus
-        // this admin's own "as of my last visit" marker — visiting this
-        // page at all (any cohort filter) counts as having seen the current
-        // overall state, clearing their own dot even if it stays lit for
-        // other admins who haven't looked yet.
-        Cache::forever('risk_monitoring_signature', $signature);
+        // Visiting this page at all (any cohort filter) counts as having
+        // seen the current overall state, clearing this admin's own dot even
+        // if it stays lit for other admins who haven't looked yet.
+        RiskEngine::rememberElevatedSignature($signature);
 
         // Best-effort: on a database that hasn't run migration
         // 0001_01_01_000052 yet (adds this column), this "seen" marker isn't

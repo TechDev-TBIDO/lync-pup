@@ -184,9 +184,15 @@
                                         {{-- ============ DELETE MODAL ============ --}}
                                         <div x-show="step === 'delete'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
                                             <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden" @click.outside="step = null">
-                                                <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
+                                                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-4 flex items-center justify-between">
                                                     <h3 class="font-bold">Delete Signup</h3>
-                                                    <button type="button" @click="step = null" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
+                                                    <button type="button" @click="step = null" :disabled="submitting"
+                                                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50"
+                                                        aria-label="Close">
+                                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                            <path d="M18 6L6 18M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
                                                 </div>
 
                                                 <form method="POST" action="{{ route('admin.founder-applications.destroy', $application) }}" class="p-6 space-y-4"

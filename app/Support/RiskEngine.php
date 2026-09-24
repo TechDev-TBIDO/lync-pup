@@ -138,6 +138,52 @@ class RiskEngine
         'Low' => '#00BF1D',
     ];
 
+    /**
+     * Levels that light the admin sidebar's Risk Monitoring red dot.
+     */
+    public const SIDEBAR_ALERT_LEVELS = ['Moderate', 'High', 'Critical'];
+
+    private const SIDEBAR_SIGNATURE_CACHE_KEY = 'risk_monitoring_elevated_signature';
+
+    /**
+     * Fingerprint of which startups currently sit at Moderate risk or higher
+     * (and at what level), from an already-computed set of assessments keyed
+     * by startup_id. '' when no startup is at Moderate or above.
+     */
+    public static function elevatedSignatureFrom(Collection $assessments): string
+    {
+        $elevated = $assessments
+            ->filter(fn ($a) => in_array($a['level'], self::SIDEBAR_ALERT_LEVELS, true))
+            ->map(fn ($a, $startupId) => $startupId.':'.$a['level'])
+            ->sort()
+            ->values();
+
+        return $elevated->isEmpty() ? '' : md5($elevated->implode(','));
+    }
+
+    /**
+     * Same fingerprint across EVERY startup (not cohort-scoped), for the
+     * sidebar red dot on every admin page. Cached briefly so rendering the
+     * sidebar doesn't re-assess every startup on each request.
+     */
+    public static function elevatedRiskSignature(): string
+    {
+        return \Illuminate\Support\Facades\Cache::remember(self::SIDEBAR_SIGNATURE_CACHE_KEY, 60, function () {
+            $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])->get();
+            $documents = AssessmentDocument::whereIn('startup_id', $startups->pluck('startup_id'))->get()->groupBy('startup_id');
+
+            return self::elevatedSignatureFrom($startups->mapWithKeys(fn (Startup $s) => [
+                $s->startup_id => self::assess($s, $documents->get($s->startup_id)),
+            ]));
+        });
+    }
+
+    /** Store a freshly computed signature (Risk Monitoring page already has one). */
+    public static function rememberElevatedSignature(string $signature): void
+    {
+        \Illuminate\Support\Facades\Cache::put(self::SIDEBAR_SIGNATURE_CACHE_KEY, $signature, 60);
+    }
+
     public static function classify(int $score): string
     {
         return match (true) {

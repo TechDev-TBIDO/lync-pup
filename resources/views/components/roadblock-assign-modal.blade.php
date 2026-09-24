@@ -206,7 +206,11 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
 
                             {{-- Panels stack on phones, sit side by side from sm up --}}
                             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
-                                <div class="relative rounded-xl border p-3 sm:p-4" x-data="{ previewId: null }">
+                                {{-- Close any open profile preview card whenever the surrounding modal
+                                     closes (×, Cancel, Escape, backdrop...), so it isn't still
+                                     sitting open the next time the modal is shown. --}}
+                                <div class="relative rounded-xl border p-3 sm:p-4" x-data="{ previewId: null }"
+                                    x-init="$watch('{{ $mode === 'edit' ? 'editOpen' : ($mode === 'reschedule' ? 'rescheduleOpen' : 'assignOpen') }}', open => { if (! open) previewId = null })">
                                     <p class="mb-3 text-sm font-medium sm:text-base">1. Assign Mentor or Coordinator</p>
                                     <select name="assignee" autocomplete="off" x-model="assignee" data-original="{{ $assigneeDefault }}" class="{{ $fieldCls }} mb-4">
                                         <option value="" disabled hidden @selected($selectedAssignee==='' )>Select Mentor or Coordinator</option>

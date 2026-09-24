@@ -328,7 +328,7 @@ class DashboardController extends Controller
         $ventureExitIds = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
-            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitFilled($doc->data ?? []))
+            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitCompleted($doc->data ?? []))
             ->pluck('startup_id')->flip();
 
         foreach ($startupIds as $id) {
@@ -539,7 +539,8 @@ class DashboardController extends Controller
         $ventureExit = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
-            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitFilled($doc->data ?? []))
+            ->filter(fn (AssessmentDocument $doc) => filled($doc->data['date_of_assessment'] ?? null)
+                && filled($doc->data['summary_of_progress'] ?? null))
             ->pluck('startup_id')->unique()->count();
 
         $pct = fn ($count) => round(($count / $totalStartups) * 100, 1);
