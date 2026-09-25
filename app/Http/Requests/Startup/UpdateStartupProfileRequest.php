@@ -75,34 +75,6 @@ class UpdateStartupProfileRequest extends FormRequest
                     'That photo could not be uploaded. Please try again with an image under 20MB.'
                 );
             }
-
-            // Core Team (the Profile's own StartupTeamMember roster - see
-            // migration 000049) must have at least 1 member — tally what
-            // survives this save: existing rows minus the ones marked for
-            // deletion, plus any new, non-blank rows being added. Always
-            // enforced: this roster is independent of the Information
-            // Sheet's lock.
-            $startup = $this->user()->startup;
-
-            if ($startup) {
-                $deletedIds = collect($this->input('deleted_team_members', []))
-                    ->map(fn ($id) => (int) $id);
-
-                $remainingExisting = $startup->startupTeamMembers()
-                    ->whereNotIn('startup_team_member_id', $deletedIds)
-                    ->count();
-
-                $newCount = collect($this->input('new_team_members', []))
-                    ->filter(fn ($name) => filled($name))
-                    ->count();
-
-                if (($remainingExisting + $newCount) < 1) {
-                    $validator->errors()->add(
-                        'team_members',
-                        'Your Core Team must have at least 1 member.'
-                    );
-                }
-            }
         });
     }
 

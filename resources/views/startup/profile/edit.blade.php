@@ -75,16 +75,7 @@
 
         // Core Team is the Profile's own roster now (StartupTeamMember -
         // see migration 000049), separate from the Information Sheet's own
-        // Core Team table. Must have at least 1 member (see
-        // UpdateStartupProfileRequest) - this just tallies existing rows
-        // minus what's marked for deletion plus any new, non-blank rows
-        // being added.
-        existingTeamCount: @js($startup->startupTeamMembers->count()),
-
-        get remainingTeamCount() {
-            return (this.existingTeamCount - this.deletedMembers.length)
-                + this.newMembers.filter(name => name.trim() !== '').length;
-        },
+        // Core Team table. Optional - no minimum number of members.
 
         // Mirrors UpdateStartupProfileRequest::rules() so the Save button
         // reflects the same 'required' set the server will enforce anyway —
@@ -117,8 +108,7 @@
                 && this.last_name.trim() !== ''
                 && /^(09\d{9}|\+639\d{9})$/.test(this.contact_phone.trim())
                 && this.location.trim() !== ''
-                && this.hasPhoto
-                && this.remainingTeamCount >= 1;
+                && this.hasPhoto;
         },
 
         // Cancel has to do three things, and the old version did only the first:
@@ -416,17 +406,12 @@
                     </div>
 
                     <div class="bg-white rounded-xl border border-gray-200 p-6 mt-6">
-                        <h2 class="font-bold text-gray-900">Team Members <span class="text-red-500">*</span></h2>
+                        <h2 class="font-bold text-gray-900 mb-4">Team Members</h2>
 
                         {{-- This is the Profile's own roster now (StartupTeamMember -
                              see migration 000049), separate from the Information
                              Sheet's own Core Team table, so it's never gated on
                              the sheet's lock. --}}
-                        <p x-show="editing" x-cloak
-                            class="text-xs mt-1 mb-4"
-                            :class="remainingTeamCount >= 1 ? 'text-gray-400' : 'text-red-500'"
-                            x-text="remainingTeamCount + ' / 1 member minimum'"></p>
-                        <p x-show="!editing" class="text-xs text-gray-500 mb-4">Minimum of 1 member.</p>
 
                         <div class="space-y-3 mb-4">
                             @foreach($startup->startupTeamMembers as $member)

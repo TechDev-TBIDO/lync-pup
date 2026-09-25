@@ -841,9 +841,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         <thead class="bg-gray-50 text-left text-xs">
                             <tr>
                                 <th class="border px-3 py-2">LEVEL</th>
-                                <th class="border px-3 py-2">NAME OF SCHOOL <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
-                                <th class="border px-3 py-2">EDUCATIONAL/DEGREE/COURSE <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
-                                <th class="border px-3 py-2">HIGHEST LEVEL UNIT <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">NAME OF SCHOOL</th>
+                                <th class="border px-3 py-2">EDUCATIONAL/DEGREE/COURSE</th>
+                                <th class="border px-3 py-2">HIGHEST LEVEL UNIT</th>
                                 <th class="border px-3 py-2">YEAR GRADUATED</th>
                             </tr>
                         </thead>
@@ -1015,7 +1015,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold text-gray-800 uppercase tracking-wide">
                                 @foreach ($teamCols as $col)
-                                <div class="px-3 py-3 flex-shrink-0 leading-tight {{ $loop->last ? '' : 'border-r border-gray-200' }} {{ $col['w'] }}">{{ $col['label'] }} <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
+                                <div class="px-3 py-3 flex-shrink-0 leading-tight {{ $loop->last ? '' : 'border-r border-gray-200' }} {{ $col['w'] }}">{{ $col['label'] }}</div>
                                 @endforeach
                                 {{-- gutter, always present so columns don't shift between view and edit mode --}}
                                 <div class="w-10 flex-shrink-0"></div>
