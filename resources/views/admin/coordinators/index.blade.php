@@ -185,7 +185,6 @@
                                 x-show="deleteOpen"
                                 x-cloak
                                 x-transition.opacity
-                                @keydown.escape.window="deleteOpen = false"
                                 class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
                                 style="display:none;">
 
@@ -238,7 +237,6 @@
                             <div
                                 x-show="editOpen"
                                 x-cloak
-                                @keydown.escape.window="editOpen = false"
                                 class="fixed inset-0 z-[100] overflow-y-auto bg-black/50 p-4 sm:p-6"
                                 style="display:none;">
 
@@ -267,11 +265,10 @@
                                 x-show="startupsOpen"
                                 x-cloak
                                 x-transition.opacity
-                                @keydown.escape.window="startupsOpen = false"
                                 class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
                                 style="display:none;">
 
-                                <div @click.outside="startupsOpen = false"
+                                <div
                                     class="relative flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
 
                                     <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 text-white">
@@ -315,7 +312,6 @@
                     <div
                         x-show="open"
                         x-cloak
-                        @keydown.escape.window="open = false"
                         class="fixed inset-0 z-[100] overflow-y-auto bg-black/50 p-4 sm:p-6"
                         style="display:none;">
 

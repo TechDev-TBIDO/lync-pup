@@ -103,9 +103,23 @@ class Startup extends Model
         return $this->hasMany(ReadinessLevelAssessment::class, 'startup_id');
     }
 
+    /**
+     * The assessment whose overall RL score is shown as "RLS x.x" (landing
+     * page cards, admin startup cards, founder profile):
+     *   - Post-Assessment, if it has an overall score;
+     *   - otherwise Pre-Assessment, if it has one;
+     *   - otherwise nothing (null), so no RLS is shown.
+     * A Post-Assessment row that exists but was emptied (no score) no longer
+     * hides the Pre-Assessment score, which is what latestOfMany('assessment_date')
+     * used to do. For a hasOne, both lazy and eager loading take the first
+     * row in this order, so the priority below is what decides.
+     */
     public function latestReadinessAssessment()
     {
-        return $this->hasOne(ReadinessLevelAssessment::class, 'startup_id')->latestOfMany('assessment_date');
+        return $this->hasOne(ReadinessLevelAssessment::class, 'startup_id')
+            ->whereNotNull('overall_score')
+            ->orderByRaw("CASE stage WHEN 'Post-Assessment' THEN 0 WHEN 'Pre-Assessment' THEN 1 ELSE 2 END")
+            ->orderByDesc('assessment_date');
     }
 
     /**

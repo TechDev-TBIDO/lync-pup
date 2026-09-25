@@ -42,8 +42,36 @@
         showLeaveModal: false,
         nextUrl: null,
 
-        newMembers: [''],
-        deletedMembers: [],
+        // Restored from old() after a failed save, so a validation error on
+        // another field (e.g. Website) doesn't wipe members typed/removed.
+        newMembers: @js(array_values(array_map('strval', (array) old('new_team_members', []))) ?: ['']),
+        deletedMembers: @js(array_values(array_map('intval', (array) old('deleted_team_members', [])))),
+
+        // Website is checked here before submitting: an invalid URL used to go
+        // to the server, and the redirect back lost the chosen photo (a file
+        // input can't be refilled) and any new team members. Now only the
+        // Website field shows the error and nothing else is touched. The
+        // server's 'url' rule still runs as a backstop.
+        website: @js(old('website', $startup->website) ?? ''),
+        websiteError: '',
+        websiteIsValid(value) {
+            const v = (value || '').trim();
+            if (v === '') return true;
+            if (/\s/.test(v)) return false;
+            try {
+                const u = new URL(v);
+                return (u.protocol === 'http:' || u.protocol === 'https:')
+                    && /^[^.]+(\.[^.]+)+$/.test(u.hostname);
+            } catch (e) {
+                return false;
+            }
+        },
+        checkWebsite() {
+            this.websiteError = this.websiteIsValid(this.website)
+                ? ''
+                : 'The website field must be a valid URL, for example https://www.example.com.';
+            return this.websiteError === '';
+        },
 
         // Core Team is the Profile's own roster now (StartupTeamMember -
         // see migration 000049), separate from the Information Sheet's own
@@ -179,6 +207,11 @@
                     action="{{ route('startup.profile.update') }}"
                     enctype="multipart/form-data"
                     @submit="
+        if (! checkWebsite()) {
+            $event.preventDefault();
+            $nextTick(() => { const w = $el.querySelector('[name=website]'); w && (w.scrollIntoView({ behavior: 'smooth', block: 'center' }), w.focus()); });
+            return;
+        }
         dirty = false;
         $store.navigation.hasUnsavedChanges = false;
     ">
@@ -356,13 +389,15 @@
                                 <input
                                     type="text"
                                     name="website"
-                                    value="{{ old('website', $startup->website) }}"
+                                    x-model="website"
                                     placeholder="https://"
                                     :readonly="!editing"
-                                    :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
+                                    :class="[editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default', websiteError ? 'border-red-500' : '']"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
-                                    @input="dirty = true">
-                                @error('website') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                                    @input="dirty = true; if (websiteError) checkWebsite()"
+                                    @blur="checkWebsite()">
+                                <p x-show="websiteError" x-cloak x-text="websiteError" class="text-xs text-red-600 mt-1"></p>
+                                @error('website') <p x-show="! websiteError" class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Address <span class="text-red-500">*</span></label>
@@ -639,11 +674,10 @@
                     {{-- Crop modal --}}
                     <template x-teleport="body">
                         <div x-show="cropOpen" x-cloak x-transition.opacity
-                            @keydown.escape.window="cancelCrop()"
                             class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
                             style="display:none;">
 
-                            <div @click.outside="cancelCrop()"
+                            <div
                                 class="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
 
                                 <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-8 sm:py-5">

@@ -230,11 +230,10 @@
          become the containing block for this fixed overlay and trap it. --}}
                             <template x-teleport="body">
                                 <div x-show="confirmSignOut" x-cloak x-transition.opacity
-                                    @keydown.escape.window="confirmSignOut = false"
                                     class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
                                     style="display:none;">
 
-                                    <div @click.outside="confirmSignOut = false"
+                                    <div
                                         class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
 
                                         <button type="button" @click="confirmSignOut = false"

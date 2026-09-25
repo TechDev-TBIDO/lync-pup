@@ -884,10 +884,9 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
              ============================================================ --}}
         <div x-show="showConfirm" x-cloak
             x-transition.opacity.duration.200ms
-            @keydown.escape.window="showConfirm = false"
             class="{{ $modalOverlay }}">
 
-            <div @click.outside="showConfirm = false"
+            <div
                 x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="opacity-0 scale-95"
                 x-transition:enter-end="opacity-100 scale-100"
@@ -938,10 +937,9 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             x-transition:enter="transition ease-out duration-200"
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"
-            @keydown.escape.window="activeRoadblock = null"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 sm:py-6">
 
-            <div @click.outside="activeRoadblock = null"
+            <div
                 x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="opacity-0 scale-95"
                 x-transition:enter-end="opacity-100 scale-100"
@@ -1064,10 +1062,9 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             x-transition:enter="transition ease-out duration-200"
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"
-            @keydown.escape.window="activeUpdate = null"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 sm:py-6">
 
-            <div @click.outside="activeUpdate = null"
+            <div
                 x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="opacity-0 scale-95"
                 x-transition:enter-end="opacity-100 scale-100"
@@ -1123,7 +1120,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
              Image preview lightbox
              ============================================================ --}}
         <div x-show="previewImageUrl" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 sm:p-6"
-            @click.self="previewImageUrl = null" @keydown.escape.window="previewImageUrl = null">
+        >
             <button type="button" @click="previewImageUrl = null" aria-label="Close preview"
                 class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none sm:right-5 sm:top-5">
                 {!! $xIcon('h-4 w-4') !!}

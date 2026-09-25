@@ -130,9 +130,8 @@
                                 {{-- Delete confirmation modal for this row --}}
                                 <template x-teleport="body">
                                     <div x-show="confirmingId === {{ $report->saved_report_id }}" x-cloak x-transition.opacity
-                                        @keydown.escape.window="confirmingId = null"
                                         class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4" style="display:none;">
-                                        <div @click.outside="confirmingId = null"
+                                        <div
                                             class="relative w-full max-w-md rounded-2xl bg-white px-8 pb-8 pt-10 text-center shadow-2xl">
                                             <button type="button" @click="confirmingId = null"
                                                 class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border border-[#6D0D23] text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white"
