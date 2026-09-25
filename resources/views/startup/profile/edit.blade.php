@@ -112,7 +112,7 @@
         get canSave() {
             return this.company_name.trim() !== ''
                 && this.industry_sector.trim() !== ''
-                && this.business_description.trim().length >= 50
+                && this.business_description.trim().length >= 10
                 && this.first_name.trim() !== ''
                 && this.last_name.trim() !== ''
                 && /^(09\d{9}|\+639\d{9})$/.test(this.contact_phone.trim())
@@ -277,20 +277,20 @@
                                 rows="4"
                                 x-model="business_description"
                                 required
-                                minlength="50"
+                                minlength="10"
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                 class="w-full border rounded-lg px-3 py-2 text-sm"
                                 @input="dirty = true"></textarea>
 
-                            {{-- Mirrors the server's min:50 rule (see
+                            {{-- Mirrors the server's min:10 rule (see
                                  UpdateStartupProfileRequest) so founders see
                                  the requirement before they hit Save, not
                                  only after a rejected submit. --}}
                             <p x-show="editing" x-cloak
                                 class="text-xs mt-1"
-                                :class="business_description.trim().length >= 50 ? 'text-gray-400' : 'text-red-500'"
-                                x-text="business_description.trim().length + ' / 50 characters minimum'"></p>
+                                :class="business_description.trim().length >= 10 ? 'text-gray-400' : 'text-red-500'"
+                                x-text="business_description.trim().length + ' / 10 characters minimum'"></p>
 
                             @error('business_description')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
