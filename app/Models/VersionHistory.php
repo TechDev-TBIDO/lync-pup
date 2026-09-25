@@ -34,6 +34,7 @@ class VersionHistory extends Model
         'cohort_number',
         'label',
         'user_id',
+        'actor_name_snapshot',
     ];
 
     protected function casts(): array
@@ -200,10 +201,22 @@ class VersionHistory extends Model
      * whichever cohort the admin had selected at the time. Null means the
      * admin was working across "All Cohorts".
      *
+     * $actor's name is snapshotted into actor_name_snapshot at write time —
+     * see that column's migration — so the panel still shows the right name
+     * even after that User is later deleted, instead of falling back to a
+     * generic "Deleted User". $actorLabel overrides that snapshot directly,
+     * for the one case with no User to snapshot in the first place: a
+     * console command (e.g. founders:purge-expired-rejections's unattended
+     * auto-delete) has no authenticated actor, so it passes actorLabel:
+     * 'System' explicitly rather than leaving the entry looking like some
+     * since-deleted admin's doing.
+     *
      * @param  list<array<string, string|null>>  $changes
      */
-    public static function record(?Startup $startup, string $context, string $action, ?string $subjectLabel = null, ?User $actor = null, array $changes = [], ?int $cohortNumber = null): self
+    public static function record(?Startup $startup, string $context, string $action, ?string $subjectLabel = null, ?User $actor = null, array $changes = [], ?int $cohortNumber = null, ?string $actorLabel = null): self
     {
+        $actor ??= auth()->user();
+
         return self::create([
             'startup_id' => $startup?->startup_id,
             'context' => $context,
@@ -211,7 +224,8 @@ class VersionHistory extends Model
             'subject_label' => $subjectLabel,
             'field_changes' => $changes ?: null,
             'cohort_number' => $startup?->cohort_number ?: ($cohortNumber ?? self::selectedCohortNumber()),
-            'user_id' => ($actor ?? auth()->user())?->id,
+            'user_id' => $actor?->id,
+            'actor_name_snapshot' => $actorLabel ?? $actor?->name,
         ]);
     }
 

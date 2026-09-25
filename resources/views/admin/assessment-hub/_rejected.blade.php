@@ -22,9 +22,12 @@ $nameCell = 'width: calc(1.5rem + 0.5rem + '.min(max($nameLen, 8), 28).'ch)';
 </div>
 @endif
 
-<div class="mb-3 flex items-center gap-2">
-    <img src="{{ asset('images/icons/warning-circle.svg') }}" alt="" class="h-6 w-6" aria-hidden="true">
-    <h2 class="text-md font-bold text-gray-900">Rejected</h2>
+<div class="mb-3 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+        <img src="{{ asset('images/icons/warning-circle.svg') }}" alt="" class="h-6 w-6" aria-hidden="true">
+        <h2 class="text-md font-bold text-gray-900">Rejected</h2>
+    </div>
+    <x-version-history-panel :entries="$rejectedVersionHistory" label="Rejected Startups History" />
 </div>
 
 <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
