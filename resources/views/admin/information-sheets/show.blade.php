@@ -483,7 +483,7 @@
                     'height_m' => 'e.g. 1.65',
                     'weight_kg' => 'e.g. 58',
                     'blood_type' => 'e.g. O+',
-                    'gsis_no' => 'e.g. 1234567890',
+                    'gsis_no' => 'e.g. 12345678901',
                     'pagibig_no' => 'e.g. 1234-5678-9012',
                     'philhealth_no' => 'e.g. 12-345678901-2',
                     'sss_no' => 'e.g. 12-3456789-0',
@@ -495,9 +495,9 @@
                     'place_of_birth' => 'City or municipality',
                     'mobile_no' => 'e.g. 09171234567',
                     'founder_email' => 'e.g. name@email.com',
-                    'sec_registration' => 'e.g. CS201812345',
-                    'business_id_number' => 'e.g. BID-0098765',
-                    'dti_registration_number' => 'e.g. DTI-0054321',
+                    'sec_registration' => 'e.g. CS202412345',
+                    'business_id_number' => 'e.g. 123456789',
+                    'dti_registration_number' => 'e.g. 123456789012',
                     'business_tin' => 'e.g. 123-456-789-000',
                     // portfolio_manager/cohort_no no longer need a hint —
                     // they're dropdowns now, not free-typed fields.
@@ -521,7 +521,17 @@
                     'endorsed_by',
                     ];
 
-$field = function ($name, $label, $number = null, $type = 'text', $required = true) use ($sheet, $prefill, $hints, $upperFields, $dobMin, $dobMax) {
+                    // Of the caps-required fields above, only I. Founder's Information's
+                    // own hint text ("e.g. Santos") shows caps too ("E.G. SANTOS") - the
+                    // startup registration block (28-31) and the endorsement fields further
+                    // down keep their placeholder in normal case, same as the founder side.
+                    $upperPlaceholderFields = [
+                    'surname', 'first_name', 'middle_name', 'name_extension', 'blood_type',
+                    'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
+                    'residential_address', 'permanent_address', 'place_of_birth', 'mobile_no',
+                    ];
+
+$field = function ($name, $label, $number = null, $type = 'text', $required = true) use ($sheet, $prefill, $hints, $upperFields, $upperPlaceholderFields, $dobMin, $dobMax) {
                     // Falls back to the Startup Profile value only while the column is
                     // still empty — a prefill the user reviews, never an overwrite.
                     $stored = $sheet?->{$name};
@@ -549,7 +559,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     // asterisk and no `required` - blank or N/A both save.
                     $required = $required && ! in_array($name, \App\Models\InformationSheet::OPTIONAL_FIELDS, true);
                     $star = $required ? " <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span>" : '';
-                    $upperClass = in_array($name, $upperFields, true) ? 'uppercase placeholder:normal-case' : '';
+                    $upperClass = match (true) {
+                    in_array($name, $upperPlaceholderFields, true) => 'uppercase',
+                    in_array($name, $upperFields, true) => 'uppercase placeholder:normal-case',
+                    default => '',
+                    };
                     $requiredAttr = $required ? ' required' : '';
                     // The input sits in its own flex-1 column so a validation
                     // message inserted after it lands UNDER the box, not beside it.
@@ -772,7 +786,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     <x-sheet-select name="civil_status"
                                         :value="mb_strtoupper((string) old('civil_status', $sheet?->civil_status))"
                                         :options="\App\Support\SheetOptions::civilStatuses()"
-                                        placeholder="Select civil status" />
+                                        placeholder="SELECT CIVIL STATUS" />
                                 </div>
                             </div>
 
@@ -1020,25 +1034,25 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     :class="isRemoving('{{ $rowKey }}') && 'js-skip'">
                                     @csrf @method('PATCH')
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
-                                        <textarea name="full_name" data-person-name placeholder="Name" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->full_name }}</textarea>
+                                        <textarea name="full_name" data-person-name placeholder="Dela Cruz, Juan, Santos, Jr." :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->full_name }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
-                                        <textarea name="designation" data-person-name placeholder="Designation" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->designation }}</textarea>
+                                        <textarea name="designation" data-person-name placeholder="Chief Executive Officer" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->designation }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
-                                        <textarea name="phone" data-ph-mobile maxlength="13" inputmode="tel" placeholder="Phone" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->phone }}</textarea>
+                                        <textarea name="phone" data-ph-mobile maxlength="13" inputmode="tel" placeholder="09171234567" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->phone }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
-                                        <textarea name="address" placeholder="Address" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->address ?? '' }}</textarea>
+                                        <textarea name="address" placeholder="123 Rizal St., Brgy. San Antonio, Quezon City" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->address ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
                                         <input type="date" name="date_of_birth" value="{{ $member->date_of_birth?->format('Y-m-d') }}" min="{{ $dobMin }}" max="{{ $dobMax }}" :readonly="!editing" class="{{ $teamInput }}" @input="dirty = true">
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
-                                        <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :readonly="!editing" class="{{ $teamInput }}" @input="dirty = true">
+                                        <input type="email" name="email" value="{{ $member->email }}" placeholder="juan.delacruz@gmail.com" :readonly="!editing" class="{{ $teamInput }}" @input="dirty = true">
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
-                                        <textarea name="citizenship" placeholder="Citizenship" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->citizenship ?? '' }}</textarea>
+                                        <textarea name="citizenship" placeholder="Filipino" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->citizenship ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
                                         <div class="px-2 py-1.5">
@@ -1088,25 +1102,25 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         class="js-subform js-addform flex items-stretch text-sm">
                                         @csrf
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
-                                            <textarea name="full_name" data-person-name placeholder="Name" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="full_name" data-person-name placeholder="Dela Cruz, Juan, Santos, Jr." class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
-                                            <textarea name="designation" data-person-name placeholder="Designation" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="designation" data-person-name placeholder="Chief Executive Officer" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
-                                            <textarea name="phone" data-ph-mobile maxlength="13" inputmode="tel" placeholder="Phone" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="phone" data-ph-mobile maxlength="13" inputmode="tel" placeholder="09171234567" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
-                                            <textarea name="address" placeholder="Address" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="address" placeholder="123 Rizal St., Brgy. San Antonio, Quezon City" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
                                             <input type="date" name="date_of_birth" min="{{ $dobMin }}" max="{{ $dobMax }}" class="{{ $teamInput }}" @input="dirty = true">
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
-                                            <input type="email" name="email" placeholder="Email" class="{{ $teamInput }}" @input="dirty = true">
+                                            <input type="email" name="email" placeholder="juan.delacruz@gmail.com" class="{{ $teamInput }}" @input="dirty = true">
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
-                                            <textarea name="citizenship" placeholder="Citizenship" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="citizenship" placeholder="Filipino" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
                                             <div class="px-2 py-1.5">
@@ -1203,7 +1217,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     @method('PATCH')
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
                                         <textarea name="organization_name_address"
-                                            placeholder="Organization Name & Address" :readonly="!editing" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->organization_name_address }}</textarea>
+                                            placeholder="e.g. PUP Technology Business Incubator, Sta. Mesa, Manila" :readonly="!editing" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->organization_name_address }}</textarea>
                                     </div>
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">
                                         <input type="date" name="date_from" value="{{ $item->date_from?->format('Y-m-d') }}"
@@ -1215,11 +1229,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     </div>
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">
                                         <textarea name="number_of_hours"
-                                            placeholder="Hours" :readonly="!editing" class="{{ $incCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->number_of_hours }}</textarea>
+                                            placeholder="e.g. 120" :readonly="!editing" class="{{ $incCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->number_of_hours }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 {{ $incubationCols[4] }}">
                                         <textarea name="incubation_program_focus"
-                                            placeholder="Program/Focus" :readonly="!editing" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->incubation_program_focus }}</textarea>
+                                            placeholder="e.g. Technology Business Incubation" :readonly="!editing" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->incubation_program_focus }}</textarea>
                                     </div>
                                 </form>
 
@@ -1260,7 +1274,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         class="js-subform js-addform flex">
                                         @csrf
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
-                                            <textarea name="organization_name_address" placeholder="Organization Name & Address" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="organization_name_address" placeholder="e.g. PUP Technology Business Incubator, Sta. Mesa, Manila" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">
                                             <input type="date" name="date_from" class="{{ $incCell }}" @input="dirty = true">
@@ -1269,10 +1283,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                             <input type="date" name="date_to" class="{{ $incCell }}" @input="dirty = true">
                                         </div>
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">
-                                            <textarea name="number_of_hours" placeholder="Hours" class="{{ $incCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="number_of_hours" placeholder="e.g. 120" class="{{ $incCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 {{ $incubationCols[4] }}">
-                                            <textarea name="incubation_program_focus" placeholder="Program/Focus" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="incubation_program_focus" placeholder="e.g. Technology Business Incubation" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                     </form>
                                     <div class="w-10 flex-shrink-0 flex items-center justify-center">
@@ -1355,7 +1369,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     @method('PATCH')
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[0] }}">
                                         <textarea name="title"
-                                            placeholder="Title" :readonly="!editing" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->title }}</textarea>
+                                            placeholder="e.g. Startup Bootcamp on Financial Literacy" :readonly="!editing" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->title }}</textarea>
                                     </div>
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">
                                         <input type="date" name="date_from" value="{{ $item->date_from?->format('Y-m-d') }}"
@@ -1367,11 +1381,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     </div>
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">
                                         <textarea name="number_of_hours"
-                                            placeholder="Hours" :readonly="!editing" class="{{ $ldCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->number_of_hours }}</textarea>
+                                            placeholder="e.g. 8" :readonly="!editing" class="{{ $ldCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->number_of_hours }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 {{ $ldCols[4] }}">
                                         <textarea name="conducted_sponsored_by"
-                                            placeholder="Conducted/Sponsored By" :readonly="!editing" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->conducted_sponsored_by }}</textarea>
+                                            placeholder="e.g. PUP-TBIDO" :readonly="!editing" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->conducted_sponsored_by }}</textarea>
                                     </div>
                                 </form>
 
@@ -1412,7 +1426,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         class="js-subform js-addform flex">
                                         @csrf
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[0] }}">
-                                            <textarea name="title" placeholder="Title" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="title" placeholder="e.g. Startup Bootcamp on Financial Literacy" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">
                                             <input type="date" name="date_from" class="{{ $ldCell }}" @input="dirty = true">
@@ -1421,10 +1435,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                             <input type="date" name="date_to" class="{{ $ldCell }}" @input="dirty = true">
                                         </div>
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">
-                                            <textarea name="number_of_hours" placeholder="Hours" class="{{ $ldCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="number_of_hours" placeholder="e.g. 8" class="{{ $ldCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 {{ $ldCols[4] }}">
-                                            <textarea name="conducted_sponsored_by" placeholder="Conducted/Sponsored By" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="conducted_sponsored_by" placeholder="e.g. PUP-TBIDO" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                     </form>
                                     <div class="w-10 flex-shrink-0 flex items-center justify-center">
@@ -1737,19 +1751,19 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 @method('PATCH')
                                 <div class="border-r border-gray-200">
                                     <input type="text" name="name" data-person-name value="{{ $reference->name }}"
-                                        placeholder="Name" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
+                                        placeholder="Juan Dela Cruz" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
                                 </div>
                                 <div class="border-r border-gray-200">
                                     <input type="text" name="contact" data-ph-mobile maxlength="13" inputmode="tel" value="{{ $reference->contact }}"
-                                        placeholder="Contact" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
+                                        placeholder="09xxxxxxxxx" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
                                 </div>
                                 <div class="border-r border-gray-200">
                                     <input type="email" name="email" value="{{ $reference->email }}"
-                                        placeholder="Email" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
+                                        placeholder="name@email.com" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
                                 </div>
                                 <div>
                                     <input type="text" name="address" value="{{ $reference->address }}"
-                                        placeholder="Address" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
+                                        placeholder="123 Rizal St. Bulacan" :readonly="!editing" class="{{ $refCell }}" @input="dirty = true">
                                 </div>
                             </form>
 
@@ -1790,19 +1804,19 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     class="js-subform js-addform grid grid-cols-4 flex-1 text-sm">
                                     @csrf
                                     <div class="border-r border-gray-200">
-                                        <textarea name="name" data-person-name placeholder="Name"
+                                        <textarea name="name" data-person-name placeholder="Juan Dela Cruz"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                     <div class="border-r border-gray-200">
-                                        <textarea name="contact" data-ph-mobile maxlength="13" inputmode="tel" placeholder="Contact"
+                                        <textarea name="contact" data-ph-mobile maxlength="13" inputmode="tel" placeholder="09xxxxxxxxx"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                     <div class="border-r border-gray-200">
-                                        <input type="email" name="email" placeholder="Email"
+                                        <input type="email" name="email" placeholder="name@email.com"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50" @input="dirty = true">
                                     </div>
                                     <div>
-                                        <textarea name="address" placeholder="Address"
+                                        <textarea name="address" placeholder="123 Rizal St. Bulacan"
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                 </form>
@@ -1885,9 +1899,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         <div class="max-w-md">
                             {{-- Stamped automatically on save (see InformationSheetController),
                                  so it is shown rather than typed. --}}
-                            <div class="flex items-start gap-2 py-1.5 text-sm">
-                                <label class="w-48 flex-shrink-0 pt-1.5 text-gray-800">DATE ACCOMPLISHED:</label>
-                                <div class="flex-1 min-w-0">
+                            {{-- flex-wrap: in a narrow column the date box drops under the
+                                 label instead of being squeezed to a sliver beside it. --}}
+                            <div class="flex flex-wrap items-start gap-x-2 gap-y-1 py-1.5 text-sm">
+                                <label class="flex-shrink-0 pt-1.5 text-gray-800 sm:w-48">DATE ACCOMPLISHED:</label>
+                                <div class="flex-1 min-w-[12rem]">
                                     <div class="w-full rounded border bg-gray-50 px-3 py-1.5 text-sm text-gray-600">
                                         {{ $sheet?->date_accomplished?->format('m/d/Y') ?? '—' }}
                                     </div>
