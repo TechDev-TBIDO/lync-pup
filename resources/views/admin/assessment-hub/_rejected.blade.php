@@ -22,12 +22,12 @@ $nameCell = 'width: calc(1.5rem + 0.5rem + '.min(max($nameLen, 8), 28).'ch)';
 </div>
 @endif
 
-<div class="mb-3 flex items-center justify-between gap-2">
-    <div class="flex items-center gap-2">
-        <img src="{{ asset('images/icons/warning-circle.svg') }}" alt="" class="h-6 w-6" aria-hidden="true">
-        <h2 class="text-md font-bold text-gray-900">Rejected</h2>
-    </div>
-    <x-version-history-panel :entries="$rejectedVersionHistory" label="Rejected Startups History" />
+{{-- The History button for this whole Information Sheet section (Schedule/
+     Evaluation/Approved/Rejected together, not just this one tab) lives
+     once in index.blade.php next to the sub-tab row, not repeated here. --}}
+<div class="mb-3 flex items-center gap-2">
+    <img src="{{ asset('images/icons/warning-circle.svg') }}" alt="" class="h-6 w-6" aria-hidden="true">
+    <h2 class="text-md font-bold text-gray-900">Rejected</h2>
 </div>
 
 <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
