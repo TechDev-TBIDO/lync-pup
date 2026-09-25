@@ -460,18 +460,20 @@ class AssessmentHubController extends Controller
             ->newestFirst()
             ->get();
 
-        // Rejected tab's own page-wide feed: who deleted a rejected
-        // startup — an admin, or "System" for the automatic 10-day purge
-        // (see App\Console\Commands\PurgeExpiredRejections). Narrowed to
-        // just deletions rather than every 'Information Sheet' context
-        // action, since everything else in that context (set/reschedule
-        // evaluation, approve/reject/edit the sheet) is already visible on
-        // the startup's own Information Sheet page while it still exists.
-        // A deleted startup has no page left to show it on, which is
-        // exactly why this feed exists — same reasoning as Meetings' feed
-        // above.
-        $rejectedVersionHistory = VersionHistory::where('context', 'Information Sheet')
-            ->where('action', 'delete_startup')
+        // One page-wide activity log for the whole Information Sheet
+        // section (Schedule/Evaluation/Approved/Rejected together) — every
+        // 'Information Sheet' context action: set/reschedule evaluation,
+        // approve, reject, edit, and delete (an admin's manual delete from
+        // the Rejected tab, or "System" for the automatic 10-day purge —
+        // see RejectedStartupController/PurgeExpiredRejections). Shown next
+        // to the sub-tab row in index.blade.php so it's visible no matter
+        // which of the four sub-tabs is open, same as Meetings' feed above
+        // — unlike a single startup's own Information Sheet page (which
+        // only ever shows that one startup's entries), this is the one
+        // place an admin can see every startup's Information Sheet activity
+        // at once, including a deleted startup's, which has no page left of
+        // its own to show it on.
+        $informationSheetVersionHistory = VersionHistory::where('context', 'Information Sheet')
             ->forSelectedCohort()
             ->with('user')
             ->newestFirst()
@@ -495,7 +497,7 @@ class AssessmentHubController extends Controller
             'meetingsResolved' => $meetingsResolved,
             'meetingsFailed' => $meetingsFailed,
             'meetingVersionHistory' => $meetingVersionHistory,
-            'rejectedVersionHistory' => $rejectedVersionHistory,
+            'informationSheetVersionHistory' => $informationSheetVersionHistory,
             'selectedStartup' => $selectedStartup,
             'selectedStage' => $selectedStage,
             'currentAssessment' => $currentAssessment,
