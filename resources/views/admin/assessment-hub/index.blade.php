@@ -83,17 +83,27 @@
         <div x-show="mainTab === 'information-sheet'" x-cloak x-data="{ subTab: @js($initialTab) }"
             x-init="$watch('subTab', value => setQueryParam('tab', value))">
 
-            {{-- replaces the old border-b sub-tab row --}}
-            <div class="mb-6 flex w-full gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-gray-100 p-1 sm:inline-flex sm:w-auto sm:gap-0">
-                @foreach ($subTabs as $key => $label)
-                <button type="button" @click="subTab = '{{ $key }}'"
-                    class="flex-1 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition sm:flex-none sm:px-4"
-                    :class="subTab === '{{ $key }}'
-                    ? 'bg-white text-rose-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'">
-                    {{ $label }}
-                </button>
-                @endforeach
+            {{-- One History button for the whole Information Sheet section —
+                 who set/rescheduled an evaluation, approved, rejected,
+                 edited, or deleted a startup's sheet (including the System's
+                 automatic 10-day purge) — across all four sub-tabs below,
+                 not just whichever one happens to be open. See
+                 AssessmentHubController::index()'s $informationSheetVersionHistory. --}}
+            <div class="mb-6 flex items-center justify-between gap-3">
+                {{-- replaces the old border-b sub-tab row --}}
+                <div class="flex w-full gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-gray-100 p-1 sm:inline-flex sm:w-auto sm:gap-0">
+                    @foreach ($subTabs as $key => $label)
+                    <button type="button" @click="subTab = '{{ $key }}'"
+                        class="flex-1 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition sm:flex-none sm:px-4"
+                        :class="subTab === '{{ $key }}'
+                        ? 'bg-white text-rose-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'">
+                        {{ $label }}
+                    </button>
+                    @endforeach
+                </div>
+
+                <x-version-history-panel :entries="$informationSheetVersionHistory ?? collect()" label="Information Sheet History" />
             </div>
 
             <div x-show="subTab === 'schedule'">
