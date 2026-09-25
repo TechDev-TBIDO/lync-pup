@@ -45,7 +45,7 @@ class UpdateStartupProfileRequest extends FormRequest
             // Business Description lives on the Startup itself (see
             // migration 000048), so it's a normal Profile field - no lock
             // to check here.
-            'business_description' => ['required', 'string', 'min:50'],
+            'business_description' => ['required', 'string', 'min:10'],
             'first_name' => ['required', 'string', 'max:100', new PersonName],
             'middle_name' => ['nullable', 'string', 'max:100', new PersonName],
             'last_name' => ['required', 'string', 'max:100', new PersonName],
@@ -112,7 +112,7 @@ class UpdateStartupProfileRequest extends FormRequest
             'contact_phone.required' => 'A phone number is required to complete your Startup Profile.',
             'location.required' => 'An address is required to complete your Startup Profile.',
             'startup_photo.required' => 'A startup photo is required to complete your Startup Profile.',
-            'business_description.min' => 'Your business description must be at least 50 characters.',
+            'business_description.min' => 'Your business description must be at least 10 characters.',
         ];
     }
 
