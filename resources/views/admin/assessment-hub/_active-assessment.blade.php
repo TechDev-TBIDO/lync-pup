@@ -554,13 +554,21 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full border text-sm">
+                    {{-- table-fixed + colgroup: Dates and the remove button get set widths,
+                         the four text columns split the rest equally. --}}
+                    <table class="w-full border text-sm" style="table-layout: fixed; min-width: 900px">
+                        <colgroup>
+                            @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_ROW_COLUMNS) as $col)
+                                <col @if ($col === 'dates') style="width: 10rem" @endif>
+                            @endforeach
+                            <col style="width: 2.5rem">
+                        </colgroup>
                         <thead>
                             <tr class="bg-gray-50">
                                 @foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_7_ROW_COLUMNS as $label)
-                                    <th class="border px-3 py-2 text-left">{{ $label }}</th>
+                                    <th class="border px-3 py-2 text-left align-top">{{ $label }}</th>
                                 @endforeach
-                                <th class="w-10 border px-2 py-2"></th>
+                                <th class="border px-2 py-2"></th>
                             </tr>
                         </thead>
                         <tbody>

@@ -65,8 +65,6 @@
         ve: @js($veSeed),
         initialVe: @js($veSeed),
         showClearConfirm: false,
-        incompleteAssessments: @js($incompleteAssessments ?? []),
-        showIncompleteConfirm: false,
         aiGenerating: false,
         aiError: '',
         // Generate with AI — drafts the Graduation Readiness
@@ -185,14 +183,6 @@
             }
             this.ve.readiness_levels[type].highest_level = cleaned === '' ? '' : cleaned + '/9';
         },
-        // Save Assessment always just saves now — the 'Incomplete
-        // Assessments' warning no longer gates the submit (it used to
-        // block Save and only let it through after a second confirm,
-        // which also meant it kept reappearing even right after the admin
-        // had cleared the form back to blank). It's shown once instead, up
-        // front, the moment this page loads — see the x-init below —
-        // purely as a heads-up, never as something to get past before
-        // saving.
         formProblem() {
             const list = [];
             ['evaluated', 'reviewed', 'noted'].forEach(k => {
@@ -286,7 +276,6 @@
     }"
     x-init="
         $watch(() => isDirty(), value => { $store.navigation.hasUnsavedChanges = value; });
-        if (incompleteAssessments.length) { showIncompleteConfirm = true; }
     ">
 
     <div class="rounded-t-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-3 text-center font-bold uppercase text-white">
@@ -563,41 +552,5 @@
         </div>
     </div>
 
-    {{-- ============ Incomplete assessments confirmation ============ --}}
-    <div x-show="showIncompleteConfirm" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
-        <div class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
-            <button type="button" @click="showIncompleteConfirm = false"
-                class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-gray-900 text-gray-900 transition hover:border-transparent hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"
-                aria-label="Close">
-                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
-                </svg>
-            </button>
-
-            <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
-                <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a1 1 0 0 0 .86 1.5h18.64a1 1 0 0 0 .86-1.5L13.71 3.86a1 1 0 0 0-1.72 0Z" />
-                </svg>
-            </div>
-
-            <h2 class="mt-2.5 bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-base font-bold text-transparent sm:text-lg">Incomplete Assessments</h2>
-            <p class="mt-1.5 text-xs leading-5 text-gray-600">The following assessment(s) have not been started yet:</p>
-
-            <ul class="mx-auto mt-3 max-w-xs list-inside list-disc space-y-1 text-left text-xs text-gray-700">
-                <template x-for="item in incompleteAssessments" :key="item">
-                    <li x-text="item"></li>
-                </template>
-            </ul>
-
-            <p class="mt-3 text-xs leading-5 text-gray-600">You can still fill out and save this Venture Exit form.</p>
-
-            <div class="mt-4">
-                <button type="button" @click="showIncompleteConfirm = false"
-                    class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
-                    Got it
-                </button>
-            </div>
-        </div>
-    </div>
 
 </div>
