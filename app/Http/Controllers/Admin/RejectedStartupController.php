@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Mail\StartupAccountDeleted;
 use App\Models\Startup;
+use App\Models\VersionHistory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -49,6 +50,19 @@ class RejectedStartupController extends Controller
         if ($startup->startup_photo_path) {
             Storage::disk('public')->delete($startup->startup_photo_path);
         }
+
+        // Recorded before the delete, same reason as everywhere else this
+        // pattern is used — the log entry needs to outlive the row it
+        // describes. Filed under 'Information Sheet' (not 'Startup Profile',
+        // which is where an accepted incubatee's own deletion goes — see
+        // StartupProfileController::destroy()) since a startup rejected at
+        // evaluation and never resubmitted was never actually an active
+        // incubatee; its whole lifecycle lived on the Information Sheet
+        // panel. Shown on the Rejected tab's own page-wide feed (see
+        // AssessmentHubController) since the startup's own Information
+        // Sheet page — where this context's other entries live — is gone
+        // the moment this finishes.
+        VersionHistory::record($startup, 'Information Sheet', 'delete_startup', $companyName);
 
         $startup->delete();
         $user?->delete();

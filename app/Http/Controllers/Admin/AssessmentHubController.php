@@ -460,6 +460,25 @@ class AssessmentHubController extends Controller
             ->newestFirst()
             ->get();
 
+        // One page-wide activity log for the whole Information Sheet
+        // section (Schedule/Evaluation/Approved/Rejected together) — every
+        // 'Information Sheet' context action: set/reschedule evaluation,
+        // approve, reject, edit, and delete (an admin's manual delete from
+        // the Rejected tab, or "System" for the automatic 10-day purge —
+        // see RejectedStartupController/PurgeExpiredRejections). Shown next
+        // to the sub-tab row in index.blade.php so it's visible no matter
+        // which of the four sub-tabs is open, same as Meetings' feed above
+        // — unlike a single startup's own Information Sheet page (which
+        // only ever shows that one startup's entries), this is the one
+        // place an admin can see every startup's Information Sheet activity
+        // at once, including a deleted startup's, which has no page left of
+        // its own to show it on.
+        $informationSheetVersionHistory = VersionHistory::where('context', 'Information Sheet')
+            ->forSelectedCohort()
+            ->with('user')
+            ->newestFirst()
+            ->get();
+
         return view('admin.assessment-hub.index', [
             'pendingStartups' => $pendingStartups,
             'scheduledToday' => $scheduledToday,
@@ -478,6 +497,7 @@ class AssessmentHubController extends Controller
             'meetingsResolved' => $meetingsResolved,
             'meetingsFailed' => $meetingsFailed,
             'meetingVersionHistory' => $meetingVersionHistory,
+            'informationSheetVersionHistory' => $informationSheetVersionHistory,
             'selectedStartup' => $selectedStartup,
             'selectedStage' => $selectedStage,
             'currentAssessment' => $currentAssessment,
