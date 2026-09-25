@@ -410,7 +410,7 @@ class UpdateInformationSheetRequest extends FormRequest
         };
 
         $prose = fn (int $max) => [
-            'required', 'string', 'max:'.$max, 'min:50',
+            'required', 'string', 'max:'.$max, 'min:10',
             // Ordinary sentence punctuation: . , ! ? ' - ( ) plus ; : / & % "
             // and curly quotes - an overview is normal prose ("B2B; SaaS",
             // "50% of users", "Web/Mobile").
@@ -714,7 +714,7 @@ class UpdateInformationSheetRequest extends FormRequest
             'membership_associations.regex' => 'Please enter a valid organization or association.',
             'membership_associations.min' => 'Please enter a valid organization or association.',
             'startup_overview.regex' => 'Startup overview may only use letters, numbers and normal punctuation (. , ! ? ; : \' " - ( ) / & %).',
-            'startup_overview.min' => 'Please describe the startup in at least 50 characters.',
+            'startup_overview.min' => 'Please describe the startup in at least 10 characters.',
             'permanent_address.required' => 'Please enter the permanent address.',
             'sex.required' => 'Choose Male or Female.',
             'civil_status.required' => 'Choose a civil status.',
