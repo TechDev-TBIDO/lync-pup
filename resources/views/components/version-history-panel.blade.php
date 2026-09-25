@@ -194,7 +194,7 @@
 
                                     <div class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
                                         <span class="h-2 w-2 shrink-0 rounded-full" style="background: {{ $colorFor($entry->user_id) }}"></span>
-                                        <span class="truncate text-xs text-gray-600">{{ $entry->user->name ?? 'Deleted User' }}</span>
+                                        <span class="truncate text-xs text-gray-600">{{ $entry->user->name ?? $entry->actor_name_snapshot ?? 'Deleted User' }}</span>
                                         <span class="text-xs text-gray-400">&middot; {{ $entry->created_at->format('g:i A') }}</span>
                                         @if ($showCohort)
                                             <span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600" data-history-cohort>{{ $entry->cohort_label ?? 'All Cohorts' }}</span>

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\RejectedFounderAutoDeleted;
 use App\Models\Startup;
+use App\Models\VersionHistory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -76,6 +77,22 @@ class PurgeExpiredRejections extends Command
             if ($startup->startup_photo_path) {
                 Storage::disk('public')->delete($startup->startup_photo_path);
             }
+
+            // No auth()->user() here — this runs unattended off the
+            // schedule, not from a request — so actorLabel is passed
+            // explicitly rather than leaving the entry looking like some
+            // admin's action (or, worse, a since-deleted admin's "Deleted
+            // User"). subject_label spells out *why*, not just what, since
+            // that's the whole point of logging this: an admin scanning the
+            // Rejected tab's history later shouldn't have to wonder whether
+            // this startup was removed by a person or by the deadline.
+            VersionHistory::record(
+                $startup,
+                'Information Sheet',
+                'delete_startup',
+                "{$companyName} (auto-removed — no resubmission within 10 days)",
+                actorLabel: 'System',
+            );
 
             // Information Sheet, evaluation schedules, etc. cascade-delete
             // at the database level (see each table's migration).

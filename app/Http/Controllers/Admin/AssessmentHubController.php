@@ -460,6 +460,23 @@ class AssessmentHubController extends Controller
             ->newestFirst()
             ->get();
 
+        // Rejected tab's own page-wide feed: who deleted a rejected
+        // startup — an admin, or "System" for the automatic 10-day purge
+        // (see App\Console\Commands\PurgeExpiredRejections). Narrowed to
+        // just deletions rather than every 'Information Sheet' context
+        // action, since everything else in that context (set/reschedule
+        // evaluation, approve/reject/edit the sheet) is already visible on
+        // the startup's own Information Sheet page while it still exists.
+        // A deleted startup has no page left to show it on, which is
+        // exactly why this feed exists — same reasoning as Meetings' feed
+        // above.
+        $rejectedVersionHistory = VersionHistory::where('context', 'Information Sheet')
+            ->where('action', 'delete_startup')
+            ->forSelectedCohort()
+            ->with('user')
+            ->newestFirst()
+            ->get();
+
         return view('admin.assessment-hub.index', [
             'pendingStartups' => $pendingStartups,
             'scheduledToday' => $scheduledToday,
@@ -478,6 +495,7 @@ class AssessmentHubController extends Controller
             'meetingsResolved' => $meetingsResolved,
             'meetingsFailed' => $meetingsFailed,
             'meetingVersionHistory' => $meetingVersionHistory,
+            'rejectedVersionHistory' => $rejectedVersionHistory,
             'selectedStartup' => $selectedStartup,
             'selectedStage' => $selectedStage,
             'currentAssessment' => $currentAssessment,
