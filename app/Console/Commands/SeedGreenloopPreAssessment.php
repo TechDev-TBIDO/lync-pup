@@ -68,7 +68,7 @@ class SeedGreenloopPreAssessment extends Command
                 'DevOps / Cloud Admin' => 'N/A',
                 'Cybersecurity Expert' => 'N/A',
             ],
-            'team_maturity_level' => 'Functional Prototype',
+            'team_maturity_level' => ['Functional Prototype'],
             'testing_strategies' => ['Unit Testing', 'Manual QA Process'],
             'automated_testing_framework_name' => '',
             'topics_of_interest' => ['Infrastructure and Engineering', 'Database Management', 'Operation Support'],

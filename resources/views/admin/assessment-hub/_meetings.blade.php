@@ -286,7 +286,7 @@ $archiveMonths = $monthsFor($meetingsArchive);
                                      admin can recall what it was before deciding
                                      Resolved/Failed. --}}
                                 <div x-show="viewing" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;"
-                                    @click.self="viewing = false" @keydown.escape.window="viewing = false">
+                                >
                                     <div class="w-full max-w-md overflow-hidden rounded-xl bg-white text-left shadow-xl">
                                         <div class="flex items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 text-white">
                                             <p class="text-base font-bold">Meeting Details</p>
@@ -319,7 +319,7 @@ $archiveMonths = $monthsFor($meetingsArchive);
                                 @if (in_array('reschedule', $tabData['actions'], true))
                                 {{-- Reschedule modal --}}
                                 <div x-show="rescheduling" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;"
-                                    @click.self="rescheduling = false">
+                                >
                                     <div class="w-full max-w-lg overflow-hidden rounded-xl bg-white text-left">
                                         <x-assessment-meeting-modal mode="edit" :meeting="$meeting"
                                             close="rescheduling = false"
@@ -332,7 +332,7 @@ $archiveMonths = $monthsFor($meetingsArchive);
                                 @if (in_array('delete', $tabData['actions'], true))
                                 {{-- Delete confirm --}}
                                 <div x-show="confirmingDelete" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;"
-                                    @click.self="confirmingDelete = false">
+                                >
                                     <div class="w-full max-w-sm overflow-hidden rounded-xl bg-white text-center shadow-xl">
                                         <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 text-white">
                                             <p class="text-base font-bold">Delete Meeting</p>
@@ -388,7 +388,7 @@ $archiveMonths = $monthsFor($meetingsArchive);
 
     {{-- Set Meeting modal --}}
     <div x-show="settingMeeting" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;"
-        @click.self="settingMeeting = false">
+    >
         <div class="w-full max-w-lg overflow-hidden rounded-xl bg-white text-left">
             <x-assessment-meeting-modal mode="add"
                 close="settingMeeting = false"

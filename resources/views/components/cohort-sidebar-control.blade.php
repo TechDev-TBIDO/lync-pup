@@ -223,7 +223,7 @@ $reopenModal = old('_cohort_form');
         <div>
             {{-- Create Cohort modal --}}
             <div x-show="modal === 'create'" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.outside="modal = null; document.getElementById('sidebarCreateCohortForm').reset()">
+                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl">
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                         <h3 class="text-white font-semibold flex items-center gap-2">
                             <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
@@ -275,7 +275,7 @@ $reopenModal = old('_cohort_form');
             @if ($selected)
             {{-- Edit Cohort modal --}}
             <div x-show="modal === 'edit'" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.outside="modal = null; document.getElementById('sidebarEditCohortForm').reset()">
+                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl">
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                         <h3 class="text-white font-semibold flex items-center gap-2">
                             <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
@@ -340,7 +340,7 @@ $reopenModal = old('_cohort_form');
 
             {{-- Cohort Details modal --}}
             <div x-show="modal === 'details'" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.outside="modal = null">
+                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl">
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                         <h3 class="text-white font-semibold flex items-center gap-2">
                             <x-icon name="3person.svg" class="h-5 w-5 shrink-0 text-white" />
@@ -374,7 +374,7 @@ $reopenModal = old('_cohort_form');
 
             {{-- Archive / End Cohort modal --}}
             <div x-show="modal === 'archive'" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.outside="modal = null; archiveConfirm = ''">
+                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl">
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                         <h3 class="text-white font-semibold flex items-center gap-2">
                             <x-icon name="3person.svg" class="h-5 w-5 shrink-0 text-white" />
@@ -420,7 +420,7 @@ $reopenModal = old('_cohort_form');
 
             {{-- Delete Cohort modal --}}
             <div x-show="modal === 'delete'" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-xl" @click.outside="modal = null; deleteConfirm = ''">
+                <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-xl">
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 flex items-center justify-between">
                         <div class="flex items-center gap-2.5">
                             <x-icon name="3person.svg" class="h-6 w-6 shrink-0 text-white" />

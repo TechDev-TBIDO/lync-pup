@@ -183,7 +183,7 @@
                                         @if ($isUnverified)
                                         {{-- ============ DELETE MODAL ============ --}}
                                         <div x-show="step === 'delete'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
-                                            <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden" @click.outside="step = null">
+                                            <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden">
                                                 <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-4 flex items-center justify-between">
                                                     <h3 class="font-bold">Delete Signup</h3>
                                                     <button type="button" @click="step = null" :disabled="submitting"

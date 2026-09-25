@@ -467,7 +467,7 @@ class AssessmentTest extends TestCase
             'tech_stack' => ['frontend' => 'Vue', 'backend' => 'Laravel', 'database' => 'MySQL', 'apis' => '', 'frameworks' => ''],
             'technical_challenges' => ['System Scalability'],
             'tech_team_roles' => ['Developers'],
-            'team_maturity_level' => 'MVP (Minimum Viable Product)',
+            'team_maturity_level' => ['MVP (Minimum Viable Product)', 'Production Ready'],
             'testing_strategies' => ['Unit Testing'],
             'topics_of_interest' => ['UI/UX'],
             'mode_of_communication' => 'Online',

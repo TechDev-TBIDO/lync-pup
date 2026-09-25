@@ -354,11 +354,14 @@
 
             /* Switching cohort: the new panel of cards fades/rises in. */
             @keyframes panel-in { from { opacity: 0; transform: translateY(10px); } }
-            .cohort-panel { animation: panel-in 0.35s ease-out; }
+            .cohort-panel.is-active { animation: panel-in 0.35s ease-out; }
 
             /* Sliding cohort underline. */
             .cohort-indicator.is-ready { transition: left 0.3s ease, width 0.3s ease, top 0.3s ease, opacity 0.2s ease; }
         }
+
+        /* Every cohort panel sits in the same grid cell (see .cohort-panels). */
+        .cohort-panels > .cohort-panel { grid-area: 1 / 1; min-width: 0; }
 
         /* Cohort underline: one bar that the script slides under the active tab. */
         .cohort-indicator { position: absolute; height: 2px; border-radius: 9999px; background: #6D0D23; pointer-events: none; }
@@ -474,13 +477,20 @@
                     @endforeach
                 </div>
 
-                {{-- Cohort panels --}}
+                {{-- Cohort panels. All panels share ONE grid cell (stacked on top of each
+                     other) and the inactive ones are only made invisible, not display:none,
+                     so the section is always as tall as the tallest cohort. Switching tabs
+                     no longer makes "Meet Our Incubatees" grow/shrink or the About card and
+                     footer jump. --}}
+                <div class="cohort-panels mt-8 grid">
                 @foreach ($cohortShowcase as $index => $group)
                     @php
                         $paletteBg = ['bg-purple-600', 'bg-red-600', 'bg-blue-600', 'bg-gray-100'];
                         $paletteTone = ['text-white', 'text-white', 'text-white', 'text-blue-600'];
                     @endphp
-                    <div x-show="activeCohortIndex === {{ $index }}" {{ $index === 0 ? '' : 'x-cloak' }} class="cohort-panel mt-8">
+                    <div class="cohort-panel {{ $index === 0 ? 'is-active' : 'invisible pointer-events-none' }}"
+                        :class="{ 'is-active': activeCohortIndex === {{ $index }}, 'invisible': activeCohortIndex !== {{ $index }}, 'pointer-events-none': activeCohortIndex !== {{ $index }} }"
+                        :aria-hidden="activeCohortIndex !== {{ $index }}">
                         {{-- Mobile now shows 2-up (was 1 per row) with a tighter gap;
                              sm/md/lg steps (2/3/4 columns) are unchanged from before. --}}
                         <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
@@ -565,6 +575,7 @@
                         @endif
                     </div>
                 @endforeach
+                </div>
             @endif
         </div>
 
@@ -677,14 +688,14 @@
         x-effect="setScrollLock(modalOpen)"
         style="overscroll-behavior: contain;"
         class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
-        @keydown.escape.window="closeStartup()">
+        >
         {{-- max-w-3xl -> max-w-4xl: was cramping the radar chart + score
              cards against the Contact & Links sidebar, clipping labels.
              max-h-[90vh] + flex flex-col caps the WHOLE card to the screen,
              so the outer backdrop never needs to scroll — only the content
              panel below (flex-1 overflow-y-auto) does, giving a single
              scrollbar instead of one on the backdrop and one inside. --}}
-        <div class="my-auto flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" @click.outside="closeStartup()">
+        <div class="my-auto flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <template x-if="activeStartup">
                 <div class="flex min-h-0 flex-1 flex-col">
                     {{-- Plain title bar — just identifies the panel and closes

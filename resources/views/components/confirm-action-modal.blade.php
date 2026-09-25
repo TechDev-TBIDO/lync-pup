@@ -19,7 +19,6 @@
 @endphp
 
 <div x-show="{{ $show }}" x-cloak x-transition.opacity
-    @keydown.escape.window="{{ $close }}"
     class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
 
     <div class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">

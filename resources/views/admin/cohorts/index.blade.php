@@ -22,7 +22,7 @@
             </button>
 
             <div x-show="open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display: none;">
-                <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden" @click.outside="open = false">
+                <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden">
                     <x-cohort-form-modal mode="add" :action="route('admin.cohorts.store')" />
                 </div>
             </div>
@@ -68,13 +68,13 @@
                         </div>
 
                         <div x-show="editOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display: none;">
-                            <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden" @click.outside="editOpen = false">
+                            <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden">
                                 <x-cohort-form-modal mode="edit" :cohort="$cohort" :action="route('admin.cohorts.update', $cohort)" />
                             </div>
                         </div>
 
                         <div x-show="archiveOpen" x-cloak x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="display: none;">
-                            <div @click.outside="archiveOpen = false" class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+                            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
                                 <div class="px-8 py-8 text-center">
                                     <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
                                         <svg class="h-7 w-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -98,7 +98,7 @@
                         </div>
 
                         <div x-show="deleteOpen" x-cloak x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="display: none;">
-                            <div @click.outside="deleteOpen = false" class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+                            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
                                 <div class="px-8 py-8 text-center">
                                     <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
                                         <svg class="h-7 w-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

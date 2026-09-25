@@ -110,7 +110,7 @@
             <td width="50%" valign="top">
                 <b>Tech Maturity Level:</b><br>
                 @foreach (\App\Support\TrlOverviewForm::TEAM_MATURITY_LEVELS as $option)
-                    <span class="checkbox">{{ data_get($overview, 'team_maturity_level') === $option ? 'X' : '' }}</span> {{ $option }}<br>
+                    <span class="checkbox">{{ in_array($option, (array) data_get($overview, 'team_maturity_level', []), true) ? 'X' : '' }}</span> {{ $option }}<br>
                 @endforeach
             </td>
             <td width="50%" valign="top">

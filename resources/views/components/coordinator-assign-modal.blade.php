@@ -139,7 +139,6 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         },
     }"
             x-init="maybeAutoOpen()"
-            @keydown.escape.window="open = false"
             {{-- Lets an external trigger (e.g. the Startup Profile card's
                  3-dot menu, which has its own separate x-data scope) open
                  this component's modal without merging Alpine scopes —

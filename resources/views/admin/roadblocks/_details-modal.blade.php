@@ -50,7 +50,6 @@ $assigneeLabel = $isCoordinatorAssignee ? 'Coordinator' : 'Mentor';
 <div
     x-show="viewOpen"
     x-cloak
-    @keydown.escape.window="viewOpen = false"
     class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6">
 
     <div class="flex min-h-full items-center justify-center">
@@ -253,7 +252,7 @@ $assigneeLabel = $isCoordinatorAssignee ? 'Coordinator' : 'Mentor';
 
 {{-- Image preview lightbox: opened by the eye button above. --}}
 <div x-show="previewImage" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 sm:p-6" style="display:none;"
-    @click.self="previewImage = null" @keydown.escape.window="previewImage = null">
+>
     <button type="button" @click="previewImage = null" aria-label="Close preview"
         class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none sm:right-5 sm:top-5">
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
