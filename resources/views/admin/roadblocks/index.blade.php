@@ -346,7 +346,6 @@
                                 <div
                                     x-show="viewOpen"
                                     x-cloak
-                                    @keydown.escape.window="viewOpen = false"
                                     class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6">
 
                                     <div class="flex min-h-full items-center justify-center">
@@ -497,7 +496,6 @@
 
                                 {{-- Assign & Schedule modal --}}
                                 <div x-show="assignOpen" x-cloak
-                                    @keydown.escape.window="assignOpen = false"
                                     class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6" style="display:none;">
                                     <div class="flex min-h-full items-center justify-center">
                                         <div class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white shadow-2xl">
@@ -510,7 +508,7 @@
                                  z-10 keeps the close button above the image, and the SVG
                                  X actually centres inside the circle. --}}
                                 <div x-show="previewImage" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 sm:p-6" style="display:none;"
-                                    @click.self="previewImage = null" @keydown.escape.window="previewImage = null">
+                                >
                                     <button type="button" @click="previewImage = null" aria-label="Close preview"
                                         class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none sm:right-5 sm:top-5">
                                         {!! $xIcon('h-4 w-4') !!}
@@ -819,7 +817,6 @@
 
                                             {{-- STANDARD delete confirmation --}}
                                             <div x-show="deleteOpen" x-cloak x-transition.opacity
-                                                @keydown.escape.window="deleteOpen = false"
                                                 class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
 
                                                 <div class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
@@ -862,7 +859,6 @@
                                             </div>
 
                                             <div x-show="rescheduleOpen" x-cloak
-                                                @keydown.escape.window="rescheduleOpen = false"
                                                 class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6" style="display:none;">
                                                 <div class="flex min-h-full items-center justify-center">
                                                     <div class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white shadow-2xl">

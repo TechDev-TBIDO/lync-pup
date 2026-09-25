@@ -1993,7 +1993,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     {{-- Image lightbox — same as Submit Roadblock's. --}}
                     <template x-teleport="body">
                         <div x-show="previewImageUrl" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 sm:p-6"
-                            @click.self="previewImageUrl = null" @keydown.escape.window="previewImageUrl = null">
+                        >
                             <button type="button" @click="previewImageUrl = null" aria-label="Close preview"
                                 class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none sm:right-5 sm:top-5">
                                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>

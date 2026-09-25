@@ -142,7 +142,12 @@ for ($i = 0; $i < $count; $i++) {
         array_fill_keys(\App\Support\TrlOverviewForm::TECH_TEAM_ROLES, ''),
         array_filter($storedOverview['tech_team_roles'] ?? [], 'is_string')
         ),
-        'team_maturity_level' => $storedOverview['team_maturity_level'] ?? '',
+        // Multi-select now (was one level only). Older rows saved a single
+        // string here, so that is wrapped into a one-item list.
+        'team_maturity_level' => array_values(array_filter(
+            (array) ($storedOverview['team_maturity_level'] ?? []),
+            fn ($level) => is_string($level) && $level !== ''
+        )),
         'testing_strategies' => $storedOverview['testing_strategies'] ?? [],
         'automated_testing_framework_name' => $storedOverview['automated_testing_framework_name'] ?? '',
         'topics_of_interest' => $storedOverview['topics_of_interest'] ?? [],
@@ -1132,12 +1137,8 @@ for ($i = 0; $i < $count; $i++) {
                                         <div class="flex flex-col gap-1.5 p-4">
                                             @foreach (\App\Support\TrlOverviewForm::TEAM_MATURITY_LEVELS as $option)
                                             <label class="flex items-start gap-2 text-sm text-gray-700">
-                                                {{-- Square checkbox, still one level only: ticking a box picks that
-                                                     level (unticking the others), ticking the ticked one clears it. --}}
-                                                <input type="checkbox"
-                                                    :checked="trlOverview.team_maturity_level === @js($option)"
-                                                    @click="trlOverview.team_maturity_level = (trlOverview.team_maturity_level === @js($option) ? '' : @js($option))"
-                                                    class="mt-0.5 shrink-0">
+                                                {{-- Multi-select: any number of levels can be ticked. --}}
+                                                <input type="checkbox" value="{{ $option }}" x-model="trlOverview.team_maturity_level" class="mt-0.5 shrink-0">
                                                 {{ $option }}
                                             </label>
                                             @endforeach

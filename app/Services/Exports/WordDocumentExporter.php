@@ -70,14 +70,22 @@ class WordDocumentExporter
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[1]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        // Blank or "N/A" (any spelling: n/a, NA, N.A., N / A) prints as an
+        // empty cell on the Information Sheet export - the founder/admin only
+        // types N/A to get past the required check, it isn't real content.
+        $isNa = fn($val) => in_array(
+            preg_replace('/[\s.\/]+/', '', mb_strtoupper(trim((string) $val))),
+            ['', 'NA'],
+            true
+        );
+        $v = fn($val) => $val !== null && ! $isNa($val) ? (string) $val : '';
         $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Founder's Information (1-21) and a few Startup Information fields
         // (27-31, 32, 34, 35) print in all caps on the real form - matches
         // its own printed instruction, "Use Capital Letters and Print
         // Legibly". Applied here rather than relying on how the admin
         // actually typed it into the app.
-        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $vc = fn($val) => $val !== null && ! $isNa($val) ? mb_strtoupper((string) $val) : '';
 
         $processor->setValue('surname', $vc($sheet?->surname));
         $processor->setValue('first_name', $vc($sheet?->first_name));
@@ -117,7 +125,7 @@ class WordDocumentExporter
         // template actually has room for.
         $scholarships = array_values(array_filter(
             array_map('trim', preg_split('/\r\n|\r|\n/', (string) $sheet?->scholarships_academic_honors)),
-            fn($line) => $line !== ''
+            fn($line) => ! $isNa($line)
         ));
         for ($i = 1; $i <= 9; $i++) {
             $processor->setValue("scholarship_{$i}", $vc($scholarships[$i - 1] ?? ''));
@@ -152,7 +160,7 @@ class WordDocumentExporter
                 'member_email' => $v($m->email),
                 'member_citizenship' => $v($m->citizenship),
                 // Real form's column is just "F" or "M", not the full word.
-                'member_sex' => $m->sex ? mb_strtoupper(mb_substr($m->sex, 0, 1)) : '',
+                'member_sex' => $v($m->sex) !== '' ? mb_strtoupper(mb_substr($m->sex, 0, 1)) : '',
                 'member_civil_status' => $v($m->civil_status),
             ])->all(),
         );
@@ -167,7 +175,6 @@ class WordDocumentExporter
                 'incub_hours' => $v($row->number_of_hours),
                 'incub_focus' => $v($row->incubation_program_focus),
             ])->all(),
-            blankRowFill: 'N/A',
         );
 
         $this->cloneRepeatingRow(
@@ -180,7 +187,6 @@ class WordDocumentExporter
                 'ld_hours' => $v($row->number_of_hours),
                 'ld_by' => $v($row->conducted_sponsored_by),
             ])->all(),
-            blankRowFill: 'N/A',
         );
 
         $this->cloneRepeatingRow(
@@ -192,7 +198,6 @@ class WordDocumentExporter
                 'ref_email' => $vc($row->email),
                 'ref_address' => $vc($row->address),
             ])->all(),
-            blankRowFill: 'N/A',
         );
 
         $tempDir = storage_path('app/tmp-exports');
@@ -310,12 +315,13 @@ class WordDocumentExporter
         $processor->setValue('tech_team_devops', $v($teamRoles['DevOps / Cloud Admin'] ?? ''));
         $processor->setValue('tech_team_cybersecurity', $v($teamRoles['Cybersecurity Expert'] ?? ''));
 
-        $maturity = $overview['team_maturity_level'] ?? '';
-        $processor->setValue('cb_maturity_concept', $cbBox($maturity === 'Concept'));
-        $processor->setValue('cb_maturity_functional', $cbBox($maturity === 'Functional Prototype'));
-        $processor->setValue('cb_maturity_mvp', $cbBox($maturity === 'MVP (Minimum Viable Product)'));
-        $processor->setValue('cb_maturity_production', $cbBox($maturity === 'Production Ready'));
-        $processor->setValue('cb_maturity_scalable', $cbBox($maturity === 'Scalable Production System'));
+        // Multi-select list now; an older row may still hold one string.
+        $maturity = array_values(array_filter((array) ($overview['team_maturity_level'] ?? []), 'is_string'));
+        $processor->setValue('cb_maturity_concept', $cbBox($inList($maturity, 'Concept')));
+        $processor->setValue('cb_maturity_functional', $cbBox($inList($maturity, 'Functional Prototype')));
+        $processor->setValue('cb_maturity_mvp', $cbBox($inList($maturity, 'MVP (Minimum Viable Product)')));
+        $processor->setValue('cb_maturity_production', $cbBox($inList($maturity, 'Production Ready')));
+        $processor->setValue('cb_maturity_scalable', $cbBox($inList($maturity, 'Scalable Production System')));
 
         $testing = $overview['testing_strategies'] ?? [];
         $processor->setValue('cb_testing_unit', $cbBox($inList($testing, 'Unit Testing')));

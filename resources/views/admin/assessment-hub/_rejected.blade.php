@@ -94,7 +94,7 @@ $nameCell = 'width: calc(1.5rem + 0.5rem + '.min(max($nameLen, 8), 28).'ch)';
                         {{-- ============ DELETE STARTUP MODAL ============ --}}
                         <div x-show="confirmingDelete" x-cloak
                             class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;"
-                            @click.self="confirmingDelete = false">
+                            >
                             <div class="w-full max-w-md overflow-hidden rounded-xl bg-white text-left shadow-xl">
                                 <div class="flex items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 text-white">
                                     <div class="flex items-center gap-3">

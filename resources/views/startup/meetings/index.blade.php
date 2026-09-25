@@ -569,10 +569,9 @@
             {{-- Full-note modal: shared by every card's "View" button above. --}}
             <div x-show="viewingNote !== null" x-cloak
                 x-transition.opacity.duration.200ms
-                @keydown.escape.window="viewingNote = null"
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
 
-                <div @click.outside="viewingNote = null"
+                <div
                     x-transition:enter="transition ease-out duration-200"
                     x-transition:enter-start="opacity-0 scale-95"
                     x-transition:enter-end="opacity-100 scale-100"

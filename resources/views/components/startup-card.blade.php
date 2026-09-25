@@ -204,7 +204,7 @@ $hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
     {{-- ============ DELETE STARTUP MODAL ============ --}}
     <div x-show="confirmingDelete" x-cloak x-data="{ reason: '', confirmText: '' }"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display: none;"
-        @click.self="confirmingDelete = false">
+        >
         <div class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl">
             <div class="flex items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 text-white">
                 <div class="flex items-center gap-3">

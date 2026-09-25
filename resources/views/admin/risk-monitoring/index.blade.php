@@ -230,7 +230,7 @@
         {{-- Detail modal --}}
         <div x-show="selected !== null" x-cloak
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            @click.self="selected = null">
+            >
             <template x-if="selected !== null">
                 <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" @click.stop>
                     <div class="flex items-start justify-between mb-4">

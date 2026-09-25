@@ -268,7 +268,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                     {{-- Overlay: backdrop + card, scoped to this panel --}}
                                     <div x-show="previewId !== null" x-cloak
                                         class="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-black/40 p-4"
-                                        @click.self="previewId = null" style="display: none;">
+ style="display: none;">
 
                                         @foreach ($mentors as $m)
                                         <div x-show="previewId === 'mentor-{{ $m->mentor_id }}'" x-cloak
@@ -479,7 +479,6 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                             x-show="deleteAssignmentOpen"
                             x-cloak
                             x-transition.opacity
-                            @keydown.escape.window="deleteAssignmentOpen = false"
                             class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
                             style="display:none;">
 

@@ -10,7 +10,7 @@
 
 <div x-show="{{ $show }}" x-cloak
     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-2xl w-full max-w-lg p-8 relative" @click.outside="{{ $close }}">
+    <div class="bg-white rounded-2xl w-full max-w-lg p-8 relative">
         <button type="button" @click="{{ $close }}"
             class="absolute top-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition"
             aria-label="Close">
