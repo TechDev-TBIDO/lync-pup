@@ -1899,11 +1899,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         <div class="max-w-md">
                             {{-- Stamped automatically on save (see InformationSheetController),
                                  so it is shown rather than typed. --}}
-                            {{-- flex-wrap: in a narrow column the date box drops under the
-                                 label instead of being squeezed to a sliver beside it. --}}
-                            <div class="flex flex-wrap items-start gap-x-2 gap-y-1 py-1.5 text-sm">
-                                <label class="flex-shrink-0 pt-1.5 text-gray-800 sm:w-48">DATE ACCOMPLISHED:</label>
-                                <div class="flex-1 min-w-[12rem]">
+                            {{-- Label on its own line, date box full width underneath, so the
+                                 box and its note never get squeezed beside the label. --}}
+                            <div class="flex flex-col gap-1 py-1.5 text-sm">
+                                <label class="text-gray-800">DATE ACCOMPLISHED:</label>
+                                <div class="w-full">
                                     <div class="w-full rounded border bg-gray-50 px-3 py-1.5 text-sm text-gray-600">
                                         {{ $sheet?->date_accomplished?->format('m/d/Y') ?? '—' }}
                                     </div>
@@ -1948,12 +1948,12 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                          locks the founder out, an admin can still Edit here). --}}
                     <div class="flex gap-3" x-show="!editing && !confirmingApprove && !confirmingReject" x-cloak>
                         <a href="{{ $backUrl }}"
-                            class="flex-1 text-center border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
+                            class="flex-1 flex items-center justify-center text-center border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
                             Back
                         </a>
 
                         @if ($sheetUpdateUrl && ! $isRejectedView)
-                        <div class="flex-1 rounded-lg p-[1px] bg-gradient-to-r from-[#6D0D23] to-[#11386A]"
+                        <div class="flex-1 flex rounded-lg p-[1px] bg-gradient-to-r from-[#6D0D23] to-[#11386A]"
                             :class="{ 'opacity-50': {{ $editDisabled ? 'true' : 'false' }} }">
                             <button
                                 type="button"
@@ -1972,7 +1972,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         }
                                     });
                                 "
-                                class="w-full rounded-[7px] bg-white py-2.5 text-sm font-semibold text-[#11386A]
+                                class="w-full h-full rounded-[7px] bg-white py-2.5 text-sm font-semibold text-[#11386A]
                                        transition-all duration-200 hover:bg-slate-50 hover:shadow-sm
                                        disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:shadow-none">
                                 Edit
@@ -1981,11 +1981,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         @endif
 
                         @if ($isLocked)
-                        <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
+                        <div class="flex-1 flex items-center justify-center text-center leading-tight bg-gray-100 text-gray-500 rounded-lg px-2 py-2.5 text-sm font-medium">
                             Approved &amp; Locked{{ $sheet?->approved_at ? ' — ' . $sheet->approved_at->format('m/d/Y') : '' }}
                         </div>
                         @elseif ($isRejectedView)
-                        <div class="flex-1 text-center bg-rose-50 text-rose-700 rounded-lg py-2.5 text-sm font-medium">
+                        <div class="flex-1 flex items-center justify-center text-center leading-tight bg-rose-50 text-rose-700 rounded-lg px-2 py-2.5 text-sm font-medium">
                             Rejected{{ $sheet?->rejected_at ? ' — ' . $sheet->rejected_at->format('m/d/Y') : '' }} — awaiting founder resubmission
                         </div>
                         @elseif ($approveUrl)

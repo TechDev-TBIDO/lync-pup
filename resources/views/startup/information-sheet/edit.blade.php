@@ -2021,11 +2021,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                         <div class="max-w-md">
                             {{-- Stamped automatically on save (see InformationSheetController),
                                  so it is shown rather than typed. --}}
-                            {{-- flex-wrap: in a narrow column the date box drops under the
-                                 label instead of being squeezed to a sliver beside it. --}}
-                            <div class="flex flex-wrap items-start gap-x-2 gap-y-1 py-1.5 text-sm">
-                                <label class="flex-shrink-0 pt-1.5 text-gray-800 sm:w-48">DATE ACCOMPLISHED:</label>
-                                <div class="flex-1 min-w-[12rem]">
+                            {{-- Label on its own line, date box full width underneath, so the
+                                 box and its note never get squeezed beside the label. --}}
+                            <div class="flex flex-col gap-1 py-1.5 text-sm">
+                                <label class="text-gray-800">DATE ACCOMPLISHED:</label>
+                                <div class="w-full">
                                     <div class="w-full rounded border bg-gray-50 px-3 py-1.5 text-sm text-gray-600">
                                         {{ $sheet?->date_accomplished?->format('m/d/Y') ?? '—' }}
                                     </div>
