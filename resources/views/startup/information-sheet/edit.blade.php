@@ -43,7 +43,7 @@
     @endif
 
     <div
-        class="bg-white rounded-xl border border-gray-200 max-w-6xl overflow-hidden"
+        class="bg-white rounded-xl border border-gray-200 max-w-6xl overflow-hidden info-sheet-caps"
         x-data="{
     editing: false,
     isLocked: {{ $lockReason ? 'true' : 'false' }},
@@ -958,12 +958,12 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
                                         <div class="px-2 py-1.5">
-                                            <x-sheet-select name="sex" :value="mb_strtoupper((string) $member->sex)" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="Sex" compact />
+                                            <x-sheet-select name="sex" :value="mb_strtoupper((string) $member->sex)" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="SEX" compact />
                                         </div>
                                     </div>
                                     <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
                                         <div class="px-2 py-1.5">
-                                            <x-sheet-select name="civil_status" :value="mb_strtoupper((string) $member->civil_status)" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="Civil Status" compact />
+                                            <x-sheet-select name="civil_status" :value="mb_strtoupper((string) $member->civil_status)" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="CIVIL STATUS" compact />
                                         </div>
                                     </div>
                                 </form>
@@ -1028,12 +1028,12 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
                                             <div class="px-2 py-1.5">
-                                                <x-sheet-select name="sex" :value="''" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="Sex" compact />
+                                                <x-sheet-select name="sex" :value="''" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="SEX" compact />
                                             </div>
                                         </div>
                                         <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
                                             <div class="px-2 py-1.5">
-                                                <x-sheet-select name="civil_status" :value="''" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="Civil Status" compact />
+                                                <x-sheet-select name="civil_status" :value="''" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="CIVIL STATUS" compact />
                                             </div>
                                         </div>
                                     </form>
@@ -2706,4 +2706,5 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             setTimeout(flushSavedToast, 300);
         })();
     </script>
+    @include('partials.info-sheet-caps')
 </x-layouts.founder>

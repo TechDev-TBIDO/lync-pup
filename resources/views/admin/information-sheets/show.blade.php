@@ -137,7 +137,7 @@
     </style>
 
     <div
-        class="bg-white rounded-xl border border-gray-200 max-w-6xl overflow-hidden"
+        class="bg-white rounded-xl border border-gray-200 max-w-6xl overflow-hidden info-sheet-caps"
         x-data="{
     editing: false,
     isLocked: {{ $isLocked ? 'true' : 'false' }},
@@ -1056,12 +1056,12 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
                                         <div class="px-2 py-1.5">
-                                            <x-sheet-select name="sex" :value="mb_strtoupper((string) $member->sex)" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="Sex" compact />
+                                            <x-sheet-select name="sex" :value="mb_strtoupper((string) $member->sex)" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="SEX" compact />
                                         </div>
                                     </div>
                                     <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
                                         <div class="px-2 py-1.5">
-                                            <x-sheet-select name="civil_status" :value="mb_strtoupper((string) $member->civil_status)" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="Civil Status" compact />
+                                            <x-sheet-select name="civil_status" :value="mb_strtoupper((string) $member->civil_status)" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="CIVIL STATUS" compact />
                                         </div>
                                     </div>
                                 </form>
@@ -1124,12 +1124,12 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
                                             <div class="px-2 py-1.5">
-                                                <x-sheet-select name="sex" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="Sex" compact />
+                                                <x-sheet-select name="sex" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="SEX" compact />
                                             </div>
                                         </div>
                                         <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
                                             <div class="px-2 py-1.5">
-                                                <x-sheet-select name="civil_status" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="Civil Status" compact />
+                                                <x-sheet-select name="civil_status" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="CIVIL STATUS" compact />
                                             </div>
                                         </div>
                                     </form>
@@ -2078,7 +2078,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             @method('PATCH')
 
                             <label class="block text-sm font-medium text-gray-700 mb-1">Remarks for the founder <span class="text-gray-400 font-normal">(Optional)</span></label>
-                            <textarea name="evaluator_remarks" rows="3" placeholder="What needs to change before resubmitting?"
+                            <textarea name="evaluator_remarks" data-no-caps rows="3" placeholder="What needs to change before resubmitting?"
                                 class="w-full border rounded-lg px-3 py-2 text-sm mb-3"></textarea>
                             @error('evaluator_remarks') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
 
@@ -2670,4 +2670,5 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
             setTimeout(flushSavedToast, 300);
         })();
     </script>
+    @include('partials.info-sheet-caps')
 </x-layouts.admin>
