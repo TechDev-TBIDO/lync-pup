@@ -7,6 +7,7 @@ use App\Models\ReadinessLevelAssessment;
 use App\Models\Startup;
 use App\Support\ReadinessRubric;
 use App\Support\VentureExitForm;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -40,9 +41,11 @@ class VentureExitAiGenerator
         // default) was killing this request before the Gemini call even
         // finished — completely separate from the Http timeout below, and
         // not something a try/catch here can intercept. Raise it just for
-        // this request rather than touching php.ini globally.
+        // this request rather than touching php.ini globally. Bumped up
+        // from 90s to cover the retry below's worst case (two 75s attempts
+        // plus the sleep between them) without PHP cutting it off first.
         if (function_exists('set_time_limit')) {
-            set_time_limit(90);
+            set_time_limit(180);
         }
 
         // Gemini's REST API authenticates via a "?key=" query string, not a
@@ -51,25 +54,45 @@ class VentureExitAiGenerator
         // version.
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=".urlencode($apiKey);
 
-        $response = Http::timeout(75)->post($url, [
-            'system_instruction' => [
-                'parts' => [['text' => $this->systemPrompt()]],
-            ],
-            'contents' => [
-                ['role' => 'user', 'parts' => [['text' => $this->buildContext($startup)]]],
-            ],
-            'generationConfig' => [
-                'temperature' => 0.4,
-                'responseMimeType' => 'application/json',
-                // Tried disabling "thinking" here to cut latency, but the
-                // classic generateContent endpoint rejects thinking-control
-                // fields on current Gemini 3.x models ("Request contains an
-                // invalid argument") — that control has moved to Google's
-                // separate Interactions API, which this service doesn't
-                // use. Left plain; the timeout raise above is what actually
-                // fixes the original 30s cutoff.
-            ],
-        ]);
+        // Gemini frequently answers with a 503 "this model is currently
+        // experiencing high demand" when Google's own servers are
+        // momentarily overloaded — nothing wrong with our request, and
+        // nothing a paid API key changes (that's a rate-limit/quota lever,
+        // this is server capacity). Google's own guidance for this exact
+        // error is to retry shortly after, since spikes are usually brief.
+        // One retry (two attempts total), a few seconds apart, clears most
+        // of these without the admin ever seeing an error. Configuring
+        // ->retry() makes a failed response throw internally so this `when`
+        // callback can inspect it — throw: false means that, if both
+        // attempts fail, the method falls through to the normal
+        // $response->failed() handling below instead of throwing here.
+        // Deliberately narrow to 503 only: a bad API key or malformed
+        // request (4xx) would just fail the same way twice, wasting the
+        // admin's time waiting on a retry that was never going to help.
+        $response = Http::timeout(75)
+            ->retry(2, 3000, function (\Throwable $exception) {
+                return $exception instanceof RequestException
+                    && $exception->response->status() === 503;
+            }, throw: false)
+            ->post($url, [
+                'system_instruction' => [
+                    'parts' => [['text' => $this->systemPrompt()]],
+                ],
+                'contents' => [
+                    ['role' => 'user', 'parts' => [['text' => $this->buildContext($startup)]]],
+                ],
+                'generationConfig' => [
+                    'temperature' => 0.4,
+                    'responseMimeType' => 'application/json',
+                    // Tried disabling "thinking" here to cut latency, but the
+                    // classic generateContent endpoint rejects thinking-control
+                    // fields on current Gemini 3.x models ("Request contains an
+                    // invalid argument") — that control has moved to Google's
+                    // separate Interactions API, which this service doesn't
+                    // use. Left plain; the timeout raise above is what actually
+                    // fixes the original 30s cutoff.
+                ],
+            ]);
 
         if ($response->failed()) {
             $message = $response->json('error.message') ?: 'The AI service returned an error. Please try again.';
@@ -118,6 +141,16 @@ class VentureExitAiGenerator
                 'Google didn\'t recognize this as a Generative Language API key — this usually means the value in '
                 .'GEMINI_API_KEY is the wrong kind of credential (e.g. a different Google Cloud key/token, not an '
                 .'AI Studio key). Generate one specifically from https://aistudio.google.com/apikey and use that.',
+
+            // Already retried twice (see generate()) before reaching here —
+            // this is Google's own servers being temporarily overloaded,
+            // not anything wrong with this app's setup or API key, and not
+            // something a paid-tier key changes (that raises rate limits,
+            // not server capacity). Simplest fix is just trying again in a
+            // minute or two.
+            str_contains($message, 'high demand') || str_contains($message, 'overloaded') =>
+                'This is Google\'s own servers being temporarily overloaded, not a problem with this app\'s setup — '
+                .'already retried automatically without success. Please wait a minute or two and try again.',
 
             default => null,
         };
