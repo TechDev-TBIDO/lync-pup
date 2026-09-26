@@ -13,7 +13,7 @@
         // show the founder's own saved name as usual.
         $profileSavedOnce = (bool) auth()->user()->startup?->informationSheet()->exists();
         $founderNameParts = $profileSavedOnce
-            ? \App\Models\InformationSheet::splitFounderName(auth()->user()->name)
+            ? auth()->user()->founderNameParts()
             : ['first_name' => '', 'middle_name' => '', 'surname' => ''];
     @endphp
 

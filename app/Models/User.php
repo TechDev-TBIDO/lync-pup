@@ -15,6 +15,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $fillable = [
         'name',
+        'first_name',
+        'middle_name',
+        'last_name',
         'email',
         'password',
         'role',
@@ -124,5 +127,26 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->forceFill(['email_verification_token' => Str::random(40)])->save();
 
         $this->notify(new VerifyEmailNotification);
+    }
+
+    /**
+     * The founder's name as First / Middle / Surname. Uses the parts saved
+     * from the Startup Profile when there are any; otherwise (accounts saved
+     * before those columns existed) falls back to splitting users.name on
+     * whitespace, which guesses wrong for two-word first names.
+     *
+     * @return array{surname: string, first_name: string, middle_name: string}
+     */
+    public function founderNameParts(): array
+    {
+        if (filled($this->first_name) || filled($this->last_name)) {
+            return [
+                'surname' => (string) $this->last_name,
+                'first_name' => (string) $this->first_name,
+                'middle_name' => (string) $this->middle_name,
+            ];
+        }
+
+        return InformationSheet::splitFounderName($this->name);
     }
 }

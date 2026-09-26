@@ -156,7 +156,8 @@ class InformationSheetController extends Controller
      */
     private function prefillFromProfile($startup): array
     {
-        $name = \App\Models\InformationSheet::splitFounderName($startup->user?->name);
+        $name = $startup->user?->founderNameParts()
+            ?? \App\Models\InformationSheet::splitFounderName(null);
 
         return [
             'surname' => $name['surname'],

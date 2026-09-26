@@ -149,7 +149,8 @@ class WelcomeController extends Controller
      */
     protected function presentTeam(Startup $startup): array
     {
-        $parts = InformationSheet::splitFounderName($startup->user?->name);
+        $parts = $startup->user?->founderNameParts()
+            ?? InformationSheet::splitFounderName(null);
 
         $founderName = collect([$parts['surname'], $parts['first_name'], $parts['middle_name']])
             ->filter(fn ($part) => filled($part))
