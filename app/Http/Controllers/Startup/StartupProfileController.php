@@ -121,7 +121,15 @@ class StartupProfileController extends Controller
             ->filter(fn ($part) => filled($part))
             ->implode(' ');
 
-        auth()->user()->update(['name' => $composedName]);
+        // The three parts are also stored as typed, so a two-word first
+        // name ("Johannah Macy") isn't re-split into first + middle on the
+        // next load - see User::founderNameParts().
+        auth()->user()->update([
+            'name' => $composedName,
+            'first_name' => $data['first_name'],
+            'middle_name' => filled($data['middle_name'] ?? null) ? $data['middle_name'] : null,
+            'last_name' => $data['last_name'],
+        ]);
 
         if ($request->hasFile('startup_photo')) {
             if ($startup->startup_photo_path) {

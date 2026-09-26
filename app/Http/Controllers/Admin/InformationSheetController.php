@@ -53,7 +53,8 @@ class InformationSheetController extends Controller
             'user',
         ]);
 
-        $nameParts = \App\Models\InformationSheet::splitFounderName($startup->user?->name);
+        $nameParts = $startup->user?->founderNameParts()
+            ?? \App\Models\InformationSheet::splitFounderName(null);
 
         $versionHistory = VersionHistory::where('startup_id', $startup->startup_id)
             ->where('context', 'Information Sheet')
