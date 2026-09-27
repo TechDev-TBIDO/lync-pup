@@ -38,8 +38,17 @@ class VerifyEmailController extends Controller
         }
 
         if (! $user->hasVerifiedEmail()) {
+            // Same idea as the InvalidSignatureException → "Link Expired"
+            // page (bootstrap/app.php): a founder clicking a stale-but-not-
+            // literally-expired link (they resent more than once and grabbed
+            // an older email) is a normal, expected outcome, not a security
+            // event — a raw abort(403) rendered Laravel's generic/default
+            // error page here, which read as a scary, unbranded crash and
+            // gave no indication that a newer link was waiting in their
+            // inbox all along. This gets the same on-brand, friendly
+            // treatment as the expiry case instead.
             if ($request->query('token') !== $user->email_verification_token) {
-                abort(403, 'This verification link has been replaced by a newer one. Please check your email for the latest link.');
+                return response()->view('auth.verification-superseded', [], 403);
             }
 
             if ($user->markEmailAsVerified()) {
