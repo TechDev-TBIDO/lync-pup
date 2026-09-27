@@ -22,6 +22,14 @@ use Illuminate\Auth\Events\Verified;
  * migration/seed batch) rather than the highest `number` — an admin could
  * add a make-up cohort with a lower number after a later one already exists,
  * and it should still win here since it really is the one just added.
+ *
+ * Restricted to status = 'Active' (see Cohort::isArchived()) — archiving a
+ * cohort is how an admin closes it off to new startups, so a founder who
+ * verifies after that point should land in whatever's now the latest
+ * *active* one instead of still being dropped into an archived cohort just
+ * because nothing newer has been created since. If every cohort happens to
+ * be archived, this intentionally leaves cohort_id null rather than placing
+ * the startup somewhere closed — same as the "nothing to place" case below.
  */
 class AssignLatestCohortOnVerification
 {
@@ -37,7 +45,10 @@ class AssignLatestCohortOnVerification
             return;
         }
 
-        $latestCohort = Cohort::orderByDesc('created_at')->orderByDesc('cohort_id')->first();
+        $latestCohort = Cohort::where('status', 'Active')
+            ->orderByDesc('created_at')
+            ->orderByDesc('cohort_id')
+            ->first();
 
         if ($latestCohort) {
             $startup->update([
