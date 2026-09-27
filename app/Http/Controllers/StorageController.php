@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -25,7 +26,7 @@ class StorageController extends Controller
      * same bytes instead — so running storage:link becomes unnecessary
      * rather than a required setup step testers can forget or fail to do.
      */
-    public function show(string $path): Response
+    public function show(string $path, Request $request): Response
     {
         // Flysystem already rejects ".." path traversal internally, but
         // bail out explicitly first so a malformed path never even
@@ -38,6 +39,21 @@ class StorageController extends Controller
             abort(404);
         }
 
-        return Storage::disk('public')->response($path);
+        // Optional ?name= override for the saved/displayed filename. Every
+        // upload here is stored under a generated path (e.g. a Startup
+        // Information Sheet's supporting document ends up something like
+        // "2dae97ec-e2a4-....docx" on disk — see InformationSheetFile),
+        // with the human-readable name kept only in the owning row's
+        // original_filename column, which this generic path-only route has
+        // no way to look up on its own. Without this, "response($path)"
+        // falls back to the stored path's own basename for the
+        // Content-Disposition filename — harmless for something previewed
+        // inline (an image, a PDF), but for a type the browser can't render
+        // at all (Word, Excel) the click always ends in a save, so that
+        // raw, meaningless name is the ONLY name the user ever sees. Model
+        // accessors that know the friendly name (e.g.
+        // InformationSheetFile::getUrlAttribute()) append it here; a URL
+        // built without it just keeps today's behavior.
+        return Storage::disk('public')->response($path, $request->query('name'));
     }
 }

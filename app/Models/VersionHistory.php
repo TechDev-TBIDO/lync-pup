@@ -112,15 +112,21 @@ class VersionHistory extends Model
 
     /**
      * What the panel shows as the entry's primary heading — the custom
-     * rename if one was set. Otherwise: the original Assessment Hub/Info
-     * Sheet pilot never records a subject_label (its panel is already
-     * scoped to one specific startup+stage by the page it's opened from, so
-     * there's nothing more to say) and falls back to the formatted save
-     * time, mirroring the "September 10, 4:17 PM" mockup. The newer
-     * page-wide feeds (Cohort/Startup/Mentor/Coordinator/Roadblock
-     * Management) always set subject_label, since a combined feed has to
-     * say what each row is about on its own — those show as e.g. "Deleted
-     * Mentor — Juan Dela Cruz".
+     * rename if one was set. Otherwise falls back to action_label
+     * (ACTION_LABELS' human-readable name for the action, e.g. "Rejected
+     * Information Sheet") — with subject_label appended when one was
+     * recorded, since a combined feed has to say what each row is about on
+     * its own (e.g. "Deleted Mentor — Juan Dela Cruz"). The original
+     * Assessment Hub/Info Sheet pilot's panel is already scoped to one
+     * specific startup+stage by the page it's opened from, so it never sets
+     * subject_label — action_label alone (e.g. "Set Evaluation", "Rejected
+     * Information Sheet") is exactly as much as those entries need to say.
+     *
+     * Only truly falls back to the bare save time (mirroring the original
+     * "September 10, 4:17 PM" mockup) for an action this app has no
+     * ACTION_LABELS entry for at all — action_label already covers that
+     * case with $this->action verbatim, so this is a last resort for an
+     * entry with no action recorded either.
      */
     public function getDisplayLabelAttribute(): string
     {
@@ -130,6 +136,10 @@ class VersionHistory extends Model
 
         if ($this->subject_label) {
             return "{$this->action_label} — {$this->subject_label}";
+        }
+
+        if ($this->action) {
+            return $this->action_label;
         }
 
         return $this->created_at->format('F j, g:i A');

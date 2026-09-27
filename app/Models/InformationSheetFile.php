@@ -28,6 +28,12 @@ class InformationSheetFile extends Model
 
     public function getUrlAttribute(): string
     {
-        return Storage::disk('public')->url($this->file_path);
+        // ?name= so StorageController serves this under the founder's own
+        // filename instead of file_path's generated on-disk name — see
+        // that controller's docblock for why it matters most for a type
+        // (Word, Excel) the browser has no inline viewer for, where View
+        // and Download both just end in a save either way.
+        return Storage::disk('public')->url($this->file_path)
+            .'?name='.rawurlencode($this->original_filename);
     }
 }
