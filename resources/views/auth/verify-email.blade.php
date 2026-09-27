@@ -73,13 +73,22 @@
                  existing "change email" action (RegisteredUserController::
                  cancel), which logs out, drops the unverified Pending account
                  (so the same email can be re-used) and redirects to
-                 /register with name / email / venture name pre-filled. --}}
-            <form method="POST" action="{{ route('verification.change-email') }}" class="mb-6">
+                 /register with name / email / venture name pre-filled.
+
+                 Was an icon-only button with just an aria-label — invisible
+                 in practice (a founder reported not being able to find any
+                 way to fix a typo'd email here at all). Now has a visible
+                 label, and a confirm() since it's a destructive action
+                 (deletes the account) that's a lot easier to hit by accident
+                 now that it's actually discoverable. --}}
+            <form method="POST" action="{{ route('verification.change-email') }}" class="mb-6"
+                onsubmit="return confirm('This will delete this unverified account so you can register again with the correct email. Continue?');">
                 @csrf
-                <button type="submit" class="inline-flex text-gray-500 hover:text-gray-800" aria-label="Back to registration">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-800">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
+                    Wrong email? Change it
                 </button>
             </form>
 
