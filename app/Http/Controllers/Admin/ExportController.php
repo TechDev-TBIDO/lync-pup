@@ -482,18 +482,27 @@ class ExportController extends Controller
         $fileName = "{$baseName}.zip";
         $path = "{$dir}/{$fileName}";
 
-        // ZipArchive writes straight to a real filesystem path (it doesn't
-        // go through the Storage facade), so the destination directory has
-        // to actually exist first — makeDirectory() here, rather than the
-        // old trick of Storage::put()-ing an empty placeholder file, which
-        // left ZipArchive::open() with nothing to fall back on (and no
-        // error surfaced, since the public disk has 'throw' => false) if
-        // that placeholder write ever failed.
-        Storage::disk('public')->makeDirectory($dir);
-        $absolutePath = Storage::disk('public')->path($path);
+        // ZipArchive::close() doesn't just write the file in place once
+        // anything's been added — it stages the new archive contents in a
+        // temp file right next to the target path and renames it over the
+        // original. That rename dance needs real local-filesystem
+        // semantics, which storage/app/public doesn't have on Azure App
+        // Service (it's the Azure Files SMB share behind /home, kept for
+        // persistence across restarts) — close() fails there with
+        // "Failure to create temporary file: No such file or directory"
+        // even though ZipArchive::open() on the very same path succeeded
+        // moments earlier, and even though a PLAIN write to that same
+        // share (Storage::put(), or WordDocumentExporter's own temp
+        // .docx files, written and read back directly) works fine. Only
+        // libzip's internal close-time rename trips on it. Building the
+        // archive on PHP's own local temp path sidesteps that entirely;
+        // the finished bytes are then handed to the Storage facade like
+        // every other export file already is, instead of trusting
+        // ZipArchive to have written straight into public storage itself.
+        $localPath = sys_get_temp_dir() . '/' . uniqid('export-zip-', true) . '.zip';
 
         $zip = new ZipArchive();
-        $opened = $zip->open($absolutePath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $opened = $zip->open($localPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         if ($opened !== true) {
             throw new \RuntimeException("Could not create the ZIP archive (error code {$opened}).");
@@ -513,11 +522,11 @@ class ExportController extends Controller
 
         $zip->close();
 
-        // ZipArchive wrote this file outside of the Storage facade, so PHP's
-        // stat cache for this path may still be stale — clear it before
-        // asking Storage for the size, otherwise this can read back as 0.
-        clearstatcache(true, $absolutePath);
-        $size = Storage::disk('public')->size($path);
+        $binary = file_get_contents($localPath);
+        @unlink($localPath);
+
+        Storage::disk('public')->put($path, $binary);
+        $size = strlen($binary);
 
         return [
             'file_name' => $fileName,
