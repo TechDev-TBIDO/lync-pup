@@ -318,7 +318,9 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-10 text-center text-gray-400">Nothing scheduled today.</td>
+                            <td colspan="5" class="px-4">
+                                <x-empty-state variant="meetings" size="md" title="Nothing Scheduled Today." highlight="Scheduled" message="Evaluations set for today will appear here." />
+                            </td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -403,7 +405,9 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-10 text-center text-gray-400">No upcoming evaluations scheduled.</td>
+                            <td colspan="4" class="px-4">
+                                <x-empty-state variant="evaluations" size="md" title="No Upcoming Evaluations." highlight="Evaluations" message="Scheduled evaluations will be listed here." />
+                            </td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -481,7 +485,9 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-10 text-center text-gray-400">No missed evaluations.</td>
+                            <td colspan="4" class="px-4">
+                                <x-empty-state variant="all-clear" size="md" title="No Missed Evaluations." highlight="Missed" message="Everything is on track. Nice work!" />
+                            </td>
                         </tr>
                         @endforelse
                     </tbody>

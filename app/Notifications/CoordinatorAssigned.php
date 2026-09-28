@@ -50,6 +50,16 @@ class CoordinatorAssigned extends FounderNotification
         return 'View Profile';
     }
 
+    /**
+     * "View Profile" lands with ?highlight=portfolio-coordinator, so the
+     * Portfolio Coordinator field pulses (window.flashHighlightFromQuery)
+     * instead of leaving the founder to hunt for it on the page.
+     */
+    protected function extraData(): array
+    {
+        return ['route_params' => ['highlight' => 'portfolio-coordinator']];
+    }
+
     public function icon(): string
     {
         return 'coordProfile.svg';

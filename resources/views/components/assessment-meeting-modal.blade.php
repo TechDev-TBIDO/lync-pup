@@ -134,8 +134,10 @@ $formId = 'assessment-meeting-form-'.$rowKey;
             <div class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                     <p class="font-medium mb-2 text-sm">3. Select Day</p>
-                    <input type="date" x-model="date" min="{{ now()->format('Y-m-d') }}"
-                        class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700">
+                    {{-- LYNC's own calendar (same as the Evaluation Schedule modal):
+                         weekends and past days blocked, today outlined. Posts via the
+                         hidden meeting_date input above. --}}
+                    <x-date-picker model="date" :min-today="true" class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700" />
                     @if ($oldMatchesThisRow) @error('meeting_date') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
                 </div>
                 <div>

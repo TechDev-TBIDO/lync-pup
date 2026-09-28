@@ -18,9 +18,8 @@
     </div>
 
     @if ($allSavedReportsSummary->isEmpty())
-    <div class="rounded-xl border border-dashed p-12 text-center text-gray-400">
-        No startup has saved an export to Reports yet. Use "Export Document" above, then
-        "Save to Reports" once a file's generated.
+    <div class="rounded-xl border border-dashed border-gray-200">
+        <x-empty-state variant="documents" size="lg" title="No Saved Reports Yet." highlight="Saved Reports" message="Use “Export Document” above, then “Save to Reports” once a file's generated." />
     </div>
     @else
     <div class="overflow-hidden rounded-xl border border-gray-200">
@@ -83,9 +82,9 @@
     @else
     {{-- ============ Single startup: saved report files ============ --}}
     @if ($savedReports->isEmpty())
-    <div class="rounded-xl border border-dashed p-12 text-center text-gray-400">
-        No saved reports yet for {{ $selectedStartup->company_name }}. Use "Export Document" above, then
-        "Save to Reports" once it's generated.
+    <div class="rounded-xl border border-dashed border-gray-200">
+        <x-empty-state variant="documents" size="lg" title="No Saved Reports Yet." highlight="Saved Reports"
+            message="No saved reports yet for {{ $selectedStartup->company_name }}. Use “Export Document” above, then “Save to Reports” once it's generated." />
     </div>
     @else
     <div class="overflow-hidden rounded-xl border border-gray-200">

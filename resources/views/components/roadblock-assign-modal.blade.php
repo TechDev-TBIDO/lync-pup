@@ -380,11 +380,12 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                     <p class="mb-3 text-sm font-medium sm:text-base">2. Set a Meeting</p>
 
                                     <label class="{{ $lblCls }}">Date <span class="text-red-600">*</span></label>
-                                    <input type="date" name="meeting_date" autocomplete="off" x-model="meetingDate"
-                                        @if ($enforceFutureOnly) :min="todayStr" @endif
-                                        value="{{ $oldFor('meeting_date', $meetingDateDefault) }}"
-                                        data-original="{{ $meetingDateDefault }}"
-                                        class="{{ $fieldCls }} mb-3">
+                                    {{-- LYNC's own calendar (same as the Evaluation Schedule modal):
+                                         weekends blocked, today outlined; past days blocked only
+                                         where $enforceFutureOnly applies, same as the old :min. --}}
+                                    <div class="mb-3">
+                                        <x-date-picker model="meetingDate" name="meeting_date" :min-today="$enforceFutureOnly" class="{{ $fieldCls }}" />
+                                    </div>
                                     @if ($isErroredRoadblock) @error('meeting_date') <p class="mb-3 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
 
                                     <div class="mb-3 grid grid-cols-2 gap-3">

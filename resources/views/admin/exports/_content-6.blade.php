@@ -4,7 +4,7 @@
 @endphp
 @include('admin.exports._letterhead', ['formNo' => 'PUP-TBIDO FORM No. 006', 'title' => 'STARTUP GROWTH STRATEGY (DAGITAB PROGRAM)'])
 
-<div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($startup->company_name) !!}</div>
+<div class="field-row"><span class="field-label">Startup Name:</span> {!! $v(filled(data_get($data, 'startup_name')) ? data_get($data, 'startup_name') : $startup->company_name) !!}</div>
 <div class="field-row">
     <span class="field-label">Business Stage:</span>
     @foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_6_BUSINESS_STAGES as $stage)

@@ -40,6 +40,9 @@ for ($i = 0; $i < $count; $i++) {
     // own records (Information Sheet / Team Members / Startup profile)
     // instead of being retyped by the assessor here — rendered read-only
     // below so they can never drift from the source of truth.
+    // Editable "Startup / Company Name": the assessment's own saved value, else
+    // the startup's company name. Shared by every RL type's tab.
+    $overviewStartupName = $currentAssessment?->startup_name ?: ($selectedStartup?->company_name ?? '');
     $overviewFounderName = $selectedStartup?->informationSheet?->full_name ?: $selectedStartup?->user?->name;
     $overviewContactInfo = preg_replace('/[\s\-]/', '', (string) ($selectedStartup?->informationSheet?->mobile_no ?: $selectedStartup?->contact_phone));
     $overviewTechLead = $selectedStartup?->teamMembers?->first(fn ($member) => str_contains(strtolower($member->designation ?? ''), 'cto')
@@ -253,8 +256,8 @@ for ($i = 0; $i < $count; $i++) {
         @if ($selectedStage === 'Overview' || (! $selectedStartup && $selectedStage !== 'Reports'))
         {{-- ============ Overview: every assessable startup's completion status ============ --}}
         @if ($assessableStartups->isEmpty())
-        <div class="rounded-xl border border-dashed p-12 text-center text-gray-400">
-            No approved startups to assess yet.
+        <div class="rounded-xl border border-dashed border-gray-200">
+            <x-empty-state variant="evaluations" size="lg" title="No Startups to Assess Yet." highlight="Startups to Assess" message="Approved startups will show up here, ready for assessment." />
         </div>
         @else
         <div class="overflow-hidden rounded-xl border border-gray-200">
@@ -343,6 +346,7 @@ for ($i = 0; $i < $count; $i++) {
             expanded: { TRL: null, MRL: null, TMRL: null, SRL: null },
             progress: @js($seedProgress),
             trlOverview: @js($trlOverviewSeed),
+            startupName: @js($overviewStartupName),
             assessmentDates: @js($overviewAssessmentDates),
             // MRL and TMRL's own independent signatory state — used to be
             // one shared evaluatedBy/reviewedBy/notedBy set, which is
@@ -492,6 +496,7 @@ for ($i = 0; $i < $count; $i++) {
             srlNotedByLabel: @js($overviewSrlNotedByLabel),
             initialProgress: @js($seedProgress),
             initialTrlOverview: @js($trlOverviewSeed),
+            initialStartupName: @js($overviewStartupName),
             initialAssessmentDates: @js($overviewAssessmentDates),
             initialMrlEvaluatedBy: @js($overviewMrlEvaluatedBy),
             initialMrlEvaluatedByPosition: @js($overviewMrlEvaluatedByPosition),
@@ -566,6 +571,8 @@ for ($i = 0; $i < $count; $i++) {
             // writes only its own type's fields, never the other's.
             // Each type has its own Date of Assessment (assessmentDates[type]).
             discardChangesFor(type) {
+                // Startup name is shared by all four tabs, so it belongs to whichever is open.
+                this.startupName = this.initialStartupName;
                 this.progress[type] = JSON.parse(JSON.stringify(this.initialProgress[type]));
                 this.assessmentDates[type] = this.initialAssessmentDates[type];
 
@@ -619,6 +626,7 @@ for ($i = 0; $i < $count; $i++) {
             // guard, both of which genuinely care about ANY unsaved type,
             // since Save persists all four types together in one request.
             isDirtyFor(type) {
+                if (this.startupName !== this.initialStartupName) return true;
                 const progressDirty = JSON.stringify(this.progress[type]) !== JSON.stringify(this.initialProgress[type]);
                 const dateDirty = this.assessmentDates[type] !== this.initialAssessmentDates[type];
 
@@ -683,7 +691,8 @@ for ($i = 0; $i < $count; $i++) {
             // type is currently active) so a draft sitting on a
             // non-active type is never missed here.
             isDirty() {
-                return JSON.stringify(this.progress) !== JSON.stringify(this.initialProgress)
+                return this.startupName !== this.initialStartupName
+                    || JSON.stringify(this.progress) !== JSON.stringify(this.initialProgress)
                     || JSON.stringify(this.trlOverview) !== JSON.stringify(this.initialTrlOverview)
                     || JSON.stringify(this.assessmentDates) !== JSON.stringify(this.initialAssessmentDates)
                     || this.mrlEvaluatedBy !== this.initialMrlEvaluatedBy
@@ -911,6 +920,7 @@ for ($i = 0; $i < $count; $i++) {
                     @method('PUT')
                     <input type="hidden" name="stage" value="{{ $selectedStage }}">
                     <input type="hidden" name="active_type" :value="activeType">
+                    <input type="hidden" name="startup_name" :value="startupName">
                     @foreach (\App\Support\ReadinessRubric::TYPES as $type)
                     <input type="hidden" name="{{ strtolower($type) }}_progress" :value="JSON.stringify(progress.{{ $type }})">
                     @endforeach
@@ -999,8 +1009,8 @@ for ($i = 0; $i < $count; $i++) {
                                     <div class="flex flex-col gap-5">
                                         <div>
                                             <p class="mb-1.5 text-sm font-semibold text-gray-700">Startup / Company Name</p>
-                                            <input type="text" value="{{ $selectedStartup?->company_name ?? '—' }}" readonly
-                                                class="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500">
+                                            <input type="text" x-model="startupName" maxlength="255" placeholder="Startup / Company Name"
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                                         </div>
 
                                         <div>
@@ -1217,8 +1227,8 @@ for ($i = 0; $i < $count; $i++) {
                         <div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
                             <div>
                                 <p class="mb-1.5 text-sm font-semibold text-gray-700">Startup / Company Name</p>
-                                <input type="text" value="{{ $selectedStartup?->company_name ?? '—' }}" readonly
-                                    class="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500">
+                                <input type="text" x-model="startupName" maxlength="255" placeholder="Startup / Company Name"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             </div>
                             <div>
                                 <p class="mb-1.5 text-sm font-semibold text-gray-700">Date of Assessment</p>

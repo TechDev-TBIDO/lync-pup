@@ -269,7 +269,7 @@ class WordDocumentExporter
         $cbBox = fn(bool $isChecked) => $isChecked ? '☑' : '☐';
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
         $inList = fn(array $list, string $needle) => in_array($needle, $list, true);
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v($assessment?->startup_name ?: $startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->trl_assessment_date ?? $assessment?->assessment_date));
         $processor->setValue('founder', $v($overview['founder'] ?? ''));
         $processor->setValue('contact_info', $v($overview['contact_info'] ?? ''));
@@ -413,7 +413,7 @@ class WordDocumentExporter
         // of checkbox").
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v($assessment?->startup_name ?: $startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->mrl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('MRL') as $level => $definition) {
@@ -477,7 +477,7 @@ class WordDocumentExporter
         // Document 3/9's rubrics.
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v($assessment?->startup_name ?: $startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->tmrl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('TMRL') as $level => $definition) {
@@ -543,7 +543,7 @@ class WordDocumentExporter
         // Document 3/4/9's rubrics.
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v($assessment?->startup_name ?: $startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->srl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('SRL') as $level => $definition) {
@@ -671,7 +671,7 @@ class WordDocumentExporter
         // Document 3/9's rubrics.
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v($assessment?->startup_name ?: $startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->mrl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('MRL') as $level => $definition) {
@@ -733,7 +733,7 @@ class WordDocumentExporter
         // Document 4/9's rubrics.
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v($assessment?->startup_name ?: $startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->tmrl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('TMRL') as $level => $definition) {
@@ -795,7 +795,7 @@ class WordDocumentExporter
         // Document 5/9's rubrics.
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v($assessment?->startup_name ?: $startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->srl_assessment_date ?? $assessment?->assessment_date));
 
         foreach (ReadinessRubric::levels('SRL') as $level => $definition) {
@@ -885,7 +885,7 @@ class WordDocumentExporter
         // checkmark (matching the ☑/☐ convention used elsewhere), not an X.
         $cbCheck = fn(bool $isChecked) => $isChecked ? '☑' : '☐';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v(filled(data_get($data, 'startup_name')) ? data_get($data, 'startup_name') : $startup->company_name));
 
         foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_6_BUSINESS_STAGES as $stage) {
             $key = match ($stage) {
@@ -963,7 +963,7 @@ class WordDocumentExporter
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v(filled(data_get($data, 'startup_name')) ? data_get($data, 'startup_name') : $startup->company_name));
         $processor->setValue('portfolio_coordinator', $v($startup->activeCoordinatorAssignment?->coordinator?->name));
 
         $checkInRows = collect(data_get($data, 'check_ins', []))
@@ -1041,7 +1041,7 @@ class WordDocumentExporter
         // the cell, and nothing at all when unchecked.
         $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
-        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('company_name', $v(filled(data_get($data, 'startup_name')) ? data_get($data, 'startup_name') : $startup->company_name));
         $processor->setValue('prototype_name', $v(data_get($data, 'prototype_name')));
         $processor->setValue('prototype_description', $v(data_get($data, 'prototype_description')));
         $processor->setValue('recommendations', $v(data_get($data, 'recommendations')));

@@ -12,10 +12,21 @@ use Illuminate\View\View;
 
 class MeetingController extends Controller
 {
+    /** Last time the founder opened Meetings - anything changed after it gets a red dot. */
+    private ?Carbon $seenAt = null;
+
+    private function isNew($model): bool
+    {
+        return $this->seenAt && $model->updated_at && $model->updated_at->gt($this->seenAt);
+    }
+
     public function index(): View
     {
         Roadblock::promoteEndedMeetingsToPendingReview();
         AssessmentMeeting::promoteEndedMeetingsToPendingReview();
+
+        $visitedAt = now();
+        $this->seenAt = Auth::user()->founderSeenSince('founder_meetings', 'startup.meetings.index');
 
         $startup = Auth::user()->startup;
 
@@ -28,6 +39,7 @@ class MeetingController extends Controller
             ->map(function (Roadblock $roadblock) {
                 return [
                     'type' => 'mentorship',
+                    'is_new' => $this->isNew($roadblock),
                     'sort_key' => $roadblock->meeting_date->format('Y-m-d') . ' ' . $roadblock->meeting_start_time,
                     'date_label' => $roadblock->meeting_date->format('l, F j, Y'),
                     'time_label' => Carbon::parse($roadblock->meeting_start_time)->format('g:i A')
@@ -62,6 +74,7 @@ class MeetingController extends Controller
             ->map(function (EvaluationSchedule $schedule) {
                 return [
                     'type' => 'evaluation',
+                    'is_new' => $this->isNew($schedule),
                     'sort_key' => $schedule->evaluation_date->format('Y-m-d') . ' ' . $schedule->start_time,
                     'date_label' => $schedule->evaluation_date->format('l, F j, Y'),
                     'time_label' => $schedule->time_range_label,
@@ -88,6 +101,7 @@ class MeetingController extends Controller
             ->map(function (AssessmentMeeting $meeting) {
                 return [
                     'type' => 'assessment',
+                    'is_new' => $this->isNew($meeting),
                     'sort_key' => $meeting->meeting_date->format('Y-m-d').' '.$meeting->start_time,
                     'date_label' => $meeting->meeting_date->format('l, F j, Y'),
                     'time_label' => $meeting->time_range_label,
@@ -109,6 +123,10 @@ class MeetingController extends Controller
             // active list above, which reads soonest-first.
             ->sortByDesc('sort_key')
             ->values();
+
+        // Red dots: which items (and so which tab) changed since the last visit.
+        // Shown on this visit, then cleared - along with the sidebar dot.
+        Auth::user()->markFounderModuleVisited('founder_meetings', 'startup.meetings.index', $visitedAt);
 
         return view('startup.meetings.index', compact('meetings', 'archivedMeetings'));
     }
@@ -141,6 +159,7 @@ class MeetingController extends Controller
             ->map(function (Roadblock $roadblock) {
                 return [
                     'type' => 'mentorship',
+                    'is_new' => $this->isNew($roadblock),
                     'sort_key' => $roadblock->meeting_date->format('Y-m-d').' '.$roadblock->meeting_start_time,
                     'date_label' => $roadblock->meeting_date->format('l, F j, Y'),
                     'time_label' => $roadblock->meeting_time_range_label,
@@ -166,6 +185,7 @@ class MeetingController extends Controller
             ->map(function (EvaluationSchedule $schedule) {
                 return [
                     'type' => 'evaluation',
+                    'is_new' => $this->isNew($schedule),
                     'sort_key' => $schedule->evaluation_date->format('Y-m-d').' '.$schedule->start_time,
                     'date_label' => $schedule->evaluation_date->format('l, F j, Y'),
                     'time_label' => $schedule->time_range_label,
@@ -190,6 +210,7 @@ class MeetingController extends Controller
             ->map(function (AssessmentMeeting $meeting) {
                 return [
                     'type' => 'assessment',
+                    'is_new' => $this->isNew($meeting),
                     'sort_key' => $meeting->meeting_date->format('Y-m-d').' '.$meeting->start_time,
                     'date_label' => $meeting->meeting_date->format('l, F j, Y'),
                     'time_label' => $meeting->time_range_label,

@@ -117,7 +117,9 @@ return $url
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-400">No startups waiting on evaluation.</td>
+                            <td colspan="4" class="px-4">
+                                <x-empty-state variant="evaluations" size="md" title="No Startups Waiting." highlight="Waiting" message="Startups ready for evaluation will appear here." />
+                            </td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -214,7 +216,9 @@ return $url
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="3" class="px-3 py-6 text-center text-xs text-gray-400">Nothing scheduled today.</td>
+                                <td colspan="3" class="px-3">
+                                    <x-empty-state variant="meetings" size="sm" title="Nothing Scheduled Today." highlight="Scheduled" />
+                                </td>
                             </tr>
                             @endforelse
                         </tbody>

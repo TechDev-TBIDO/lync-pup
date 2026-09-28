@@ -50,7 +50,7 @@
     <div class="section-title">SECTION 1: STARTUP &amp; TECHNOLOGY OVERVIEW</div>
     <table class="bordered" style="margin-top: 4px;">
         <tr>
-            <td width="50%"><b>Startup / Company Name:</b> {!! $v($startup->company_name) !!}</td>
+            <td width="50%"><b>Startup / Company Name:</b> {!! $v($assessment?->startup_name ?: $startup->company_name) !!}</td>
             <td width="50%"><b>Date of Assessment:</b> {!! $d($assessment?->{strtolower($type).'_assessment_date'} ?? $assessment?->assessment_date) !!}</td>
         </tr>
         <tr>
@@ -139,7 +139,7 @@
 
     <div class="section-title">SECTION 2: {{ strtoupper($meta['label']) }} ({{ $type }})</div>
 @else
-    <div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($startup->company_name) !!}
+    <div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($assessment?->startup_name ?: $startup->company_name) !!}
         &nbsp;&nbsp;&nbsp;<span class="field-label">Date:</span> {!! $d($assessment?->{strtolower($type).'_assessment_date'} ?? $assessment?->assessment_date) !!}
         &nbsp;&nbsp;&nbsp;<span class="field-label">Score:</span> {!! $score !== null ? number_format($score, 1).'/9' : '&nbsp;' !!}
     </div>

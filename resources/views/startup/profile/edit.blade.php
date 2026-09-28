@@ -242,8 +242,16 @@
                                 @error('industry_sector') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Portfolio Coordinator</label>
-                                <div class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                                <label class="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                                    Portfolio Coordinator
+                                    @if ($coordinatorIsNew ?? false)
+                                        {{-- Newly assigned/changed and not yet seen - clears after this visit. --}}
+                                        <x-new-dot />
+                                    @endif
+                                </label>
+                                {{-- data-highlight-id: the dashboard's "View Profile" card links
+                                     here with ?highlight=portfolio-coordinator to pulse this box. --}}
+                                <div data-highlight-id="portfolio-coordinator" class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500">
                                     {{ $startup->activeCoordinatorAssignment?->coordinator?->name ?? 'Not yet assigned' }}
                                 </div>
                             </div>

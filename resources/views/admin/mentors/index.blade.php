@@ -313,7 +313,7 @@
                                         </a>
                                         @endif
                                         @empty
-                                        <p class="py-6 text-center text-sm text-gray-500">No active cases.</p>
+                                        <x-empty-state variant="roadblocks" size="sm" title="No Active Cases." highlight="Active Cases" />
                                         @endforelse
                                     </div>
 
@@ -330,7 +330,7 @@
                                         </a>
                                         @endif
                                         @empty
-                                        <p class="py-6 text-center text-sm text-gray-500">No completed cases.</p>
+                                        <x-empty-state variant="roadblocks" size="sm" title="No Completed Cases." highlight="Completed Cases" />
                                         @endforelse
                                     </div>
                                 </div>
@@ -339,7 +339,7 @@
                     </template>
                 </div>
                 @empty
-                <p class="col-span-full text-gray-500">No mentors added yet.</p>
+                <x-empty-state variant="mentors" size="lg" title="No Mentor Profiles Yet." highlight="Mentor Profiles" message="Add mentor profiles to connect with skilled professionals who can guide our startups." class="col-span-full mt-10 sm:mt-16" />
                 @endforelse
             </div>
 

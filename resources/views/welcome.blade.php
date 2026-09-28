@@ -454,7 +454,7 @@
             </div>
 
             @if ($cohortShowcase->isEmpty())
-                <p class="mt-10 text-center text-sm text-gray-400">No approved startups to show yet.</p>
+                <x-empty-state variant="startups" size="lg" title="No Startups to Show Yet." highlight="Startups" message="Our incubated startups will be featured here soon." class="mt-6" />
             @else
                 {{-- Cohort tabs. flex-wrap (+ a smaller mobile gap) instead of a
                      fixed nowrap row, so extra cohorts don't overflow narrow
@@ -902,7 +902,7 @@
                                                 <span x-show="member.is_founder" class="shrink-0 rounded-full bg-rose-900 px-2 py-0.5 text-[10px] font-semibold text-white">Founder</span>
                                             </div>
                                         </template>
-                                        <p x-show="!activeStartup.team.length" class="col-span-2 text-sm text-gray-500">No team members listed yet.</p>
+                                        <x-empty-state variant="people" size="sm" title="No Team Members Yet." highlight="Team Members" x-show="!activeStartup.team.length" class="col-span-2" />
                                     </div>
                                 </div>
                             </div>

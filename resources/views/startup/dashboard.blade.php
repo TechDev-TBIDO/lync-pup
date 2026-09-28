@@ -1,8 +1,8 @@
 <x-layouts.founder title="Dashboard">
 
     @if (! $startup)
-    <div class="rounded-2xl border border-gray-100 bg-white p-6 text-center text-gray-500 shadow-sm sm:p-8">
-        No startup profile is linked to this account yet.
+    <div class="rounded-2xl border border-gray-100 bg-white px-6 shadow-sm">
+        <x-empty-state variant="startups" size="lg" title="No Startup Profile Yet." highlight="Startup Profile" message="No startup profile is linked to this account yet." />
     </div>
     @else
 

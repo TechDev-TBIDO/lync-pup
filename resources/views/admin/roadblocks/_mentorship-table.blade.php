@@ -464,19 +464,22 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-6 text-center text-gray-500">Nothing scheduled.</td>
+                            <td colspan="6" class="px-4">
+                                <x-empty-state variant="meetings" size="md" title="Nothing Scheduled." highlight="Scheduled" message="Mentorship sessions will appear here once scheduled." />
+                            </td>
                         </tr>
                         @endforelse
 
                         @if ($filterKey && $rows->isNotEmpty())
                         {{-- Distinct from "nothing scheduled" so an over-narrow filter is obvious --}}
                         <tr x-show="upcomingVisible === 0" x-cloak>
-                            <td colspan="6" class="px-4 py-6 text-center text-gray-500">
-                                No mentorships match these filters.
-                                <button type="button" @click="clearUpcomingFilters()"
-                                    class="ml-1 text-xs font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
-                                    Clear filters
-                                </button>
+                            <td colspan="6" class="px-4">
+                                <x-empty-state variant="search" size="md" title="No Matching Mentorships." highlight="Matching" message="No mentorships match these filters.">
+                                    <button type="button" @click="clearUpcomingFilters()"
+                                        class="text-xs font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                        Clear filters
+                                    </button>
+                                </x-empty-state>
                             </td>
                         </tr>
                         @endif

@@ -53,7 +53,19 @@ class WelcomeController extends Controller
         $stats = [
             // Startups that have exited (Completed or Graduated) are no longer active.
             'active_ventures' => $startups->count() - $exitStatuses->count(),
-            'sectors' => $startups->pluck('industry_sector')->filter()->unique()->count(),
+            // Distinct sectors across every accepted startup - Active, Assign
+            // Coordinator, Completed and Graduated alike (all have an Approved
+            // Information Sheet; Pending/Applicant/Rejected never reach
+            // $startups). Sector is free text on the Startup Profile, so
+            // spelling variants of one sector ("AgriTech", "agritech ",
+            // "Agri-Tech") count once: compared ignoring case, spaces and
+            // punctuation.
+            'sectors' => $startups
+                ->pluck('industry_sector')
+                ->map(fn ($sector) => preg_replace('/[^\p{L}\p{N}]/u', '', mb_strtolower(trim((string) $sector))))
+                ->filter()
+                ->unique()
+                ->count(),
             'graduated' => $graduatedCount,
         ];
 

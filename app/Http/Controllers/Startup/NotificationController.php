@@ -25,8 +25,16 @@ class NotificationController extends Controller
         // 500 — fall back to the dashboard if it no longer resolves.
         $route = $record->data['route'] ?? null;
 
-        return redirect()->route(
-            $route && Route::has($route) ? $route : 'startup.dashboard'
-        );
+        if (! $route || ! Route::has($route)) {
+            return redirect()->route('startup.dashboard');
+        }
+
+        // Optional query params stored with the notification (e.g. which
+        // field to pulse). Cards sent before route_params existed fall back
+        // to the same highlight by notification type.
+        $params = $record->data['route_params']
+            ?? ($record->type === \App\Notifications\CoordinatorAssigned::class ? ['highlight' => 'portfolio-coordinator'] : []);
+
+        return redirect()->route($route, is_array($params) ? $params : []);
     }
 }

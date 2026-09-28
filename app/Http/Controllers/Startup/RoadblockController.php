@@ -18,10 +18,14 @@ class RoadblockController extends Controller
     {
         Roadblock::promoteEndedMeetingsToPendingReview();
 
-        // Clears this page's founder sidebar red dot (see AppServiceProvider).
-        auth()->user()?->markModuleSeen('founder_submissions', now());
+        // Red dots: captured BEFORE this visit is stamped as seen, so the page
+        // can still point at what's new; the stamp (which also clears the
+        // sidebar dot) happens right before the view is returned.
+        $user = Auth::user();
+        $visitedAt = now();
+        $seenAt = $user->founderSeenSince('founder_submissions', 'startup.submissions.index');
 
-        $startup = Auth::user()->startup;
+        $startup = $user->startup;
 
         $roadblocks = Roadblock::with('files')
             ->where('startup_id', $startup->startup_id)
@@ -55,7 +59,36 @@ class RoadblockController extends Controller
             ->sortByDesc(fn ($row) => $row['dates'] ?? '')
             ->values();
 
+        // Archive tab: roadblocks the admin acted on since the last visit
+        // (scheduled, resolved, failed, removed...). The founder's own fresh
+        // submission (still Pending) isn't news to them, so it's left out.
+        $newRoadblockIds = $roadblocks
+            ->filter(fn (Roadblock $r) => $r->status !== 'Pending' && $r->updated_at?->gt($seenAt))
+            ->pluck('roadblock_id')
+            ->all();
+
+        // Update tab: Document 7 rows carry no timestamps of their own, so each
+        // row's content fingerprint is remembered per visit; a row whose
+        // fingerprint wasn't there last time is new (or was edited).
+        $fingerprint = fn ($row) => md5(json_encode($row));
+        $seenRows = ($user->module_seen_at ?? [])['founder_weekly_rows'] ?? null;
+        $newUpdateKeys = $weeklyUpdates
+            ->map($fingerprint)
+            ->filter(fn ($fp) => is_array($seenRows)
+                ? ! in_array($fp, $seenRows, true)
+                : ($doc7?->updated_at?->gt($seenAt) ?? false))
+            ->values()
+            ->all();
+
+        $user->markFounderModuleVisited('founder_submissions', 'startup.submissions.index', $visitedAt);
+        $user->forceFill(['module_seen_at' => array_merge($user->module_seen_at ?? [], [
+            'founder_weekly_rows' => $weeklyUpdates->map($fingerprint)->values()->all(),
+        ])])->save();
+
         return view('startup.roadblocks.index', [
+            'newRoadblockIds' => $newRoadblockIds,
+            'newUpdateKeys' => $newUpdateKeys,
+            'weeklyFingerprint' => $fingerprint,
             'roadblocks' => $roadblocks,
             'otherCategorySuggestions' => $otherCategorySuggestions,
             'weeklyUpdates' => $weeklyUpdates,

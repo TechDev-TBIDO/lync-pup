@@ -10,6 +10,8 @@
     Left alone: email addresses (upper-casing an address can break delivery on
     case-sensitive mail servers), dates/numbers/files, and anything marked
     data-no-caps (e.g. the admin's rejection remarks to the founder).
+    Exception: item 21's founder_email IS in caps (a record on the sheet, not
+    the login address used for mail), via data-caps / the name check below.
 --}}
 <style>
     .info-sheet-caps input:not([type=email]):not([type=date]):not([type=number]):not([type=file]):not([type=password]):not([name*=email]):not([data-no-caps]),
@@ -39,6 +41,7 @@
                 return false;
             }
             if (el.hasAttribute('data-no-caps')) return false;
+            if (el.name === 'founder_email') return true;
             if ((el.name || '').toLowerCase().includes('email')) return false;
             return true;
         }

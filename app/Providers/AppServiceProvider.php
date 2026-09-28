@@ -111,14 +111,22 @@ class AppServiceProvider extends ServiceProvider
                         ->where('updated_at', '>', $user->moduleSeenAt('founder_submissions'))
                         ->exists();
 
+                    // Pre and Post are "seen" separately (FounderReadinessController).
                     $readinessChanged = $startup && $startup->readinessAssessments()
                         ->whereNotNull('overall_score')
-                        ->where('updated_at', '>', $user->moduleSeenAt('founder_readiness'))
-                        ->exists();
+                        ->get(['stage', 'updated_at'])
+                        ->contains(fn ($a) => $a->updated_at && $a->updated_at->gt(
+                            \App\Http\Controllers\Startup\FounderReadinessController::stageSeenAt($user, $a->stage)
+                        ));
 
                     $badges = [
                         'startup.dashboard' => $unreadRoutes->isNotEmpty(),
+                        // New/changed Portfolio Coordinator not seen yet (see
+                        // StartupProfileController::edit(), which clears it).
+                        'startup.profile.edit' => $unreadRoutes->contains('startup.profile.edit'),
                         'startup.meetings.index' => $unreadRoutes->contains('startup.meetings.index'),
+                        // Approved / Rejected notice not seen yet (cleared by opening the sheet).
+                        'startup.information-sheet.edit' => $unreadRoutes->contains('startup.information-sheet.edit'),
                         'startup.submissions.index' => $unreadRoutes->contains('startup.submissions.index') || $roadblockChanged,
                         'startup.readiness.index' => $unreadRoutes->contains('startup.readiness.index') || $readinessChanged,
                     ];

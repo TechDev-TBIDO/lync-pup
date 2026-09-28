@@ -466,7 +466,7 @@ pendingRemoval: [],
                     'surname', 'first_name', 'middle_name', 'name_extension', 'blood_type',
                     'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
                     'residential_address', 'permanent_address', 'sex', 'civil_status',
-                    'place_of_birth', 'mobile_no',
+                    'place_of_birth', 'mobile_no', 'founder_email',
                     'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
                     'portfolio_manager', 'cohort_no', 'endorsed_by',
                     ];
@@ -730,7 +730,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
 
                 {{-- 22. Educational Background --}}
                 <div class="mb-6">
-                    <p class="text-xs font-semibold text-gray-700 mb-1">22. EDUCATIONAL BACKGROUND <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></p>
+                    <p class="text-xs font-semibold text-gray-700 mb-1">22. EDUCATIONAL BACKGROUND</p>
                     <div class="overflow-x-auto">
                     <table class="w-full min-w-[720px] text-sm border border-collapse">
                         <thead class="bg-gray-50 text-left text-xs">
@@ -778,10 +778,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     }
                                 ">
                                 <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}</td>
-                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" :readonly="!editing" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['degree_course'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['highest_level_unit'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
+                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" :readonly="!editing" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;' : 'color:#111827;'">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['degree_course'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['highest_level_unit'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -1834,9 +1834,20 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 maxBytes: 5 * 1024 * 1024,
                                 accept: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv'],
                             },
+                            // Reads files.length (a plain reactive array, refreshed by
+                            // syncInput()), NOT dt.files.length: dt is a native
+                            // DataTransfer and dt.items.add() never triggers Alpine, so
+                            // the button/drop zone stayed enabled after the 5th file
+                            // (same bug the Roadblock form already fixed).
                             remainingSlots() {
                                 const stillSaved = this.existingCount - this.removalCount('doc-');
-                                return Math.max(0, this.limits.maxFiles - stillSaved - this.dt.files.length);
+                                return Math.max(0, this.limits.maxFiles - stillSaved - this.files.length);
+                            },
+                            // Live count while addFiles() is still looping (files[] is
+                            // only rebuilt after the loop, in syncInput()).
+                            slotsLeftNow() {
+                                const stillSaved = this.existingCount - this.removalCount('doc-');
+                                return this.limits.maxFiles - stillSaved - this.dt.files.length;
                             },
                             addFiles(fileList) {
                                 this.fileError = '';
@@ -1845,7 +1856,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 Array.from(fileList).forEach(file => {
                                     const ext = file.name.split('.').pop().toLowerCase();
 
-                                    if (this.remainingSlots() <= 0) {
+                                    if (this.slotsLeftNow() <= 0) {
                                         this.fileError = 'Maximum file limit reached.'; return;
                                     }
                                     if (!this.limits.accept.includes(ext)) {
@@ -1890,39 +1901,52 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             class="js-subform js-addform" enctype="multipart/form-data">
                             @csrf
 
-                            <div class="flex w-full max-w-md items-stretch">
-                                <div class="flex w-10 flex-shrink-0 items-center justify-center rounded-l-lg border border-rose-200
-                                            bg-rose-50 text-rose-800 sm:w-11">
-                                    <x-icon name="cam.svg" class="w-5 h-5" />
+                            {{-- Once the file limit is reached the whole drop zone is disabled:
+                                 grayed out, drag-and-drop ignored, Browse button off. It comes
+                                 back as soon as a file is removed. --}}
+                            <div class="flex w-full max-w-md items-stretch"
+                                :title="remainingSlots() <= 0 ? 'File limit reached - remove a file to add another.' : null"
+                                :aria-disabled="remainingSlots() <= 0">
+                                <div class="flex w-10 flex-shrink-0 items-center justify-center rounded-l-lg border sm:w-11"
+                                    :class="remainingSlots() <= 0 ? 'border-gray-200 bg-gray-100 text-gray-400' : 'border-rose-200 bg-rose-50 text-rose-800'"
+                                    :style="remainingSlots() <= 0 ? 'border-color:#E5E7EB;background:#F3F4F6;color:#9CA3AF;' : ''">
+                                    <x-icon name="clip.svg" class="w-5 h-5" />
                                 </div>
 
                                 <div
                                     data-packed-box="files"
-                                    @dragover.prevent="dragOver = true"
+                                    @dragover.prevent="dragOver = remainingSlots() > 0"
                                     @dragleave.prevent="dragOver = false"
-                                    @drop.prevent="dragOver = false; addFiles($event.dataTransfer.files)"
-                                    :class="fileError
-                                        ? 'border-red-400 bg-red-50/60'
-                                        : (dragOver ? 'border-rose-500 bg-rose-100' : 'border-rose-200 bg-rose-50/60')"
+                                    @drop.prevent="dragOver = false; if (remainingSlots() > 0) addFiles($event.dataTransfer.files)"
+                                    :class="remainingSlots() <= 0
+                                        ? 'cursor-not-allowed'
+                                        : (fileError
+                                            ? 'border-red-400 bg-red-50/60'
+                                            : (dragOver ? 'border-rose-500 bg-rose-100' : 'border-rose-200 bg-rose-50/60'))"
+                                    :style="remainingSlots() <= 0 ? 'border-color:#D1D5DB;background:#F3F4F6;' : ''"
                                     class="min-w-0 flex-1 rounded-r-lg border-2 border-l-0 border-dashed px-3 py-4 text-center transition sm:px-4 sm:py-5">
 
-                                    <svg class="mx-auto mb-1.5 h-5 w-5 text-rose-800" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                    <svg class="mx-auto mb-1.5 h-5 w-5" :style="remainingSlots() <= 0 ? 'color:#9CA3AF;' : 'color:#9F1239;'" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-.41-8.98 4.5 4.5 0 0 1 8.08-3.32 3 3 0 0 1 3.76 3.87 4.5 4.5 0 0 1-.44 8.43H6.75Z" />
                                     </svg>
 
-                                    <p class="mb-2.5 text-xs text-gray-600">Drag-and-drop</p>
+                                    <p class="mb-2.5 text-xs" :style="remainingSlots() <= 0 ? 'color:#9CA3AF;' : 'color:#4B5563;'"
+                                        x-text="remainingSlots() <= 0 ? 'Remove a file to upload another' : 'Drag-and-drop'">Drag-and-drop</p>
 
-                                    <button type="button" @click="$refs.fileInput.click()"
+                                    <button type="button" @click="if (remainingSlots() > 0) $refs.fileInput.click()"
                                         :disabled="remainingSlots() <= 0"
                                         :class="remainingSlots() <= 0
                                             ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                                             : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-95'"
+                                        :style="remainingSlots() <= 0 ? 'background:#D1D5DB;color:#6B7280;' : ''"
                                         class="rounded px-4 py-1.5 text-xs font-medium transition">
                                         <span x-text="remainingSlots() <= 0 ? 'Limit Reached' : 'Browse Files'"></span>
                                     </button>
 
+                                    {{-- Never :disabled - a disabled file input is dropped from the
+                                         submitted form, which would lose every file already picked
+                                         the moment the limit is hit (see the Roadblock form's note). --}}
                                     <input type="file" name="files[]" x-ref="fileInput" multiple class="hidden"
-                                        :disabled="remainingSlots() <= 0"
                                         accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv"
                                         @change="addFiles($event.target.files); dirty = true">
                                 </div>

@@ -119,7 +119,7 @@ class DashboardController extends Controller
 
         return $this->stepsWithState([
             'Setup Startup Profile' => $startup->isProfileComplete(),
-            'Completed Information Sheet' => $startup->hasSubmittedInformationSheet(),
+            'Submit Information Sheet' => $startup->hasSubmittedInformationSheet(),
             'Admin Review' => $startup->hasScheduledEvaluation() || $approved,
             'Schedule for Evaluation' => $startup->hasScheduledEvaluation(),
             'Approved' => $approved,
