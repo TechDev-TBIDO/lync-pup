@@ -302,25 +302,25 @@ class DashboardController extends Controller
             return ['total' => 0, 'breakdown' => $breakdown];
         }
 
-        $approvedInfoSheetIds = InformationSheet::whereIn('startup_id', $startupIds)
-            ->where('approval_status', 'Approved')
-            ->pluck('startup_id')->flip();
+        $sheetStatuses = InformationSheet::whereIn('startup_id', $startupIds)
+            ->pluck('approval_status', 'startup_id');
 
-        // Pre/Post-Assessment now earn PARTIAL credit toward their 20-point
+        // Pre/Post-Assessment earn PARTIAL credit toward their 20-point
         // weight, proportional to how many of the 4 readiness types
         // (TRL/MRL/TMRL/SRL) are actually scored for that stage — a startup
-        // with 2 of 4 scored is half-credited, not all-or-nothing like the
-        // old "has any score" flip-set.
-        $formsScoredPerStartup = function (string $stage) use ($startupIds) {
+        // with 2 of 4 scored is half-credited, not all-or-nothing. Kept as
+        // the list of scored types (not just a count) so the breakdown
+        // pop-up can name exactly which types are still missing.
+        $typesScoredPerStartup = function (string $stage) use ($startupIds) {
             return ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
                 ->where('stage', $stage)
                 ->get()
                 ->mapWithKeys(fn (ReadinessLevelAssessment $a) => [
-                    $a->startup_id => collect(ReadinessRubric::TYPES)->filter(fn ($type) => $a->scoreFor($type) !== null)->count(),
+                    $a->startup_id => collect(ReadinessRubric::TYPES)->filter(fn ($type) => $a->scoreFor($type) !== null)->values()->all(),
                 ]);
         };
-        $preFormsScored = $formsScoredPerStartup('Pre-Assessment');
-        $postFormsScored = $formsScoredPerStartup('Post-Assessment');
+        $preTypesScored = $typesScoredPerStartup('Pre-Assessment');
+        $postTypesScored = $typesScoredPerStartup('Post-Assessment');
 
         // Active-Assessment likewise earns partial credit toward its
         // 20-point weight, proportional to how many of its 3 documents
@@ -329,7 +329,7 @@ class DashboardController extends Controller
             ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
             ->get(['startup_id', 'document_number'])
             ->groupBy('startup_id')
-            ->map(fn ($docs) => $docs->pluck('document_number')->unique()->count());
+            ->map(fn ($docs) => $docs->pluck('document_number')->map(fn ($n) => (int) $n)->unique()->values()->all());
 
         // Row existence (or any other field being filled in) isn't enough
         // here — only an actual Exit Status of Graduated/Completed counts
@@ -337,21 +337,45 @@ class DashboardController extends Controller
         // the same single rule Milestone Completion below and the
         // Assessment Hub Overview pill both use, so every "is Venture Exit
         // done" check in the app agrees.
-        $ventureExitIds = AssessmentDocument::whereIn('startup_id', $startupIds)
+        $ventureExitDocs = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
-            ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitCompleted($doc->data ?? []))
-            ->pluck('startup_id')->flip();
+            ->keyBy('startup_id');
+
+        $startupNames = Startup::whereIn('startup_id', $startupIds)
+            ->get(['startup_id', 'company_name', 'cohort_number', 'startup_photo_path'])
+            ->keyBy('startup_id');
+
+        // Every startup's percentage plus what built it, grouped by bucket
+        // for the clickable counts / "See breakdown" pop-up on the card.
+        $startupsByBucket = collect(array_keys(self::INCUBATION_BUCKETS))->mapWithKeys(fn ($label) => [$label => []])->all();
 
         foreach ($startupIds as $id) {
-            $percent = 0;
-            $percent += $approvedInfoSheetIds->has($id) ? self::INCUBATION_WEIGHTS['approved_information_sheet'] : 0;
-            $percent += ($preFormsScored->get($id, 0) / 4) * self::INCUBATION_WEIGHTS['pre_assessment'];
-            $percent += ($activeDocsPresent->get($id, 0) / 3) * self::INCUBATION_WEIGHTS['active_assessment'];
-            $percent += ($postFormsScored->get($id, 0) / 4) * self::INCUBATION_WEIGHTS['post_assessment'];
-            $percent += $ventureExitIds->has($id) ? self::INCUBATION_WEIGHTS['venture_exit'] : 0;
+            $pieces = $this->incubationPieces(
+                (int) $id,
+                $sheetStatuses->get($id),
+                $preTypesScored->get($id, []),
+                $activeDocsPresent->get($id, []),
+                $postTypesScored->get($id, []),
+                $ventureExitDocs->get($id)?->data ?? null,
+            );
+            $exactPercent = (float) collect($pieces)->sum('exact');
+            $percent = round($exactPercent, 2);
+            $bucket = self::incubationBucketLabel($exactPercent);
 
-            $counts[self::incubationBucketLabel((float) $percent)]++;
+            $counts[$bucket]++;
+
+            $startup = $startupNames->get($id);
+            $startupsByBucket[$bucket][] = [
+                'id' => (int) $id,
+                'name' => $startup?->company_name ?? 'Unnamed startup',
+                'cohort' => $startup?->cohort_number,
+                // Startup's profile picture (null = show the placeholder icon).
+                'photo' => $startup?->startup_photo_url,
+                'percent' => $percent,
+                'url' => route('admin.startups.show', ['startup' => $id, 'from' => 'dashboard']),
+                'pieces' => $pieces,
+            ];
         }
 
         $breakdown = collect(self::INCUBATION_BUCKETS)->keys()->map(fn ($label) => [
@@ -360,11 +384,102 @@ class DashboardController extends Controller
             'count' => $counts[$label],
             'percent' => round(($counts[$label] / $totalStartups) * 100, 1),
             'color' => self::INCUBATION_COLORS[$label],
+            // Highest percentage first, then A–Z.
+            'startups' => collect($startupsByBucket[$label])
+                ->sortBy([['percent', 'desc'], ['name', 'asc']])
+                ->values()
+                ->all(),
         ]);
 
         return [
             'total' => $totalStartups,
             'breakdown' => $breakdown,
+        ];
+    }
+
+    /**
+     * The five weighted pieces behind one startup's Incubation Progress
+     * percentage, for the "See breakdown" pop-up. Each piece says how much
+     * of its weight it earned ('full' / 'partial' / 'none'), and the three
+     * partial-credit pieces list exactly which readiness types / documents
+     * are done and which are still missing, each linking to where it's
+     * filled in on the Assessment Hub.
+     *
+     * @param  list<string>  $preTypes  readiness types scored on Pre-Assessment
+     * @param  list<int>  $activeDocs  Active-Assessment documents on file (6/7/8)
+     * @param  list<string>  $postTypes  readiness types scored on Post-Assessment
+     * @return list<array<string, mixed>>
+     */
+    protected function incubationPieces(int $startupId, ?string $sheetStatus, array $preTypes, array $activeDocs, array $postTypes, ?array $ventureExitData): array
+    {
+        $w = self::INCUBATION_WEIGHTS;
+        $hub = fn (array $params) => route('admin.assessment-hub.index', ['main' => 'assessment', 'assessment_startup' => $startupId, ...$params]);
+
+        $piece = function (string $label, int $weight, float $fraction, array $extra = []) {
+            return [
+                'label' => $label,
+                'weight' => $weight,
+                // Exact value drives the bucket; 'earned' is rounded for display.
+                'exact' => $fraction * $weight,
+                'earned' => round($fraction * $weight, 2),
+                'url' => null,
+                'status' => $fraction >= 1 ? 'full' : ($fraction > 0 ? 'partial' : 'none'),
+                'items' => [],
+                'note' => null,
+                ...$extra,
+            ];
+        };
+
+        $typeItems = fn (string $stage, array $scored) => collect(ReadinessRubric::TYPES)->map(fn ($type) => [
+            'label' => $type,
+            'done' => in_array($type, $scored, true),
+            'url' => $hub(['stage' => $stage, 'rl_type' => $type]),
+        ])->all();
+
+        $documentNames = [6 => 'Doc 6 · Growth Strategy', 7 => 'Doc 7 · Weekly Check-ins', 8 => 'Doc 8 · Prototype Validation'];
+        $docItems = collect($documentNames)->map(fn ($label, $number) => [
+            'label' => $label,
+            'done' => in_array($number, $activeDocs, true),
+            'url' => $hub(['stage' => 'Active-Assessment', 'active_doc' => $number]),
+        ])->values()->all();
+
+        $isSheetApproved = $sheetStatus === 'Approved';
+        $exitStatus = $ventureExitData !== null && \App\Support\ActiveAssessmentForms::isVentureExitCompleted($ventureExitData)
+            ? $ventureExitData['exit_status']
+            : null;
+
+        return [
+            $piece('Approved Information Sheet', $w['approved_information_sheet'], $isSheetApproved ? 1 : 0, [
+                'note' => match (true) {
+                    $isSheetApproved => 'Approved',
+                    $sheetStatus === null => 'Not submitted yet',
+                    default => 'Status: '.$sheetStatus,
+                },
+                'url' => route('admin.information-sheet.show', $startupId),
+            ]),
+            $piece('Pre-Assessment', $w['pre_assessment'], count($preTypes) / 4, [
+                'note' => count($preTypes).' of 4 readiness types scored',
+                'items' => $typeItems('Pre-Assessment', $preTypes),
+                'url' => $hub(['stage' => 'Pre-Assessment']),
+            ]),
+            $piece('Active-Assessment', $w['active_assessment'], count($activeDocs) / 3, [
+                'note' => count($activeDocs).' of 3 documents on file',
+                'items' => $docItems,
+                'url' => $hub(['stage' => 'Active-Assessment']),
+            ]),
+            $piece('Post-Assessment', $w['post_assessment'], count($postTypes) / 4, [
+                'note' => count($postTypes).' of 4 readiness types scored',
+                'items' => $typeItems('Post-Assessment', $postTypes),
+                'url' => $hub(['stage' => 'Post-Assessment']),
+            ]),
+            $piece('Venture Exit', $w['venture_exit'], $exitStatus !== null ? 1 : 0, [
+                'note' => match (true) {
+                    $exitStatus !== null => 'Exit status: '.$exitStatus,
+                    $ventureExitData !== null => 'Form started, no exit status yet',
+                    default => 'Not started',
+                },
+                'url' => $hub(['stage' => 'Venture Exit']),
+            ]),
         ];
     }
 

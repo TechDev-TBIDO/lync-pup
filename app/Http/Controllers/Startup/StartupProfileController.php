@@ -30,7 +30,19 @@ class StartupProfileController extends Controller
             'latestReadinessAssessment',
         ]);
 
-        return view('startup.profile.edit', compact('startup'));
+        // Red dot on the Portfolio Coordinator field: a coordinator was
+        // assigned/changed and the founder hasn't seen it yet (its
+        // notification is still unread - "View Profile" on the dashboard
+        // card marks it read and pulses the field instead). Shown on this
+        // visit, then the notification is marked read, so the dot here and
+        // on the sidebar's Startup Profile item are gone from then on.
+        $coordinatorNotices = auth()->user()->unreadNotifications()
+            ->where('type', \App\Notifications\CoordinatorAssigned::class)
+            ->get();
+        $coordinatorIsNew = $coordinatorNotices->isNotEmpty();
+        $coordinatorNotices->each->markAsRead();
+
+        return view('startup.profile.edit', compact('startup', 'coordinatorIsNew'));
     }
 
     public function update(UpdateStartupProfileRequest $request): RedirectResponse

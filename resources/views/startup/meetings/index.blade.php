@@ -107,8 +107,9 @@
             {{-- Tabs --}}
             <div class="border-b border-gray-200 mb-6">
                 <nav class="flex gap-5 overflow-x-auto sm:gap-8">
-                    <button type="button" @click="tab = 'meetings'" :class="tab === 'meetings' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Meetings</button>
-                    <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive</button>
+                    {{-- Red dot = something in that tab is new/updated since the last visit. --}}
+                    <button type="button" @click="tab = 'meetings'" :class="tab === 'meetings' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Meetings @if ($meetings->contains('is_new', true)) <x-new-dot /> @endif</button>
+                    <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive @if ($archivedMeetings->contains('is_new', true)) <x-new-dot /> @endif</button>
                 </nav>
             </div>
 
@@ -121,7 +122,10 @@
                 @endphp
 
                 {{-- Stacks on phones, three columns side by side from sm up --}}
-                <div class="flex flex-col overflow-hidden rounded-2xl border bg-white xl:flex-row">
+                <div class="relative flex flex-col overflow-hidden rounded-2xl border bg-white xl:flex-row">
+                    @if (! empty($meeting['is_new']))
+                    <x-new-dot size="md" class="absolute right-3 top-3 z-10 ring-2 ring-white" />
+                    @endif
 
                     {{-- Band: full-width strip on phones, vertical column from sm up --}}
                     <div class="flex w-full flex-shrink-0 flex-col items-center gap-1 bg-[#6C0E24] px-3 py-3 text-center text-white sm:flex-row sm:gap-3 sm:px-4 sm:text-left xl:w-32 xl:flex-col xl:justify-center xl:gap-0 xl:px-3 xl:py-6 xl:text-center 2xl:w-40 2xl:px-4">
@@ -460,8 +464,8 @@
                     </div>
                 </div>
                 @empty
-                <div class="col-span-2 rounded-xl border border-dashed p-8 text-center text-gray-400 sm:p-12">
-                    No upcoming meetings scheduled.
+                <div class="col-span-2 rounded-xl border border-dashed border-gray-200">
+                    <x-empty-state variant="meetings" size="lg" title="No Upcoming Meetings Scheduled." highlight="Meetings Scheduled" message="Check back later for your scheduled meetings." />
                 </div>
                 @endforelse
             </div>
@@ -518,7 +522,7 @@
                     <div class="min-w-0 flex-1 px-4 py-3 sm:px-5 sm:py-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <div class="min-w-0">
-                                <p class="mb-1 text-sm font-bold text-gray-900">{{ $typeLabels[$meeting['type']] }} Meeting</p>
+                                <p class="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">{{ $typeLabels[$meeting['type']] }} Meeting @if (! empty($meeting['is_new'])) <x-new-dot /> @endif</p>
 
                                 @if ($meeting['type'] === 'mentorship')
                                 <p class="text-sm text-gray-700">
@@ -554,14 +558,14 @@
                     </div>
                 </div>
                 @empty
-                <div class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
-                    <p class="text-sm text-gray-500">No past meetings yet.</p>
+                <div class="rounded-lg border border-dashed border-gray-300 px-6">
+                    <x-empty-state variant="meetings" size="md" title="No Past Meetings Yet." highlight="Past Meetings" message="Meetings you have attended will be kept here." />
                 </div>
                 @endforelse
 
                 @if ($archivedMeetings->isNotEmpty())
-                <div x-show="archiveVisibleCount === 0" x-cloak class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
-                    <p class="text-sm text-gray-500">No meetings match this filter.</p>
+                <div x-show="archiveVisibleCount === 0" x-cloak class="rounded-lg border border-dashed border-gray-300 px-6">
+                    <x-empty-state variant="search" size="md" title="No Matching Meetings." highlight="Matching" message="No meetings match this filter. Try another one." />
                 </div>
                 @endif
             </div>

@@ -331,8 +331,9 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         <div class="border-b border-gray-200 mb-6">
             <nav class="flex gap-5 overflow-x-auto sm:gap-8">
                 <button type="button" @click="switchTab('roadblock')" :class="tab === 'roadblock' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Roadblock</button>
-                <button type="button" @click="switchTab('update')" :class="tab === 'update' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Update</button>
-                <button type="button" @click="switchTab('archive')" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive</button>
+                {{-- Red dot = something in that tab is new/updated since the last visit. --}}
+                <button type="button" @click="switchTab('update')" :class="tab === 'update' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Update @if (! empty($newUpdateKeys)) <x-new-dot /> @endif</button>
+                <button type="button" @click="switchTab('archive')" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive @if (! empty($newRoadblockIds)) <x-new-dot /> @endif</button>
             </nav>
         </div>
 
@@ -544,7 +545,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                     <div class="flex w-full max-w-md items-stretch">
                         <div class="flex w-10 flex-shrink-0 items-center justify-center rounded-l-lg border border-rose-200
                                     bg-rose-50 text-rose-800 sm:w-11">
-                            <x-icon name="cam.svg" class="w-5 h-5" />
+                            <x-icon name="clip.svg" class="w-5 h-5" />
                         </div>
 
                         {{-- border-l-0 so the dashed edge doesn't double up against the icon strip --}}
@@ -580,6 +581,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                                 :class="files.length >= limits.maxFiles
                                     ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                                     : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-95'"
+                                :style="files.length >= limits.maxFiles ? 'background:#D1D5DB;color:#6B7280;' : ''"
                                 class="rounded px-4 py-1.5 text-xs font-medium transition">
                                 <span x-text="files.length >= limits.maxFiles ? 'Limit Reached' : 'Browse Files'"></span>
                             </button>
@@ -717,7 +719,10 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
 
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div class="min-w-0">
-                            <p class="mb-1 text-sm font-bold text-gray-900">Area Discussed</p>
+                            <p class="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">
+                                Area Discussed
+                                @if (in_array($weeklyFingerprint($update), $newUpdateKeys ?? [], true)) <x-new-dot /> @endif
+                            </p>
 
                             <p class="text-sm font-semibold text-gray-900">
                                 {{ $update['area_discussed'] ?: 'Not specified' }}
@@ -747,8 +752,8 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                 </div>
             </div>
             @empty
-            <div class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
-                <p class="text-sm text-gray-500">No weekly updates yet.</p>
+            <div class="rounded-lg border border-dashed border-gray-300 px-6">
+                <x-empty-state variant="weekly-updates" size="lg" title="No Weekly Updates Yet." highlight="Weekly Updates" message="Stay tuned! We’ll share the latest updates once there’s new activity." />
             </div>
             @endforelse
         </div>
@@ -822,7 +827,10 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                     {{-- Stacks on phones: the View button beside the text leaves too little room --}}
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div class="min-w-0">
-                            <p class="mb-1 text-sm font-bold text-gray-900">Roadblock</p>
+                            <p class="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">
+                                Roadblock
+                                @if (in_array($roadblock->roadblock_id, $newRoadblockIds ?? [])) <x-new-dot /> @endif
+                            </p>
 
                             <p class="text-sm text-gray-700">
                                 <span class="font-semibold text-gray-900">Problem Category:</span>
@@ -867,14 +875,14 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                 </div>
             </div>
             @empty
-            <div class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
-                <p class="text-sm text-gray-500">No roadblocks submitted yet.</p>
+            <div class="rounded-lg border border-dashed border-gray-300 px-6">
+                <x-empty-state variant="roadblocks" size="lg" title="No Roadblocks Found." highlight="Found." message="You haven’t submitted any roadblocks yet. Keep going and stay on track!" />
             </div>
             @endforelse
 
             @if ($roadblocks->isNotEmpty())
-            <div x-show="archiveVisibleCount === 0" x-cloak class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
-                <p class="text-sm text-gray-500">No roadblocks match this filter.</p>
+            <div x-show="archiveVisibleCount === 0" x-cloak class="rounded-lg border border-dashed border-gray-300 px-6">
+                <x-empty-state variant="search" size="md" title="No Matching Roadblocks." highlight="Matching" message="No roadblocks match this filter. Try another one." />
             </div>
             @endif
         </div>

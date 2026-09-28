@@ -70,7 +70,10 @@ $oldMatchesThisRow = $errors->any()
 // selected: the schedule's own, else the first platform in the list.
 $defaultModality = \App\Support\MeetingPlatform::OPTIONS[0];
 
-$pristineDate = $schedule?->evaluation_date?->format('Y-m-d') ?? now()->format('Y-m-d');
+// A new schedule starts on today - unless today is a Saturday/Sunday, which
+// can't be booked: then nothing is pre-selected (the calendar just outlines
+// today) and the time slots stay disabled until a weekday is picked.
+$pristineDate = $schedule?->evaluation_date?->format('Y-m-d') ?? (now()->isWeekend() ? null : now()->format('Y-m-d'));
 $pristineStart = $schedule ? substr($schedule->start_time, 0, 5) : null;
 $pristineNotes = $schedule?->notes;
 $pristineModality = $schedule?->modality ?: $defaultModality;
@@ -137,7 +140,7 @@ $initialServerError = $oldMatchesThisRow
             this.initialNotes = this.notes;
             this.initialModality = this.modality;
             this.initialLink = this.link;
-            const d = new Date(this.date + 'T00:00:00');
+            const d = this.date ? new Date(this.date + 'T00:00:00') : new Date();
             this.viewMonth = d.getMonth();
             this.viewYear = d.getFullYear();
             const startupSelect = this.$root.querySelector('select[name=startup_id]');
@@ -161,8 +164,10 @@ $initialServerError = $oldMatchesThisRow
             'Location': 'e.g., 123 Main Street, Suite 400, New York, NY',
             'Custom Link': 'e.g., https://your-conferencing-app.com',
         },
-        viewMonth: new Date(@js($initialDate) + 'T00:00:00').getMonth(),
-        viewYear: new Date(@js($initialDate) + 'T00:00:00').getFullYear(),
+        // Calendar opens on the selected date's month, or this month when no
+        // date is selected yet (e.g. today is a weekend).
+        viewMonth: (@js($initialDate) ? new Date(@js($initialDate) + 'T00:00:00') : new Date()).getMonth(),
+        viewYear: (@js($initialDate) ? new Date(@js($initialDate) + 'T00:00:00') : new Date()).getFullYear(),
         booked: @js($bookedSlots),
         slots: @js(array_column($timeSlots, 0)),
         excludeId: {{ $schedule?->evaluation_schedule_id ?? 'null' }},
@@ -200,6 +205,11 @@ $initialServerError = $oldMatchesThisRow
             this.serverError = null;
         },
         isSelected(day) { return (this.viewYear + '-' + this.pad(this.viewMonth + 1) + '-' + this.pad(day)) === this.date; },
+        // Today gets a gray outline whenever it isn't the selected day.
+        isToday(day) {
+            const t = new Date();
+            return t.getFullYear() === this.viewYear && t.getMonth() === this.viewMonth && t.getDate() === day;
+        },
         isPastDay(day) {
             const d = new Date(this.viewYear, this.viewMonth, day);
             const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -211,6 +221,7 @@ $initialServerError = $oldMatchesThisRow
         },
         monthLabel() { return new Date(this.viewYear, this.viewMonth, 1).toLocaleString('default', { month: 'long' }) + ' ' + this.viewYear; },
         friendlyDate() {
+            if (! this.date) return '';
             const d = new Date(this.date + 'T00:00:00');
             return d.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         },
@@ -299,7 +310,9 @@ $initialServerError = $oldMatchesThisRow
                                     'bg-[#6C0E24] text-white rounded-lg font-bold': isSelected(day),
                                     'text-gray-300 cursor-not-allowed': (isPastDay(day) || isWeekend(day)) && !isSelected(day),
                                     'hover:bg-gray-100 rounded-lg cursor-pointer': !isPastDay(day) && !isWeekend(day) && !isSelected(day) && !{{ $isReadOnly ? 'true' : 'false' }},
+                                    'rounded-lg': isToday(day),
                                 }"
+                                    :style="isToday(day) && !isSelected(day) ? 'box-shadow: inset 0 0 0 1px #9CA3AF; border-radius: .5rem;' : ''"
                                     class="py-2" x-text="day"></button>
                             </template>
                         </div>
@@ -312,12 +325,12 @@ $initialServerError = $oldMatchesThisRow
                         @foreach ($timeSlots as [$start, $end])
                         @if (! $isReadOnly || $start === $initialStart)
                         <button type="button"
-                            @click="{{ $isReadOnly ? '' : "if (!isSlotBooked('{$start}') && !isPastSlot('{$start}')) { startTime = '{$start}'; serverError = null; }" }}"
-                            :disabled="{{ $isReadOnly ? 'true' : "isSlotBooked('{$start}') || isPastSlot('{$start}')" }}"
+                            @click="{{ $isReadOnly ? '' : "if (date && !isSlotBooked('{$start}') && !isPastSlot('{$start}')) { startTime = '{$start}'; serverError = null; }" }}"
+                            :disabled="{{ $isReadOnly ? 'true' : "!date || isSlotBooked('{$start}') || isPastSlot('{$start}')" }}"
                             :class="{
                                     'bg-[#6C0E24] text-white border-[#6C0E24]': startTime === '{{ $start }}',
-                                    'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed': (isSlotBooked('{{ $start }}') || isPastSlot('{{ $start }}')) && startTime !== '{{ $start }}',
-                                    'border-[#6C0E24] text-gray-900 hover:bg-[#6C0E24]/5': !isSlotBooked('{{ $start }}') && !isPastSlot('{{ $start }}') && startTime !== '{{ $start }}' && !{{ $isReadOnly ? 'true' : 'false' }},
+                                    'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed': (!date || isSlotBooked('{{ $start }}') || isPastSlot('{{ $start }}')) && startTime !== '{{ $start }}',
+                                    'border-[#6C0E24] text-gray-900 hover:bg-[#6C0E24]/5': date && !isSlotBooked('{{ $start }}') && !isPastSlot('{{ $start }}') && startTime !== '{{ $start }}' && !{{ $isReadOnly ? 'true' : 'false' }},
                                 }"
                             class="w-full text-left border rounded-lg px-4 py-3 text-sm flex items-center gap-2">
                             <span x-show="startTime === '{{ $start }}'" class="text-white">&#10003;</span>
@@ -384,7 +397,12 @@ $initialServerError = $oldMatchesThisRow
             <p x-show="serverError" x-cloak class="text-xs text-red-600 mt-3" x-text="serverError"></p>
 
             <div class="border-t mt-6 pt-4 text-center text-sm text-gray-600">
-                You have selected: <span x-text="friendlyDate() + ' @ ' + friendlyTime(startTime)"></span>
+                <template x-if="date">
+                    <span>You have selected: <span x-text="friendlyDate() + (startTime ? ' @ ' + friendlyTime(startTime) : '')"></span></span>
+                </template>
+                <template x-if="!date">
+                    <span class="text-gray-400">Pick a weekday to see the available times.</span>
+                </template>
             </div>
 
             @if (! $isReadOnly)

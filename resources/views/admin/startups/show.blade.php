@@ -17,6 +17,8 @@ $cohortReturnUrl = match (request('from')) {
 // Opened from a Risk Monitoring "No Portfolio Coordinator" flag -
 // switching cohorts goes back to Risk Monitoring, same as the Back button.
 'risk-monitoring' => route('admin.risk-monitoring.index'),
+// Opened from the Dashboard's Incubation Progress pop-up.
+'dashboard' => route('dashboard'),
 default => null,
 };
 @endphp
@@ -72,6 +74,8 @@ default => null,
             // Risk Monitoring's "No Portfolio Coordinator" flag - see
             // RiskEngine::resolveLink().
             'risk-monitoring' => route('admin.risk-monitoring.index'),
+            // Dashboard's Incubation Progress pop-up.
+            'dashboard' => route('dashboard'),
             default => route('admin.startups.index', request()->only('tab')),
             };
             @endphp
@@ -361,7 +365,7 @@ default => null,
                             </div>
                             @empty
                             @if (! $founderDisplayName)
-                            <p class="text-sm text-gray-500 col-span-2">No team members listed yet.</p>
+                            <x-empty-state variant="people" size="sm" title="No Team Members Yet." highlight="Team Members" class="col-span-2" />
                             @endif
                             @endforelse
                         </div>

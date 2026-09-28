@@ -53,9 +53,6 @@ class InformationSheetController extends Controller
             'user',
         ]);
 
-        $nameParts = $startup->user?->founderNameParts()
-            ?? \App\Models\InformationSheet::splitFounderName(null);
-
         $versionHistory = VersionHistory::where('startup_id', $startup->startup_id)
             ->where('context', 'Information Sheet')
             ->with('user')
@@ -67,10 +64,9 @@ class InformationSheetController extends Controller
             'versionHistory' => $versionHistory,
             // Seeds empty fields from the Startup Profile — display only, never
             // written until the sheet itself is saved.
+            // Surname / First / Middle name are NOT pre-filled — the founder
+            // types them in on the sheet directly.
             'prefill' => [
-                'surname' => $nameParts['surname'],
-                'first_name' => $nameParts['first_name'],
-                'middle_name' => $nameParts['middle_name'],
                 'mobile_no' => (string) $startup->contact_phone,
                 'founder_email' => (string) $startup->user?->email,
             ],

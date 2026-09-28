@@ -39,6 +39,8 @@ class AssessmentController extends Controller
             // Only ever submitted from the Pre-Assessment TRL tab (Section 1:
             // Startup & Technology Overview) — absent everywhere else.
             'trl_overview' => ['nullable', 'json'],
+            // Editable "Startup / Company Name" (blank = use the startup's own name).
+            'startup_name' => ['nullable', 'string', 'max:255'],
             // Editable Date of Assessment picker — also only present on that
             // same TRL Pre-Assessment tab; falls back to today when absent.
             'assessment_date' => ['nullable', 'date'],
@@ -162,6 +164,11 @@ class AssessmentController extends Controller
         if (isset($validated['trl_overview'])) {
             $assessment->trl_overview = json_decode($validated['trl_overview'], true);
         }
+
+        // Stored only when it differs from the startup's real name, so an
+        // untouched form keeps following startups.company_name.
+        $startupName = trim((string) ($validated['startup_name'] ?? ''));
+        $assessment->startup_name = ($startupName === '' || $startupName === $startup->company_name) ? null : $startupName;
 
         $assessment->prepared_by = $validated['prepared_by'] ?? null;
         $assessment->prepared_by_position = $validated['prepared_by_position'] ?? null;

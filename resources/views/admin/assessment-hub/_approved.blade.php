@@ -134,7 +134,9 @@ return [
             </template>
             <template x-if="paged.length === 0">
                 <tr>
-                    <td colspan="4" class="px-4 py-6 text-center text-gray-400">No approved information sheets yet.</td>
+                    <td colspan="4" class="px-4">
+                        <x-empty-state variant="documents" size="md" title="No Approved Information Sheets Yet." highlight="Information Sheets" message="Approved sheets will appear here once startups pass review." />
+                    </td>
                 </tr>
             </template>
         </tbody>

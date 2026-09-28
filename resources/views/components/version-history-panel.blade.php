@@ -140,7 +140,7 @@
             <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Activity</p>
 
             @if ($entries->isEmpty())
-                <p class="py-6 text-center text-sm text-gray-400">No history yet.</p>
+                <x-empty-state variant="documents" size="sm" title="No History Yet." highlight="History" message="Changes will be recorded here." />
             @else
                 @php $currentGroupLabel = null; @endphp
                 @foreach ($entries as $i => $entry)

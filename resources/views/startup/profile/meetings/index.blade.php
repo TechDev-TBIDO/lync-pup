@@ -157,8 +157,8 @@
                     </div>
                 </div>
                 @empty
-                <div class="lg:col-span-2 border border-dashed rounded-xl p-12 text-center text-gray-400">
-                    No upcoming meetings scheduled.
+                <div class="lg:col-span-2 rounded-xl border border-dashed border-gray-200">
+                    <x-empty-state variant="meetings" size="lg" title="No Upcoming Meetings Scheduled." highlight="Meetings Scheduled" message="Check back later for your scheduled meetings." />
                 </div>
                 @endforelse
             </div>

@@ -220,7 +220,9 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-8 text-center text-gray-400">No startups currently have an active risk indicator.</td>
+                            <td colspan="6" class="px-4">
+                                <x-empty-state variant="all-clear" size="md" title="No Active Risks." highlight="Active Risks" message="No startups currently have an active risk indicator." />
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>
