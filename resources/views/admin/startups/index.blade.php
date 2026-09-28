@@ -193,15 +193,19 @@
                 </nav>
             </div>
 
+            {{-- Empty state sits outside the grid: the auto-fit tracks cap at 320px,
+                 so col-span-full would only cover the filled tracks and hug the left. --}}
+            @if ($startups->isEmpty())
+            <x-empty-state variant="startups" size="lg" title="No Startups Found." highlight="Startups" message="No startups match this filter yet. Try another one." class="w-full" />
+            @else
             <div
                 class="grid gap-6"
                 style="grid-template-columns: repeat(auto-fit, minmax(290px, 320px));">
-                @forelse ($startups as $startup)
+                @foreach ($startups as $startup)
                 <x-startup-card :startup="$startup" />
-                @empty
-                <p class="text-gray-500 col-span-full">No startups found for this filter.</p>
-                @endforelse
+                @endforeach
             </div>
+            @endif
 
             <div class="mt-8">
                 {{ $startups->links() }}

@@ -46,6 +46,10 @@ class InformationSheetController extends Controller
                 ->with('status', 'Please complete your Startup Profile first before filling out the Information Sheet.');
         }
 
+        // Opening the sheet counts as seeing its Approved/Rejected notice, so
+        // the sidebar's red dot on Information Sheet clears.
+        auth()->user()->markFounderModuleVisited('founder_information_sheet', 'startup.information-sheet.edit');
+
         return view('startup.information-sheet.edit', [
             'startup' => $startup,
             'prefill' => $this->prefillFromProfile($startup),
@@ -156,13 +160,9 @@ class InformationSheetController extends Controller
      */
     private function prefillFromProfile($startup): array
     {
-        $name = $startup->user?->founderNameParts()
-            ?? \App\Models\InformationSheet::splitFounderName(null);
-
+        // Surname / First / Middle name are NOT pre-filled: the founder types
+        // them in on the sheet directly.
         return [
-            'surname' => $name['surname'],
-            'first_name' => $name['first_name'],
-            'middle_name' => $name['middle_name'],
             'mobile_no' => (string) $startup->contact_phone,
             'founder_email' => (string) $startup->user?->email,
         ];

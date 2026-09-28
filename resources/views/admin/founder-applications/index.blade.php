@@ -344,7 +344,9 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="6" class="px-4 py-10 text-center text-gray-500">No sign-ups found for this filter.</td>
+                                        <td colspan="6" class="px-4">
+                                            <x-empty-state variant="people" size="md" title="No Sign-ups Found." highlight="Sign-ups" message="Nothing matches this filter yet. Try another one." />
+                                        </td>
                                     </tr>
                                     @endforelse
                         </tbody>

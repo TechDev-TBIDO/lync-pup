@@ -295,7 +295,7 @@
                                             </a>
                                             @endif
                                         @empty
-                                            <p class="py-6 text-center text-sm text-gray-500">No startups assigned yet.</p>
+                                            <x-empty-state variant="startups" size="sm" title="No Startups Assigned Yet." highlight="Startups Assigned" />
                                         @endforelse
                                     </div>
                                 </div>
@@ -303,7 +303,7 @@
                         </template>
                     </div>
                     @empty
-                    <p class="col-span-full text-gray-500">No coordinators added yet.</p>
+                    <x-empty-state variant="coordinators" size="lg" title="No Coordinator Profiles Yet." highlight="Coordinator Profiles" message="Add portfolio coordinator profiles to manage startup assignments and track progress." class="col-span-full mt-10 sm:mt-16" />
                     @endforelse
                 </div>
 

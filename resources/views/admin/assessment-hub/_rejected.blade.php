@@ -168,7 +168,9 @@ $nameCell = 'width: calc(1.5rem + 0.5rem + '.min(max($nameLen, 8), 28).'ch)';
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-400">No rejected startups right now.</td>
+                    <td colspan="6" class="px-4">
+                        <x-empty-state variant="all-clear" size="md" title="No Rejected Startups." highlight="Rejected" message="There are no rejected startups right now." />
+                    </td>
                 </tr>
                 @endforelse
             </tbody>

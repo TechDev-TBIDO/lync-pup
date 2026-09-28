@@ -53,6 +53,8 @@ class UpdateInformationSheetRequest extends FormRequest
             'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
             'residential_address', 'permanent_address', 'sex', 'civil_status',
             'citizenship_by_birth', 'citizenship_dual', 'place_of_birth',
+            // 21. Email address - kept in caps like the rest of the sheet.
+            'founder_email',
             // 28-31. Startup registration
             'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
             // 32 & 34. Distinctions and memberships

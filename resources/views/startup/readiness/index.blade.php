@@ -11,6 +11,8 @@
             <button type="button" @click="open = !open"
                 class="inline-flex items-center gap-2 rounded-lg border-2 border-[#6D0D23] px-4 py-2 text-sm font-semibold text-[#6D0D23] transition hover:bg-[#6D0D23]/5">
                 {{ $stage }}
+                {{-- The other stage has a new/updated result. --}}
+                @if (array_diff($newStages ?? [], [$stage]) !== []) <x-new-dot /> @endif
                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M5 7.5l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -26,7 +28,7 @@
                              to tell them apart. --}}
                         class="block rounded-md px-3 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6C0E24] hover:to-[#11386A] hover:text-white
                             {{ $s === $stage ? 'bg-rose-50 font-semibold text-[#6D0D23]' : 'text-gray-700' }}">
-                        {{ $s }}
+                        <span class="inline-flex items-center gap-1.5">{{ $s }} @if (in_array($s, $newStages ?? [], true)) <x-new-dot /> @endif</span>
                     </a>
                 @endforeach
             </div>
@@ -41,7 +43,13 @@
                  34/44px score and a text-xs pill. Kept identical so the founder
                  sees one card, not two that nearly match. --}}
             <div class="bg-gradient-to-r from-[#6C0E24] to-[#AE0129] p-5 text-white sm:p-6">
-                <p class="text-xs font-semibold uppercase tracking-wide text-white/80">Overall Readiness</p>
+                <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white/80">
+                    Overall Readiness
+                    {{-- New/updated result on Pre- OR Post-Assessment since the last visit. --}}
+                    @if (! empty($newStages))
+                        <x-new-dot style="background:#EF4444;" />
+                    @endif
+                </p>
                 <p class="mt-2 text-[34px] font-bold leading-none sm:text-[44px]">
                     {{ $assessment && $assessment->overall_score !== null ? number_format($assessment->overall_score, 1) : '—' }}
                     <span class="text-base font-medium text-white/70 sm:text-lg">/9</span>

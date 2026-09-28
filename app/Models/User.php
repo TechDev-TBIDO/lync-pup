@@ -71,6 +71,41 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->forceFill(['module_seen_at' => $seen])->save();
     }
 
+    /**
+     * Founder "what's new" baseline for one module page: when the founder
+     * last opened it. A page never opened since this was added falls back to
+     * just before the oldest still-unread notification pointing at it (so
+     * whatever that notification announced still shows as new), else now
+     * (nothing new).
+     */
+    public function founderSeenSince(string $module, string $route): \Illuminate\Support\Carbon
+    {
+        $seen = $this->module_seen_at ?? [];
+        if (isset($seen[$module]) && is_string($seen[$module])) {
+            return $this->moduleSeenAt($module);
+        }
+
+        $oldest = $this->unreadNotifications()->get()
+            ->filter(fn ($n) => ($n->data['route'] ?? null) === $route)
+            ->min('created_at');
+
+        return $oldest ? \Illuminate\Support\Carbon::parse($oldest)->subSecond() : now();
+    }
+
+    /**
+     * The founder just opened a module page: stamp it as seen and mark the
+     * notifications that point at it read, so the sidebar dot clears
+     * (the page itself has already shown this visit's red dots).
+     */
+    public function markFounderModuleVisited(string $module, string $route, ?\Illuminate\Support\Carbon $at = null): void
+    {
+        $this->markModuleSeen($module, $at);
+
+        $this->unreadNotifications()->get()
+            ->filter(fn ($n) => ($n->data['route'] ?? null) === $route)
+            ->each->markAsRead();
+    }
+
     // Relationships
     public function startup()
     {

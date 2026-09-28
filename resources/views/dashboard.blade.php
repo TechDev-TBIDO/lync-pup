@@ -17,6 +17,8 @@
             $cursor1 = $end + $gapDeg1;
         }
         $incubationGradient = $segments1 ? 'conic-gradient(' . implode(', ', $segments1) . ')' : '#E5E7EB';
+        // 43.33 / 50 / 100 - up to two decimals, no trailing zeros.
+        $fmtPct = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
 
         // --- Risk Classification donut ---
         $riskTotal = max($riskClassification['total'], 1);
@@ -212,7 +214,8 @@
 
         {{-- Incubation Progress + Risk Classification --}}
         <div class="donut-row-grid grid grid-cols-1 gap-6 mb-8 items-stretch">
-            <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm flex flex-col">
+            <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm flex flex-col"
+                x-data="{ bucketOpen: null, openStartup: null }" x-effect="if (bucketOpen === null) openStartup = null">
                 <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3">
                     <h2 class="text-white font-semibold text-lg">Incubation Progress</h2>
                 </div>
@@ -243,12 +246,168 @@
                                             </span>
                                         </span>
                                     </td>
-                                    <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap align-middle">{{ $row['count'] }} ({{ $row['percent'] }}%)</td>
+                                    <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap align-middle">
+                                        {{-- Same underlined-count pattern as a Mentor's Active/Completed
+                                             Cases and a Coordinator's Assigned Startups. --}}
+                                        <button type="button" @click="bucketOpen = @js($row['label'])"
+                                            class="underline decoration-dotted underline-offset-2 hover:text-gray-900"
+                                            aria-label="See the {{ $row['count'] }} {{ Str::plural('startup', $row['count']) }} in {{ $row['label'] }}">{{ $row['count'] }}</button>
+                                        ({{ $row['percent'] }}%)
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
+
+                {{-- Bucket pop-up: every startup in the clicked bucket with its exact
+                     percentage, and a "View breakdown" of the five weighted pieces
+                     behind it (DashboardController::incubationPieces()). Rendered
+                     server-side up front and toggled with x-show, same as the
+                     Mentor / Coordinator count pop-ups. Colours and the few
+                     non-standard sizes are inline so they show without a CSS rebuild. --}}
+                @php
+                    // Outline icons (24x24, stroke) for the header, startup and each piece.
+                    $incIcon = [
+                        'rocket' => '<path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.63 8.41m5.96 5.96a14.93 14.93 0 01-5.84 2.58m-.12-8.54a6 6 0 00-7.38 5.84h4.8m2.58-5.84a14.93 14.93 0 00-2.58 5.84m2.7 2.7a15.1 15.1 0 01-2.7-2.7m-2.25 3.15a4.5 4.5 0 00-1.8 4.32 4.5 4.5 0 004.32-1.8M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>',
+                        'users' => '<path stroke-linecap="round" stroke-linejoin="round" d="M15 19.13a9.38 9.38 0 002.63.37 9.34 9.34 0 004.12-.95 4.13 4.13 0 00-7.53-2.49M15 19.13v-.01c0-1.12-.29-2.17-.78-3.08M15 19.13v.1A12.32 12.32 0 018.62 21a12.32 12.32 0 01-6.37-1.77v-.11a6.38 6.38 0 0111.96-3.08M12 6.38a3.38 3.38 0 11-6.75 0 3.38 3.38 0 016.75 0zm8.25 2.25a2.63 2.63 0 11-5.25 0 2.63 2.63 0 015.25 0z"/>',
+                        'Approved Information Sheet' => '<path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h7.5M8.25 11.25h7.5M8.25 15.75h4.5M6 3h12a1.5 1.5 0 011.5 1.5v15A1.5 1.5 0 0118 21H6a1.5 1.5 0 01-1.5-1.5v-15A1.5 1.5 0 016 3z"/>',
+                        'Pre-Assessment' => '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75l2.25 2.25L15 10.5M9 4.5h6M9 4.5a1.5 1.5 0 011.5-1.5h3A1.5 1.5 0 0115 4.5M9 4.5H6.75A1.5 1.5 0 005.25 6v13.5A1.5 1.5 0 006.75 21h10.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H15"/>',
+                        'Active-Assessment' => '<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.63a3.38 3.38 0 00-3.38-3.37h-1.5A1.13 1.13 0 0113.5 7.13v-1.5a3.38 3.38 0 00-3.38-3.38H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.63c-.62 0-1.13.5-1.13 1.13v17.25c0 .62.5 1.12 1.13 1.12h12.75c.62 0 1.12-.5 1.12-1.12V11.25a9 9 0 00-9-9z"/>',
+                        'Post-Assessment' => '<path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.69a9 9 0 016.21.72l.11.05a9 9 0 006.08.7l3.11-.73A48.5 48.5 0 0121 4.2l-3.11.73a9 9 0 01-6.08-.7l-.11-.05a9 9 0 00-6.21-.72L3 4.5M3 15V4.5"/>',
+                        'Venture Exit' => '<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>',
+                    ];
+                    $incSvg = fn (string $key, string $size = '22') => '<svg width="'.$size.'" height="'.$size.'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">'.($incIcon[$key] ?? $incIcon['Approved Information Sheet']).'</svg>';
+                    $incTones = [
+                        'full' => ['bar' => '#10B981', 'text' => '#047857', 'tile' => 'background:#E8F8F1;color:#047857', 'badge' => 'background:#ECFDF5;color:#047857;box-shadow:inset 0 0 0 1px #A7F3D0', 'label' => 'Fully contributing'],
+                        'partial' => ['bar' => '#F59E0B', 'text' => '#B45309', 'tile' => 'background:#FEF6E4;color:#B45309', 'badge' => 'background:#FFFBEB;color:#B45309;box-shadow:inset 0 0 0 1px #FDE68A', 'label' => 'Partially contributing'],
+                        'none' => ['bar' => '#D1D5DB', 'text' => '#6B7280', 'tile' => 'background:#F3F4F6;color:#6B7280', 'badge' => 'background:#F3F4F6;color:#4B5563;box-shadow:inset 0 0 0 1px #E5E7EB', 'label' => 'Not contributing'],
+                    ];
+                @endphp
+                <template x-teleport="body">
+                    <div x-show="bucketOpen !== null" x-cloak x-transition.opacity
+                        @keydown.escape.window="bucketOpen = null"
+                        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+                        style="display:none;">
+                        <div @click.outside="bucketOpen = null"
+                            class="relative flex w-full flex-col overflow-hidden bg-white shadow-2xl"
+                            style="max-width: 28rem; max-height: 80vh; border-radius: .75rem;">
+                            {{-- Header --}}
+                            <div class="flex flex-shrink-0 items-center justify-between gap-4 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white" style="padding: 1rem 1.5rem;">
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <span class="shrink-0 text-white">{!! $incSvg('rocket', '22') !!}</span>
+                                    <div class="min-w-0">
+                                        @foreach ($incubationProgress['breakdown'] as $row)
+                                            <div x-show="bucketOpen === @js($row['label'])">
+                                                <h3 class="font-bold">{{ $row['label'] }} <span class="font-normal text-white/80">&middot; {{ $row['count'] }} {{ Str::plural('Startup', $row['count']) }}</span></h3>
+                                                <p class="text-xs text-white/70">{{ $row['range'] }}</p>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <button type="button" @click="bucketOpen = null"
+                                    class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                                    aria-label="Close">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto p-4" style="background: #FAFBFD;">
+                                @foreach ($incubationProgress['breakdown'] as $row)
+                                    <div x-show="bucketOpen === @js($row['label'])" class="space-y-3">
+                                        @forelse ($row['startups'] ?? [] as $s)
+                                            @php $key = $row['label'].'-'.$s['id']; @endphp
+                                            <div class="space-y-2">
+                                                {{-- Startup --}}
+                                                <div class="flex items-center justify-between gap-3 border border-gray-200 bg-white" style="border-radius: .75rem; padding: .75rem 1rem;">
+                                                    <div class="flex min-w-0 items-center gap-3">
+                                                        @if (! empty($s['photo']))
+                                                            <img src="{{ $s['photo'] }}" alt="{{ $s['name'] }}" loading="lazy"
+                                                                class="shrink-0 border border-gray-200 object-cover"
+                                                                style="height: 2.25rem; width: 2.25rem; border-radius: 9999px;">
+                                                        @else
+                                                            <span class="flex shrink-0 items-center justify-center" style="height: 2.25rem; width: 2.25rem; border-radius: 9999px; background:#E8F8F1; color:#0F9F6E;">{!! $incSvg('users', '18') !!}</span>
+                                                        @endif
+                                                        <div class="min-w-0">
+                                                            <a href="{{ $s['url'] }}" class="block truncate text-sm font-semibold text-gray-900 hover:underline">{{ $s['name'] }}</a>
+                                                            <p class="mt-0.5 text-xs text-gray-500">Cohort {{ $s['cohort'] ?? '—' }}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex shrink-0 flex-col items-end gap-1">
+                                                        <span class="rounded-full text-sm font-bold" style="padding: .1rem .6rem; color: {{ $row['color'] }}; background: {{ $row['color'] }}1A;">{{ $fmtPct($s['percent']) }}%</span>
+                                                        <button type="button" @click="openStartup = openStartup === @js($key) ? null : @js($key)"
+                                                            class="font-semibold underline underline-offset-2 transition hover:opacity-80"
+                                                            style="font-size: 11px; color:#6D0D23;"
+                                                            :aria-expanded="openStartup === @js($key)">
+                                                            <span x-text="openStartup === @js($key) ? 'Hide breakdown' : 'View breakdown'">View breakdown</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Five weighted pieces --}}
+                                                <div x-show="openStartup === @js($key)" x-cloak class="space-y-2">
+                                                    @foreach ($s['pieces'] as $piece)
+                                                        @php
+                                                            $tone = $incTones[$piece['status']];
+                                                            $fill = $piece['weight'] > 0 ? min(100, ($piece['earned'] / $piece['weight']) * 100) : 0;
+                                                        @endphp
+                                                        <div class="flex items-center gap-3 border border-gray-200 bg-white" style="border-radius: .75rem; padding: .75rem; align-items: center;">
+                                                            <span class="flex shrink-0 items-center justify-center" style="height: 2rem; width: 2rem; border-radius: .5rem; {{ $tone['tile'] }}">{!! $incSvg($piece['label'], '16') !!}</span>
+                                                            <div class="min-w-0 flex-1">
+                                                                <div class="flex items-start justify-between gap-3">
+                                                                    <div class="min-w-0">
+                                                                        <div class="flex flex-wrap items-center gap-1.5">
+                                                                            <span class="text-[13px] font-semibold text-gray-900">{{ $piece['label'] }}</span>
+                                                                        </div>
+                                                                        @if ($piece['note'])
+                                                                            <p class="mt-0.5 text-xs text-gray-500">{{ $piece['note'] }}</p>
+                                                                        @endif
+                                                                    </div>
+                                                                    @if ($piece['url'])
+                                                                        <a href="{{ $piece['url'] }}" class="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-xs hover:underline" style="color: {{ $tone['text'] }};" title="Open {{ $piece['label'] }}">
+                                                                            <span><span class="font-bold">{{ $fmtPct($piece['earned']) }}</span> / {{ $piece['weight'] }}%</span>
+                                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                                                                        </a>
+                                                                    @else
+                                                                        <span class="shrink-0 whitespace-nowrap text-xs" style="color: {{ $tone['text'] }};"><span class="font-bold">{{ $fmtPct($piece['earned']) }}</span> / {{ $piece['weight'] }}%</span>
+                                                                    @endif
+                                                                </div>
+                                                                <div class="mt-2 w-full overflow-hidden rounded-full" style="height: 6px; background:#E5E7EB;">
+                                                                    <div class="h-full rounded-full" style="width: {{ $fill }}%; background: {{ $tone['bar'] }};"></div>
+                                                                </div>
+                                                                @if (! empty($piece['items']))
+                                                                    <div class="mt-2 flex flex-wrap gap-1.5">
+                                                                        @foreach ($piece['items'] as $item)
+                                                                            <a href="{{ $item['url'] }}"
+                                                                                class="inline-flex items-center gap-1 rounded-full font-semibold transition hover:opacity-80"
+                                                                                style="padding: .15rem .55rem; font-size: 11px; {{ $item['done'] ? 'background:#F0FDF7;color:#047857;box-shadow:inset 0 0 0 1px #A7F3D0' : 'background:#FFFFFF;color:#BE123C;box-shadow:inset 0 0 0 1px #FECDD3' }}"
+                                                                                title="{{ $item['done'] ? 'Done' : 'Still missing' }} - open in Assessment Hub">
+                                                                                @if ($item['done'])
+                                                                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                                                                @else
+                                                                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.01"/></svg>
+                                                                                @endif
+                                                                                {{ $item['label'] }}@unless ($item['done'])<span class="font-normal">&nbsp;· missing</span>@endunless
+                                                                            </a>
+                                                                        @endforeach
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <x-empty-state variant="startups" size="sm" title="No Startups Here Yet." highlight="Startups" />
+                                        @endforelse
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
 
             <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm flex flex-col">

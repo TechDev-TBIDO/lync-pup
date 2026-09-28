@@ -10,8 +10,10 @@
     // approved_by) — those were left untouched by Clear Form, so a document
     // that was never saved could still read as "dirty" (and wrongly warn on
     // navigating away) even right after clicking Clear Form.
-    $buildDoc6Seed = function (array $doc6Data) {
+    $buildDoc6Seed = function (array $doc6Data) use ($selectedStartup) {
         $seed = [
+            // Editable Startup / Company Name - starts from the startup's own name.
+            'startup_name' => $doc6Data['startup_name'] ?? ($selectedStartup?->company_name ?? ''),
             'business_stage' => array_merge(
                 array_fill_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_6_BUSINESS_STAGES, false),
                 $doc6Data['business_stage'] ?? []
@@ -45,9 +47,11 @@
     $doc6Seed = $buildDoc6Seed($doc6Data);
     $doc6Blank = $buildDoc6Seed([]);
 
-    $buildDoc7Seed = function (array $doc7Data) {
+    $buildDoc7Seed = function (array $doc7Data) use ($selectedStartup) {
         $blankCheckInRow = array_fill_keys(array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_ROW_COLUMNS), '');
         $seed = [
+            // Editable Startup / Company Name - starts from the startup's own name.
+            'startup_name' => $doc7Data['startup_name'] ?? ($selectedStartup?->company_name ?? ''),
             'check_ins' => $doc7Data['check_ins'] ?? array_fill(0, \App\Support\ActiveAssessmentForms::DOCUMENT_7_DEFAULT_ROWS, $blankCheckInRow),
             'performance_matrix' => [],
         ];
@@ -72,13 +76,15 @@
     $doc7Seed = $buildDoc7Seed($doc7Data);
     $doc7Blank = $buildDoc7Seed([]);
 
-    $buildDoc8Seed = function (array $doc8Data) {
+    $buildDoc8Seed = function (array $doc8Data) use ($selectedStartup) {
         $checklistSeed = fn (array $options, array $stored) => array_merge(
             array_fill_keys($options, false),
             ['others_checked' => false, 'others_text' => ''],
             $stored
         );
         $seed = [
+            // Editable Startup / Company Name - starts from the startup's own name.
+            'startup_name' => $doc8Data['startup_name'] ?? ($selectedStartup?->company_name ?? ''),
             'prototype_name' => $doc8Data['prototype_name'] ?? '',
             'prototype_description' => $doc8Data['prototype_description'] ?? '',
             'platform_compatibility' => $checklistSeed(\App\Support\ActiveAssessmentForms::DOCUMENT_8_PLATFORM_COMPATIBILITY, $doc8Data['platform_compatibility'] ?? []),
@@ -438,8 +444,8 @@
 
                 <div class="mb-4">
                     <p class="mb-1.5 text-sm font-semibold text-gray-700">Startup / Company Name</p>
-                    <input type="text" value="{{ $selectedStartup?->company_name ?? '—' }}" readonly
-                        class="w-full max-w-md cursor-not-allowed rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500">
+                    <input type="text" x-model="doc6.startup_name" maxlength="255" placeholder="Startup / Company Name"
+                        class="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm">
                 </div>
 
                 <div class="mb-6 flex flex-wrap gap-x-10 gap-y-2">
@@ -543,8 +549,8 @@
                 <div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div>
                         <p class="mb-1.5 text-sm font-semibold text-gray-700">Startup / Company Name</p>
-                        <input type="text" value="{{ $selectedStartup?->company_name ?? '—' }}" readonly
-                            class="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500">
+                        <input type="text" x-model="doc7.startup_name" maxlength="255" placeholder="Startup / Company Name"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <p class="mb-1.5 text-sm font-semibold text-gray-700">Portfolio Coordinator</p>
@@ -680,8 +686,8 @@
 
                 <div class="mb-4">
                     <p class="mb-1.5 text-sm font-semibold text-gray-700">Startup / Company Name</p>
-                    <input type="text" value="{{ $selectedStartup?->company_name ?? '—' }}" readonly
-                        class="w-full max-w-md cursor-not-allowed rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500">
+                    <input type="text" x-model="doc8.startup_name" maxlength="255" placeholder="Startup / Company Name"
+                        class="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm">
                 </div>
 
                 <div class="mb-4">

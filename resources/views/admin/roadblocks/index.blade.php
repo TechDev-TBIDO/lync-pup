@@ -517,18 +517,19 @@
                                 </div>
                     </div>
                     @empty
-                    <p class="text-gray-500 col-span-full">No pending roadblocks.</p>
+                    <x-empty-state variant="roadblocks" size="lg" title="No Pending Roadblocks." highlight="Roadblocks" message="New roadblocks from startups will show up here." class="col-span-full" />
                     @endforelse
 
                     @if ($pendingCount)
                     {{-- Distinct from "none exist" so an over-narrow filter is obvious --}}
                     <div x-show="pendingVisible === 0" x-cloak
-                        class="col-span-full rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center">
-                        <p class="text-sm text-gray-500">No pending roadblocks match these filters.</p>
-                        <button type="button" @click="clearPendingFilters()"
-                            class="mt-2 text-xs font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
-                            Clear filters
-                        </button>
+                        class="col-span-full rounded-xl border border-dashed border-gray-300 px-6">
+                        <x-empty-state variant="search" size="md" title="No Matching Roadblocks." highlight="Matching" message="No pending roadblocks match these filters.">
+                            <button type="button" @click="clearPendingFilters()"
+                                class="text-xs font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                Clear filters
+                            </button>
+                        </x-empty-state>
                     </div>
                     @endif
                 </div>
@@ -694,7 +695,9 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="5" class="px-4 py-6 text-center text-gray-500">Nothing pending review.</td>
+                                        <td colspan="5" class="px-4">
+                                            <x-empty-state variant="roadblocks" size="md" title="Nothing Pending Review." highlight="Pending Review" message="Roadblocks awaiting assessment will appear here." />
+                                        </td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -757,7 +760,9 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="5" class="px-4 py-6 text-center text-gray-500">No resolved roadblocks.</td>
+                                        <td colspan="5" class="px-4">
+                                            <x-empty-state variant="roadblocks" size="md" title="No Resolved Roadblocks Yet." highlight="Resolved Roadblocks" message="Resolved cases will be archived here." />
+                                        </td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -870,7 +875,9 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="5" class="px-4 py-6 text-center text-gray-500">No failed roadblocks.</td>
+                                        <td colspan="5" class="px-4">
+                                            <x-empty-state variant="all-clear" size="md" title="No Failed Roadblocks." highlight="Failed" message="Everything is on track. Nice work!" />
+                                        </td>
                                     </tr>
                                     @endforelse
                                 </tbody>

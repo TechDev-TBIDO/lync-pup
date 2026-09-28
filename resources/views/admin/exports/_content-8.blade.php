@@ -16,7 +16,7 @@
 @include('admin.exports._letterhead', ['formNo' => 'PUP-TBIDO FORM No. 008', 'title' => 'PROTOTYPE VALIDATION FORM'])
 
 <div class="section-title">SECTION 1: STARTUP PROFILING</div>
-<div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($startup->company_name) !!}</div>
+<div class="field-row"><span class="field-label">Startup Name:</span> {!! $v(filled(data_get($data, 'startup_name')) ? data_get($data, 'startup_name') : $startup->company_name) !!}</div>
 <div class="field-row"><span class="field-label">Prototype/Product Name:</span> {!! $v(data_get($data, 'prototype_name')) !!}</div>
 <div class="field-row"><span class="field-label">Brief Description:</span></div>
 <div style="border: 1px solid #000; padding: 5px; min-height: 24px;">{!! nl2br($v(data_get($data, 'prototype_description'))) !!}</div>

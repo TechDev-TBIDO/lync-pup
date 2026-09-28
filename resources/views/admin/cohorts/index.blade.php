@@ -124,7 +124,9 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">No cohorts yet.</td>
+                    <td colspan="6" class="px-4">
+                        <x-empty-state variant="people" size="md" title="No Cohorts Yet." highlight="Cohorts" message="Create a cohort to start grouping your startups." />
+                    </td>
                 </tr>
                 @endforelse
             </tbody>

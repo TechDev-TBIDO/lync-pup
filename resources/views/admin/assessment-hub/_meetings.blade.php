@@ -360,14 +360,17 @@ $archiveMonths = $monthsFor($meetingsArchive);
                             </td>
                         </tr>
                         @empty
+                        @php
+                            $meetingEmpty = [
+                                'today' => ['meetings', 'No Meetings Today.', 'Meetings', 'Meetings set for today will appear here.'],
+                                'upcoming' => ['meetings', 'No Upcoming Meetings Scheduled.', 'Meetings Scheduled', 'Check back later for scheduled meetings.'],
+                                'pending' => ['meetings', 'Nothing Pending Review.', 'Pending Review', 'Finished meetings waiting for review will show up here.'],
+                                'resolved' => ['meetings', 'No Resolved Meetings Yet.', 'Resolved Meetings', 'Reviewed meetings will be kept here.'],
+                            ][$tabKey] ?? ['all-clear', 'No Failed Meetings.', 'Failed', 'Everything is on track. Nice work!'];
+                        @endphp
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">
-                                @if ($tabKey === 'today') No meetings today.
-                                @elseif ($tabKey === 'upcoming') No upcoming meetings.
-                                @elseif ($tabKey === 'pending') Nothing pending review.
-                                @elseif ($tabKey === 'resolved') No resolved meetings.
-                                @else No failed meetings.
-                                @endif
+                            <td colspan="5" class="px-4">
+                                <x-empty-state :variant="$meetingEmpty[0]" size="md" :title="$meetingEmpty[1]" :highlight="$meetingEmpty[2]" :message="$meetingEmpty[3]" />
                             </td>
                         </tr>
                         @endforelse
@@ -376,7 +379,9 @@ $archiveMonths = $monthsFor($meetingsArchive);
                              all of them — distinct from the @empty case above,
                              which only fires when there are no rows at all. --}}
                         <tr x-show="{{ $tabData['monthKey'] }}Month !== 'all' && ! (@js($tabData['rows']->map($monthKeyOf)->values())).includes({{ $tabData['monthKey'] }}Month)">
-                            <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">No meetings for the selected month.</td>
+                            <td colspan="5" class="px-4">
+                                <x-empty-state variant="search" size="md" title="No Meetings This Month." highlight="This Month" message="Try picking a different month." />
+                            </td>
                         </tr>
                         @endif
                     </tbody>
