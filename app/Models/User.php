@@ -13,6 +13,11 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
+    /**
+     * How long an emailed admin invitation link stays usable.
+     */
+    public const INVITATION_EXPIRES_HOURS = 48;
+
     protected $fillable = [
         'name',
         'first_name',
@@ -30,6 +35,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'remember_token',
         'email_verification_token',
+        'invitation_token',
     ];
 
     protected function casts(): array
@@ -38,6 +44,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_first_login' => 'boolean',
+            'is_super_admin' => 'boolean',
+            'invitation_sent_at' => 'datetime',
             'module_seen_at' => 'array',
         ];
     }
@@ -121,6 +129,67 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->role === 'Admin';
+    }
+
+    /**
+     * The one admin who can manage other admin accounts (Manage Admins page).
+     * Everything else in the app is identical for every admin.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->isAdmin() && (bool) $this->is_super_admin;
+    }
+
+    /**
+     * An admin who was invited but hasn't opened their link and set a
+     * password yet.
+     */
+    public function isPendingInvitation(): bool
+    {
+        return $this->isAdmin() && $this->account_status === 'Pending';
+    }
+
+    /**
+     * An admin whose access was turned off from Manage Admins.
+     */
+    public function isDisabledAdmin(): bool
+    {
+        return $this->isAdmin() && $this->account_status === 'Inactive';
+    }
+
+    /**
+     * Issues a fresh invitation link token (invalidating any earlier link)
+     * and returns the plain token for the email. Only its hash is stored.
+     */
+    public function issueInvitationToken(): string
+    {
+        $token = Str::random(64);
+
+        $this->forceFill([
+            'invitation_token' => hash('sha256', $token),
+            'invitation_sent_at' => now(),
+        ])->save();
+
+        return $token;
+    }
+
+    /**
+     * The pending admin a still-valid invitation link belongs to, or null
+     * when the token is unknown, already used, or expired.
+     */
+    public static function findByValidInvitationToken(string $token): ?self
+    {
+        $user = self::where('invitation_token', hash('sha256', $token))
+            ->where('role', 'Admin')
+            ->where('account_status', 'Pending')
+            ->first();
+
+        if (! $user || ! $user->invitation_sent_at
+            || $user->invitation_sent_at->copy()->addHours(self::INVITATION_EXPIRES_HOURS)->isPast()) {
+            return null;
+        }
+
+        return $user;
     }
 
     public function isStartup(): bool

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\AdminInvitationController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
@@ -56,6 +57,15 @@ Route::middleware('guest')->group(function () {
     Route::get('registration-complete', function () {
         return view('auth.registration-complete');
     })->name('registration.complete');
+
+    // Invited admin sets their own password here (link from the
+    // AdminInvitation email). Guest-only: the token in the URL is what
+    // proves who they are — see AdminInvitationController.
+    Route::get('admin-invitation/{token}', [AdminInvitationController::class, 'create'])
+        ->name('admin-invitation.show');
+    Route::post('admin-invitation/{token}', [AdminInvitationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('admin-invitation.store');
 
     // Shown after NewPasswordController successfully resets a password.
     Route::get('password-reset-complete', function () {

@@ -101,6 +101,25 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Admins don't go through the Founder approval lifecycle above, but
+        // Manage Admins can put one in two states that must not sign in: a
+        // disabled account ('Inactive'), and an invitation that hasn't been
+        // accepted yet ('Pending' — they set their password from the emailed
+        // link, never from here). Any other value is left alone so older
+        // admin rows are never locked out by this.
+        if (Auth::user()->isDisabledAdmin() || Auth::user()->isPendingInvitation()) {
+            $message = Auth::user()->isPendingInvitation()
+                ? 'Please finish setting up your account using the invitation link sent to your email.'
+                : 'Your admin account has been disabled. Please contact the PUP TBIDO Super Admin.';
+
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => $message,
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

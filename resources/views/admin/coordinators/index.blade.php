@@ -318,7 +318,7 @@
                         <div class="flex min-h-full items-center justify-center">
                             <div
                                 class="relative flex max-h-[85vh] w-[740px] max-w-full flex-col overflow-y-auto rounded-xl bg-white shadow-2xl"
-                                ">
+                                >
 
                                 <x-coordinator-form-modal
                                     mode="add"

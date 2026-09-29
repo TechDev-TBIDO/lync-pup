@@ -28,13 +28,13 @@ class InformationSheet extends Model
         // 17. Dual citizenship - most founders have none; blank is fine.
         'citizenship_dual',
         'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
-        'secondary_year_graduated', 'vocational_year_graduated', 'college_year_graduated', 'graduate_year_graduated',
-        // 22. Each education level is optional on its own (a started level
-        // must be complete - see the request's required_with rules).
-        'secondary_school', 'secondary_degree_course', 'secondary_highest_level_unit',
-        'vocational_school', 'vocational_degree_course', 'vocational_highest_level_unit',
-        'college_school', 'college_degree_course', 'college_highest_level_unit',
-        'graduate_school', 'graduate_degree_course', 'graduate_highest_level_unit',
+        // 22. Educational Background: Secondary and College are required
+        // (every column, Year Graduated included - N/A is accepted, e.g. not
+        // in college yet / still studying). Vocational and Graduate Studies
+        // stay optional, but a started row needs all four columns - see the
+        // request's required_with rules.
+        'vocational_school', 'vocational_degree_course', 'vocational_highest_level_unit', 'vocational_year_graduated',
+        'graduate_school', 'graduate_degree_course', 'graduate_highest_level_unit', 'graduate_year_graduated',
         'scholarships_academic_honors',
         'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
         'non_academic_distinctions', 'membership_associations',

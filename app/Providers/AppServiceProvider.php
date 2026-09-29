@@ -31,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('admin-only', fn ($user) => $user->role === 'Admin');
         Gate::define('startup-only', fn ($user) => $user->role === 'Startup');
 
+        // Manage Admins (invite / disable / enable / transfer). Only the one
+        // Super Admin — every other admin page stays open to all admins.
+        Gate::define('manage-admins', fn ($user) => $user->isSuperAdmin());
+
         // The moment a founder verifies their email (see VerifyEmailController,
         // which fires this same Verified event), their startup is placed into
         // whatever cohort was most recently added — cohort placement no

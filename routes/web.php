@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\CohortController;
 use App\Http\Controllers\Admin\RiskMonitoringController;
 use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\VersionHistoryController;
+use App\Http\Controllers\Admin\AdminManagementController;
 use App\Http\Controllers\Startup\FounderReadinessController;
 
 
@@ -73,12 +74,12 @@ Route::get('/storage/{path}', [StorageController::class, 'show'])
 // in), and without a role check this route rendered the full admin layout
 // for them. CheckRole now catches that and bounces them to their own
 // dashboard instead.
-Route::middleware(['auth', 'role:Admin', 'select-cohort'])->group(function () {
+Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
 });
 
 // Admin-only routes
-Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->prefix('admin')->name('admin.')->group(function () {
 
     Route::get('startups', [StartupProfileController::class, 'index'])->name('startups.index');
     Route::get('startups/{startup}', [StartupProfileController::class, 'show'])->name('startups.show');
@@ -184,6 +185,19 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
     Route::patch('cohorts/{cohort}/archive', [CohortController::class, 'archive'])->name('cohorts.archive');
 
     Route::get('/risk-monitoring', [RiskMonitoringController::class, 'index'])->name('risk-monitoring.index');
+
+    // Manage Admins — Super Admin only. 'can:manage-admins' is the real
+    // lock (a regular admin typing the URL gets a 403); hiding the sidebar
+    // link is just cosmetic on top of it.
+    Route::middleware('can:manage-admins')->prefix('admins')->name('admins.')->group(function () {
+        Route::get('/', [AdminManagementController::class, 'index'])->name('index');
+        Route::post('/', [AdminManagementController::class, 'store'])->name('store');
+        Route::post('/{user}/resend', [AdminManagementController::class, 'resend'])->name('resend');
+        Route::delete('/{user}', [AdminManagementController::class, 'destroy'])->name('destroy');
+        Route::patch('/{user}/disable', [AdminManagementController::class, 'disable'])->name('disable');
+        Route::patch('/{user}/enable', [AdminManagementController::class, 'enable'])->name('enable');
+        Route::post('/{user}/transfer', [AdminManagementController::class, 'transfer'])->name('transfer');
+    });
 });
 
 // Startup-only routes (future modules nest here)

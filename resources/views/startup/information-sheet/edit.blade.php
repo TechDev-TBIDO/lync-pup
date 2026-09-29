@@ -12,7 +12,7 @@
         // future date or a 2010-or-later birth year can never be chosen; the
         // request classes repeat both rules for anything that skips the UI.
         $dobMin = '1900-01-01';
-        $dobMax = '2009-12-31';
+        $dobMax = ''; // No upper limit on date of birth.
         $lockReason = $sheet?->approval_status === 'Approved'
             ? 'Approved & Locked — contact your Coordinator for changes'
             : ($startup->evaluationDayLockActive()
@@ -657,7 +657,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                         <div>
                             {!! $field('surname', 'SURNAME', 1) !!}
                             {!! $field('first_name', 'FIRST NAME', 2) !!}
-                            {!! $field('middle_name', 'MIDDLE NAME', 3, note: 'N/A if not applicable') !!}
+                            {!! $field('middle_name', 'MIDDLE NAME', 3) !!}
                             {!! $field('name_extension', 'NAME EXTENSION', 4) !!}
                             {!! $unitField('height_m', 'HEIGHT', 5, ['cm' => 0.01, 'in' => 0.0254, 'm' => 1, 'ft' => 0.3048], 'e.g. 175') !!}
                             {!! $unitField('weight_kg', 'WEIGHT', 6, ['kg' => 1, 'lb' => 0.45359237], 'e.g. 58') !!}
@@ -777,11 +777,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                         $refs.{{ $key }}Year.value = '';
                                     }
                                 ">
-                                <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}</td>
-                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" :readonly="!editing" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;' : 'color:#111827;'">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['degree_course'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['highest_level_unit'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
-                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
+                                <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}@if (in_array($key, ['secondary', 'college'], true)) <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span>@endif</td>
+                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;' : 'color:#111827;'">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing || schoolNA" placeholder="{{ $row['degree_course'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing || schoolNA" placeholder="{{ $row['highest_level_unit'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -2271,7 +2271,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 // one problem, not two: stacking a second "required" message
                 // under the one already there is just noise. One line per
                 // field - keep whichever got there first.
-                if (control.hasAttribute('data-field-invalid')) {
+                // Also covers Height/Weight: the server reports both the box the
+                // user types in (height_input) AND the derived value behind it
+                // (height_m), and the latter resolves to the wrapper around that
+                // same box - one problem, so only one message.
+                if (control.hasAttribute('data-field-invalid') || control.querySelector?.('[data-field-invalid]')) {
                     candidates.push(control);
                     return;
                 }
@@ -2440,24 +2444,53 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 // must be filled. Same rule as the server's required_with +
                 // guardAtLeastOneEducationLevel().
                 let anyLevel = false;
+                let anyStarted = false;
                 ['secondary', 'vocational', 'college', 'graduate'].forEach((level) => {
                     const cells = ['school', 'degree_course', 'highest_level_unit']
                         .map((col) => mainForm.elements.namedItem(`${level}_${col}`))
                         .filter(Boolean);
+                    // Year Graduated is part of a started row too (Vocational /
+                    // Graduate). Secondary and College carry `required` on every
+                    // cell, so the loop above already flagged their blanks.
+                    const year = mainForm.elements.namedItem(`${level}_year_graduated`);
                     if (! cells.length) return;
 
                     const school = (cells[0].value || '').trim();
                     if (school !== '' && school.toUpperCase() !== 'N/A') anyLevel = true;
-                    if (cells.every(blank)) return;
+                    // A row with a real answer in any cell counts as started -
+                    // its own per-cell messages already say what's missing.
+                    if (cells.some((el) => ! blank(el) && el.value.trim().toUpperCase() !== 'N/A')) anyStarted = true;
+                    // Any input in any of the four cells (N/A included) starts
+                    // the row, so the whole row is then required.
+                    if ([...cells, year].filter(Boolean).every(blank)) return;
 
-                    cells.forEach((el) => {
-                        if (blank(el)) flag(el, 'Required for this level - fill it in or clear the row.');
+                    [...cells, year].filter(Boolean).forEach((el) => {
+                        if (blank(el) && ! el.hasAttribute('data-field-invalid')) {
+                            flag(el, 'Required for this level - fill it in or clear the row.');
+                        }
                     });
                 });
 
+                // No level filled at all: flag the whole first row (School,
+                // Degree/Course, Highest Level) on this same click, not just
+                // the school cell - otherwise the other two only turned red on
+                // the NEXT save, after the school had been filled in.
                 const firstSchool = mainForm.elements.namedItem('secondary_school');
-                if (firstSchool && ! anyLevel && ! firstSchool.hasAttribute('data-field-invalid')) {
-                    flag(firstSchool, 'Fill in at least one level of educational background.');
+                // Only when nothing real has been typed in ANY level. If a
+                // founder started, say, College, that row's own messages are
+                // enough - pointing them at the Secondary row too would just
+                // be confusing.
+                if (firstSchool && ! anyLevel && ! anyStarted) {
+                    if (! firstSchool.hasAttribute('data-field-invalid')) {
+                        flag(firstSchool, 'Fill in at least one level of educational background.');
+                    }
+                    [
+                        ['secondary_degree_course', 'Please enter the degree or course.'],
+                        ['secondary_highest_level_unit', 'Please enter the highest level or units.'],
+                    ].forEach(([name, message]) => {
+                        const el = mainForm.elements.namedItem(name);
+                        if (el && blank(el) && ! el.hasAttribute('data-field-invalid')) flag(el, message);
+                    });
                 }
             }
 
