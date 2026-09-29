@@ -48,6 +48,9 @@
     editing: false,
     isLocked: {{ $lockReason ? 'true' : 'false' }},
     saving: false,
+    // Which button started the current request ('save' | 'submit'), so only
+    // that one shows its loading label - both stay disabled meanwhile.
+    savingIntent: null,
     dirty: false,
     lastClickedInput: null,
 
@@ -210,6 +213,7 @@ pendingRemoval: [],
             : 0;
 
         this.saving = true;
+        this.savingIntent = intent;
 
         try {
             // The server dry-run always runs too, even when the client
@@ -2119,7 +2123,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                         :disabled="saving || !dirty"
                         class="flex-1 rounded-lg border border-[#6D0D23] py-2.5 text-sm font-semibold text-[#6D0D23]
                bg-white hover:bg-rose-50 transition disabled:opacity-60 disabled:cursor-not-allowed">
-                        <span x-text="saving ? 'Saving…' : 'Save'"></span>
+                        <span x-text="saving && savingIntent === 'save' ? 'Saving…' : 'Save'"></span>
                     </button>
 
                     {{-- Submit for Review is the final action - every
@@ -2137,7 +2141,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                         class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
                bg-gradient-to-r from-[#6D0D23] to-[#11386A]
                hover:opacity-95 transition disabled:opacity-60 disabled:cursor-not-allowed">
-                        <span x-text="saving ? 'Submitting…' : 'Submit for Review'"></span>
+                        <span x-text="saving && savingIntent === 'submit' ? 'Submitting…' : 'Submit for Review'"></span>
                     </button>
 
                 </div>
