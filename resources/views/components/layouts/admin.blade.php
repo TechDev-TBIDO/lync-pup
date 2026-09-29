@@ -59,6 +59,13 @@
             ['route' => 'admin.risk-monitoring.index', 'label' => 'Risk Monitoring', 'icon' => 'riskMon.svg'],
             ];
 
+            // Super Admin only, placed right under Dashboard — every other
+            // admin never sees this link (and gets a 403 from
+            // 'can:manage-admins' if they type the URL).
+            if (auth()->user()?->can('manage-admins')) {
+            array_splice($navItems, 1, 0, [['route' => 'admin.admins.index', 'label' => 'Manage Admins', 'icon' => 'check-shield.svg']]);
+            }
+
             // "Anything new here since I last looked" per nav item — shared
             // by a global view composer (AppServiceProvider::boot()) rather
             // than baked into $navItems above, since it depends on the

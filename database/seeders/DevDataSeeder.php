@@ -23,10 +23,16 @@ class DevDataSeeder extends Seeder
     {
         $cohort3 = Cohort::where('number', 3)->firstOrFail();
         // Admin account
-        User::firstOrCreate(
+        // Local dev only: the seeded admin is also the Super Admin so Manage
+        // Admins can be tried out. On a real server use
+        // `php artisan admin:create --super` instead of this seeder.
+        $admin = User::firstOrCreate(
             ['email' => 'admin@pup.edu.ph'],
             ['name' => 'TBI Administrator', 'password' => 'password', 'role' => 'Admin']
         );
+        if (! User::where('is_super_admin', true)->exists()) {
+            $admin->forceFill(['is_super_admin' => true])->save();
+        }
 
         // Founder test account — verified + Active so it can log straight in.
         // This one is meant for general day-to-day testing (dashboard,

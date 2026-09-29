@@ -93,6 +93,16 @@ class VersionHistory extends Model
         'resolve_assessment_meeting' => 'Resolved Assessment Meeting',
         'fail_assessment_meeting' => 'Marked Assessment Meeting Failed',
         'recover_assessment_meeting' => 'Recovered Assessment Meeting',
+
+        // Manage Admins (context 'Admin Management' — page-wide; no startup).
+        'invite_admin' => 'Invited Admin',
+        'resend_admin_invitation' => 'Resent Admin Invitation',
+        'cancel_admin_invitation' => 'Cancelled Admin Invitation',
+        'accept_admin_invitation' => 'Accepted Admin Invitation',
+        'disable_admin' => 'Disabled Admin',
+        'enable_admin' => 'Re-enabled Admin',
+        'delete_admin' => 'Deleted Admin',
+        'transfer_super_admin' => 'Transferred Super Admin',
     ];
 
     public function startup()

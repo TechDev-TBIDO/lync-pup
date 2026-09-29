@@ -76,6 +76,26 @@
             ];
             $validArchiveStatuses = array_keys($archiveStatuses);
             $initialArchiveStatusFilter = in_array(request('status'), $validArchiveStatuses) ? request('status') : 'all';
+            // Meetings tab filters: date order + meeting type. Both are applied
+            // client-side (CSS `order` / x-show) over the already-sorted list,
+            // and mirrored into the URL like the archive status filter.
+            $meetingSorts = [
+                'soonest' => 'Soonest first',
+                'furthest' => 'Furthest first',
+            ];
+            $meetingTypeFilters = ['all' => 'All Types'] + $typeLabels;
+            $initialMeetingSort = array_key_exists(request('sort'), $meetingSorts) ? request('sort') : 'soonest';
+            $initialMeetingType = array_key_exists(request('type'), $meetingTypeFilters) ? request('type') : 'all';
+            // Archive tab gets the same two extra filters. Its list is already
+            // newest-first (sortByDesc in MeetingController), so "Oldest first"
+            // is the reversed order. Separate URL keys so the two tabs don't
+            // overwrite each other's choice.
+            $archiveSorts = [
+                'newest' => 'Newest first',
+                'oldest' => 'Oldest first',
+            ];
+            $initialArchiveSort = array_key_exists(request('archive_sort'), $archiveSorts) ? request('archive_sort') : 'newest';
+            $initialArchiveType = array_key_exists(request('archive_type'), $meetingTypeFilters) ? request('archive_type') : 'all';
             $validTabs = ['meetings', 'archive'];
             $initialTab = in_array(request('tab'), $validTabs) ? request('tab') : 'meetings';
             @endphp
@@ -85,16 +105,33 @@
                 tab: @js($initialTab),
                 archiveStatusFilter: @js($initialArchiveStatusFilter),
                 archivedStatuses: @js($archivedMeetings->pluck('archive_status')),
+                archivedTypes: @js($archivedMeetings->pluck('type')),
+                archiveSort: @js($initialArchiveSort),
+                archiveType: @js($initialArchiveType),
+                meetingSort: @js($initialMeetingSort),
+                meetingType: @js($initialMeetingType),
+                meetingTypes: @js($meetings->pluck('type')),
+
+                get meetingVisibleCount() {
+                    return this.meetingType === 'all'
+                        ? this.meetingTypes.length
+                        : this.meetingTypes.filter(t => t === this.meetingType).length;
+                },
 
                 get archiveVisibleCount() {
-                    return this.archiveStatusFilter === 'all'
-                        ? this.archivedStatuses.length
-                        : this.archivedStatuses.filter(s => s === this.archiveStatusFilter).length;
+                    return this.archivedStatuses.filter((s, i) =>
+                        (this.archiveStatusFilter === 'all' || s === this.archiveStatusFilter)
+                        && (this.archiveType === 'all' || this.archivedTypes[i] === this.archiveType)
+                    ).length;
                 },
             }"
                 x-init="
                     $watch('tab', value => setQueryParam('tab', value));
                     $watch('archiveStatusFilter', value => setQueryParam('status', value));
+                    $watch('meetingSort', value => setQueryParam('sort', value));
+                    $watch('meetingType', value => setQueryParam('type', value));
+                    $watch('archiveSort', value => setQueryParam('archive_sort', value));
+                    $watch('archiveType', value => setQueryParam('archive_type', value));
                 ">
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Meeting</h1>
@@ -114,6 +151,61 @@
             </div>
 
             <div x-show="tab === 'meetings'">
+            <div class="mb-4 flex flex-wrap items-end justify-start gap-3">
+                    <div class="relative inline-block w-[160px] shrink-0 sm:w-[180px]" x-data="{ open: false }"
+                        @click.outside="open = false" @keydown.escape="open = false">
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Sort by date</label>
+
+                        <button type="button" @click="open = !open"
+                            class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 transition hover:border-gray-400">
+                            <span class="truncate" x-text="{{ Js::from($meetingSorts) }}[meetingSort]"></span>
+                            <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="open && 'rotate-180'"
+                                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <div x-show="open" x-cloak x-transition.origin.top
+                            class="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                            style="display:none;">
+                            @foreach ($meetingSorts as $value => $label)
+                            <button type="button"
+                                x-show="meetingSort !== '{{ $value }}'"
+                                @click="meetingSort = '{{ $value }}'; open = false"
+                                class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                {{ $label }}
+                            </button>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="relative inline-block w-[160px] shrink-0 sm:w-[180px]" x-data="{ open: false }"
+                        @click.outside="open = false" @keydown.escape="open = false">
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Meeting type</label>
+
+                        <button type="button" @click="open = !open"
+                            class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 transition hover:border-gray-400">
+                            <span class="truncate" x-text="{{ Js::from($meetingTypeFilters) }}[meetingType]"></span>
+                            <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="open && 'rotate-180'"
+                                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <div x-show="open" x-cloak x-transition.origin.top
+                            class="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                            style="display:none;">
+                            @foreach ($meetingTypeFilters as $value => $label)
+                            <button type="button"
+                                x-show="meetingType !== '{{ $value }}'"
+                                @click="meetingType = '{{ $value }}'; open = false"
+                                class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                {{ $label }}
+                            </button>
+                            @endforeach
+                        </div>
+                    </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-3 md:gap-6">
                 @forelse ($meetings as $meeting)
 
@@ -121,8 +213,12 @@
                 $platformLogo = $platformIcons[$meeting['platform'] ?? ''] ?? null;
                 @endphp
 
-                {{-- Stacks on phones, three columns side by side from sm up --}}
-                <div class="relative flex flex-col overflow-hidden rounded-2xl border bg-white xl:flex-row">
+                {{-- Stacks on phones, three columns side by side from sm up.
+                     $meetings is already soonest-first; "Furthest first" just
+                     reverses the visual order via CSS `order`. --}}
+                <div x-show="meetingType === 'all' || meetingType === '{{ $meeting['type'] }}'"
+                    :style="`order: ${meetingSort === 'furthest' ? {{ $meetings->count() - $loop->index }} : {{ $loop->index }}}`"
+                    class="relative flex flex-col overflow-hidden rounded-2xl border bg-white xl:flex-row">
                     @if (! empty($meeting['is_new']))
                     <x-new-dot size="md" class="absolute right-3 top-3 z-10 ring-2 ring-white" />
                     @endif
@@ -468,6 +564,12 @@
                     <x-empty-state variant="meetings" size="lg" title="No Upcoming Meetings Scheduled." highlight="Meetings Scheduled" message="Check back later for your scheduled meetings." />
                 </div>
                 @endforelse
+
+                @if ($meetings->isNotEmpty())
+                <div x-show="meetingVisibleCount === 0" x-cloak class="col-span-2 rounded-xl border border-dashed border-gray-200" style="order: 99999">
+                    <x-empty-state variant="search" size="md" title="No Matching Meetings." highlight="Matching" message="No meetings match this filter. Try another one." />
+                </div>
+                @endif
             </div>
             </div>
 
@@ -480,11 +582,62 @@
                  ============================================================ --}}
             <div x-show="tab === 'archive'" x-cloak>
 
-                <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-                    <h2 class="text-base font-semibold tracking-tight text-gray-900 sm:text-lg">Meeting Archive</h2>
+                <div class="mb-4 flex flex-col gap-3">
+                    <div class="flex flex-wrap items-end justify-start gap-3">
+                    <div class="relative inline-block w-[160px] shrink-0 sm:w-[180px]" x-data="{ open: false }"
+                        @click.outside="open = false" @keydown.escape="open = false">
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Sort by date</label>
 
-                    <div class="relative inline-block w-full max-w-[180px] sm:max-w-[200px]" x-data="{ open: false }"
-                        @click.outside="open = false" @keydown.escape.window="open = false">
+                        <button type="button" @click="open = !open"
+                            class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 transition hover:border-gray-400">
+                            <span class="truncate" x-text="{{ Js::from($archiveSorts) }}[archiveSort]"></span>
+                            <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="open && 'rotate-180'"
+                                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <div x-show="open" x-cloak x-transition.origin.top
+                            class="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                            style="display:none;">
+                            @foreach ($archiveSorts as $value => $label)
+                            <button type="button"
+                                x-show="archiveSort !== '{{ $value }}'"
+                                @click="archiveSort = '{{ $value }}'; open = false"
+                                class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                {{ $label }}
+                            </button>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="relative inline-block w-[160px] shrink-0 sm:w-[180px]" x-data="{ open: false }"
+                        @click.outside="open = false" @keydown.escape="open = false">
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Meeting type</label>
+
+                        <button type="button" @click="open = !open"
+                            class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 transition hover:border-gray-400">
+                            <span class="truncate" x-text="{{ Js::from($meetingTypeFilters) }}[archiveType]"></span>
+                            <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="open && 'rotate-180'"
+                                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <div x-show="open" x-cloak x-transition.origin.top
+                            class="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                            style="display:none;">
+                            @foreach ($meetingTypeFilters as $value => $label)
+                            <button type="button"
+                                x-show="archiveType !== '{{ $value }}'"
+                                @click="archiveType = '{{ $value }}'; open = false"
+                                class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                {{ $label }}
+                            </button>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="relative inline-block w-[160px] shrink-0 sm:w-[180px]" x-data="{ open: false }"
+                        @click.outside="open = false" @keydown.escape="open = false">
                         <label class="mb-1 block text-xs font-medium text-gray-500">Filter by status</label>
 
                         <button type="button" @click="open = !open"
@@ -496,9 +649,9 @@
                             </svg>
                         </button>
 
-                        <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
-                            class="absolute right-0 z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                        <div x-show="open" x-cloak x-transition.origin.top
+                            class="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                            style="display:none;">
                             @foreach ($archiveStatuses as $value => $label)
                             <button type="button"
                                 x-show="archiveStatusFilter !== '{{ $value }}'"
@@ -509,10 +662,15 @@
                             @endforeach
                         </div>
                     </div>
+                    </div>
                 </div>
 
+                {{-- Flex column so the cards' CSS `order` (Sort by date) applies. --}}
+                <div class="flex flex-col">
                 @forelse ($archivedMeetings as $meeting)
-                <div x-show="archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $meeting['archive_status'] }}'"
+                <div x-show="(archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $meeting['archive_status'] }}')
+                        && (archiveType === 'all' || archiveType === '{{ $meeting['type'] }}')"
+                    :style="`order: ${archiveSort === 'oldest' ? {{ $archivedMeetings->count() - $loop->index }} : {{ $loop->index }}}`"
                     class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
 
                     <div class="flex w-10 shrink-0 items-center justify-center bg-[#FFF1F2] sm:w-12">
@@ -568,6 +726,7 @@
                     <x-empty-state variant="search" size="md" title="No Matching Meetings." highlight="Matching" message="No meetings match this filter. Try another one." />
                 </div>
                 @endif
+                </div>
             </div>
 
             {{-- Full-note modal: shared by every card's "View" button above. --}}

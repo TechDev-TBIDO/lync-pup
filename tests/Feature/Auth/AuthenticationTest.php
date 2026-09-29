@@ -205,12 +205,16 @@ class AuthenticationTest extends TestCase
      * regardless of whatever value their account_status column happens to
      * hold (Admins are created directly, e.g. via seeder, and never go
      * through the founder application/approval flow at all).
+     *
+     * Exceptions, from Manage Admins: 'Pending' (an unaccepted invitation)
+     * and 'Inactive' (disabled) DO block an admin — see
+     * AdminManagementTest. Any other value (e.g. 'Rejected') still doesn't.
      */
     public function test_admin_can_sign_in_even_if_account_status_is_not_active(): void
     {
         $admin = User::factory()->create([
             'role' => 'Admin',
-            'account_status' => 'Pending',
+            'account_status' => 'Rejected',
         ]);
 
         $response = $this->post('/login', [

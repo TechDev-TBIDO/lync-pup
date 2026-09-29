@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'approved' => \App\Http\Middleware\EnsureAccountIsApproved::class,
+            'active-admin' => \App\Http\Middleware\EnsureAdminIsActive::class,
             'stage' => \App\Http\Middleware\EnsureFounderStage::class,
             'select-cohort' => \App\Http\Middleware\ResolveSelectedCohort::class,
         ]);

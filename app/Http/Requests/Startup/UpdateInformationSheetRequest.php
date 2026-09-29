@@ -222,14 +222,32 @@ class UpdateInformationSheetRequest extends FormRequest
         }
 
         foreach ($levels as $level) {
-            $school = trim((string) $this->input("{$level}_school"));
-            if ($school !== '' && strcasecmp($school, 'N/A') !== 0) {
-                return;
+            // Any real answer in a level's School / Degree / Highest Level
+            // means the founder has started that level - its own
+            // required_with messages already cover what's missing there, so
+            // the "at least one level" message (and the Secondary row it
+            // points at) would only be noise.
+            foreach (['school', 'degree_course', 'highest_level_unit'] as $column) {
+                $value = trim((string) $this->input("{$level}_{$column}"));
+                if ($value !== '' && strcasecmp($value, 'N/A') !== 0) {
+                    return;
+                }
             }
         }
 
         if (! $validator->errors()->has('secondary_school')) {
             $validator->errors()->add('secondary_school', 'Please fill in at least one level of your educational background.');
+        }
+
+        // Flag the rest of the first row too, so every cell that needs an
+        // answer shows its message on the same Save instead of one by one.
+        foreach ([
+            'secondary_degree_course' => 'Please enter the degree or course.',
+            'secondary_highest_level_unit' => 'Please enter the highest level or units.',
+        ] as $field => $message) {
+            if (trim((string) $this->input($field)) === '' && ! $validator->errors()->has($field)) {
+                $validator->errors()->add($field, $message);
+            }
         }
     }
 
@@ -431,31 +449,25 @@ class UpdateInformationSheetRequest extends FormRequest
             $meaningfulText,
         ];
 
-        // Name of School: letters, numbers, spaces, and . - ' & ( ) - no
-        // slash, no comma, e.g. "Polytechnic University of the Philippines"
-        // or "St. Paul's College".
+        // Educational Background (Name of School, Degree / Course, Highest
+        // Level / Unit) all accept the same set: letters, numbers, spaces and
+        // , . / ; & - ( ) ' - e.g. "St. Paul's College, Manila",
+        // "BS Computer Science / IT", "36 units; 4th Year".
         $schoolName = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\&\(\)\x{2019}\']*)$/iu',
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\,\.\/\;\&\-\(\)\x{2019}\']*)$/iu',
             $meaningfulText,
         ];
 
-        // Degree / Course: letters, numbers, spaces, and . - / & ( ) - no
-        // apostrophe, no comma, e.g. "BS Computer Science / IT" or
-        // "Bachelor's" (spelled without the apostrophe, since that one isn't
-        // allowed here).
         $degreeCourse = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\&\(\)]*)$/iu',
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\,\.\/\;\&\-\(\)\x{2019}\']*)$/iu',
             $meaningfulText,
         ];
 
-        // Highest Level / Unit: letters, numbers, spaces, and . - / ( ) plus an
-        // apostrophe - no ampersand, no comma, e.g. "4th Year", "36 units" or
-        // "Bachelor's Degree".
         $highestLevelUnit = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\(\)\x{2019}\']*)$/iu',
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\,\.\/\;\&\-\(\)\x{2019}\']*)$/iu',
             $meaningfulText,
         ];
 
@@ -648,7 +660,7 @@ class UpdateInformationSheetRequest extends FormRequest
             'place_of_birth' => $place(150),
             // The picker is capped at the same bounds (see $dobMin / $dobMax in the
             // view). Repeated here because a request can arrive without it.
-            'date_of_birth' => ['required', 'date', 'before:2010-01-01', 'after:1900-01-01'],
+            'date_of_birth' => ['required', 'date', 'after:1900-01-01'],
             'mobile_no' => ['required', 'string', 'max:13', new PhMobile],
             'founder_email' => ['required', 'email', 'max:150'],
 
@@ -701,14 +713,21 @@ class UpdateInformationSheetRequest extends FormRequest
         // needed). But once any of a level's School / Degree / Highest Level
         // cells is filled, all three are required for that level. (At least
         // one level must be filled - see guardAtLeastOneEducationLevel().)
-        foreach (['secondary', 'vocational', 'college', 'graduate'] as $level) {
-            $cells = ["{$level}_school", "{$level}_degree_course", "{$level}_highest_level_unit"];
+        // Secondary and College are required outright (every column, N/A
+        // accepted) - they are not in InformationSheet::OPTIONAL_FIELDS, so
+        // their normal 'required' rules above stand. Vocational and Graduate
+        // Studies are optional rows: blank is fine, but once ANY of its four
+        // cells (School, Degree, Highest Level, Year Graduated) has input -
+        // N/A included - the whole row is required. N/A stays a valid answer
+        // in every cell.
+        foreach (['vocational', 'graduate'] as $level) {
+            $cells = ["{$level}_school", "{$level}_degree_course", "{$level}_highest_level_unit", "{$level}_year_graduated"];
             foreach ($cells as $cell) {
                 $others = implode(',', array_diff($cells, [$cell]));
                 $rules[$cell] = [
                     'nullable',
                     "required_with:{$others}",
-                    ...array_values(array_filter($rules[$cell], fn ($rule) => $rule !== 'required')),
+                    ...array_values(array_filter($rules[$cell], fn ($rule) => ! in_array($rule, ['required', 'nullable'], true))),
                 ];
             }
         }
@@ -772,7 +791,6 @@ class UpdateInformationSheetRequest extends FormRequest
             'place_of_birth.required' => 'Please enter your place of birth.',
             'date_of_birth.required' => 'Please enter your date of birth.',
             'date_of_birth.date' => 'Please enter a valid date of birth.',
-            'date_of_birth.before' => 'Please enter a valid date of birth.',
             'date_of_birth.after' => 'Please enter a valid date of birth.',
 
             'mobile_no.required' => 'Please enter your mobile number.',
@@ -802,9 +820,9 @@ class UpdateInformationSheetRequest extends FormRequest
             $messages[$key.'_highest_level_unit.required'] = 'Please enter the highest level/unit or N/A.';
             $messages[$key.'_year_graduated.required'] = 'Please enter the year graduated or N/A.';
             $messages[$key.'_year_graduated.regex'] = "Year graduated for {$label} must be a 4-digit year, for example 2018.";
-            $messages[$key.'_school.regex'] = "The {$label} name can only contain letters, numbers and . - ' & ( ) punctuation.";
-            $messages[$key.'_degree_course.regex'] = "The {$label} degree or course can only contain letters, numbers and . - / & ( ) punctuation.";
-            $messages[$key.'_highest_level_unit.regex'] = "The {$label} level or units can only contain letters, numbers and . - / ( ) ' punctuation.";
+            $messages[$key.'_school.regex'] = "The {$label} name can only contain letters, numbers and , . / ; & - ( ) ' punctuation.";
+            $messages[$key.'_degree_course.regex'] = "The {$label} degree or course can only contain letters, numbers and , . / ; & - ( ) ' punctuation.";
+            $messages[$key.'_highest_level_unit.regex'] = "The {$label} level or units can only contain letters, numbers and , . / ; & - ( ) ' punctuation.";
         }
 
         // Fallback for anything not named above.
@@ -814,6 +832,7 @@ class UpdateInformationSheetRequest extends FormRequest
             $messages["{$level}_school.required_with"] = "Please enter the school name for {$label}, or clear this row.";
             $messages["{$level}_degree_course.required_with"] = "Please enter the degree or course for {$label}, or clear this row.";
             $messages["{$level}_highest_level_unit.required_with"] = "Please enter the highest level or units for {$label}, or clear this row.";
+            $messages["{$level}_year_graduated.required_with"] = "Please enter the year graduated for {$label} (or N/A if still studying), or clear this row.";
         }
 
         return $messages;

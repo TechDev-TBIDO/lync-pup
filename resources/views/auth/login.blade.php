@@ -124,6 +124,15 @@
                 </div>
                 @endif
 
+                {{-- Set when a signed-in session is ended by a middleware
+                     (e.g. an admin disabled from Manage Admins, or a
+                     founder whose account isn't approved). --}}
+                @if (session('error'))
+                <div class="mb-4 text-sm font-medium text-red-600">
+                    {{ session('error') }}
+                </div>
+                @endif
+
                 {{-- Tab toggle --}}
                 <div class="flex bg-gray-100 rounded-lg p-1 mb-6">
                     <button type="button"
