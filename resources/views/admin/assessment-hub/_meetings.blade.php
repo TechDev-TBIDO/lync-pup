@@ -324,6 +324,7 @@ $archiveMonths = $monthsFor($meetingsArchive);
                                         <x-assessment-meeting-modal mode="edit" :meeting="$meeting"
                                             close="rescheduling = false"
                                             :action="route('admin.assessment-hub.meetings.update', $meeting)"
+                                            :delete-action="route('admin.assessment-hub.meetings.destroy', $meeting)"
                                             :stages="$stages" />
                                     </div>
                                 </div>

@@ -5,6 +5,7 @@
 'meeting' => null, // existing AssessmentMeeting, present in edit/reschedule mode
 'startups' => null, // Approved startups to choose from (add mode's own picker)
 'stages' => [], // ReadinessRubric::STAGES
+'deleteAction' => null, // edit mode only: the footer's Cancel becomes Delete (the header X still closes)
 ])
 
 @php
@@ -32,6 +33,7 @@ $formId = 'assessment-meeting-form-'.$rowKey;
 
 <div class="flex max-h-[90vh] flex-col"
     x-data="{
+        confirmingDelete: false,
         startupId: @js($initialStartupId ? (string) $initialStartupId : ''),
         stage: @js($initialStage ?? ''),
         date: @js($initialDate),
@@ -66,6 +68,7 @@ $formId = 'assessment-meeting-form-'.$rowKey;
                 || (this.notes || '') !== (this.initialNotes || '');
         },
         reset() {
+            this.confirmingDelete = false;
             this.startupId = this.initialStartupId;
             this.stage = this.initialStage;
             this.date = this.initialDate;
@@ -186,11 +189,41 @@ $formId = 'assessment-meeting-form-'.$rowKey;
     </div>
 
     <div class="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
-        <div class="flex gap-3">
+        @if ($mode !== 'add' && $deleteAction && $meeting)
+        {{-- Delete from inside the Reschedule modal: a plain confirm (no typed
+             DELETE), same as the Failed tab's own Delete. Removing a meeting
+             that hasn't happened yet notifies the founder it was cancelled
+             (see AssessmentMeetingController::destroy()). --}}
+        <div x-show="confirmingDelete" x-cloak class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+            <p>Remove this {{ $meeting->stage }} meeting with <strong>{{ $meeting->startup?->company_name }}</strong>? This cannot be undone.</p>
+            <form method="POST" action="{{ $deleteAction }}" class="mt-3 flex gap-3">
+                @csrf
+                @method('DELETE')
+                <button type="button" @click="confirmingDelete = false"
+                    class="flex-1 rounded-lg border border-gray-300 bg-white py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                    Keep Meeting
+                </button>
+                <button type="submit"
+                    class="flex-1 rounded-lg bg-rose-700 py-2 text-sm font-medium text-white transition hover:bg-rose-800">
+                    Delete
+                </button>
+            </form>
+        </div>
+        @endif
+        <div class="flex gap-3" x-show="!confirmingDelete">
+            @if ($mode !== 'add' && $deleteAction && $meeting)
+            {{-- Reschedule has the X in the header for closing, so the
+                 footer's left slot is Delete instead of Cancel. --}}
+            <button type="button" @click="confirmingDelete = true"
+                class="flex-1 rounded-lg border border-rose-300 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-50">
+                Delete
+            </button>
+            @else
             <button type="button" @click="reset(); {{ $close }}"
                 class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
                 Cancel
             </button>
+            @endif
             <button type="submit" form="{{ $formId }}"
                 :disabled="!startupId || !stage || !date || !startTime || !endTime || !modality || !link || (@js($mode !== 'add') && !isDirty())"
                 class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-40">
