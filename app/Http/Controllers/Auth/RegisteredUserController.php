@@ -71,7 +71,11 @@ class RegisteredUserController extends Controller
     public function cancel(Request $request): RedirectResponse
     {
         $user = $request->user();
-        $shouldDelete = $user && ! $user->hasVerifiedEmail();
+        // Founder accounts only. Admins created by seeder/command can have a
+        // null email_verified_at too, and must never be deleted from here
+        // (an unverified admin who reached /verify-email and clicked
+        // "Change email address" used to lose their account).
+        $shouldDelete = $user && $user->isStartup() && ! $user->hasVerifiedEmail();
 
         // Logout must happen BEFORE the delete below, not after. Laravel's
         // SessionGuard::logout() cycles the user's remember_token (since the
