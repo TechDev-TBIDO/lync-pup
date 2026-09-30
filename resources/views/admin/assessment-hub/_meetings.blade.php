@@ -324,39 +324,23 @@ $archiveMonths = $monthsFor($meetingsArchive);
                                         <x-assessment-meeting-modal mode="edit" :meeting="$meeting"
                                             close="rescheduling = false"
                                             :action="route('admin.assessment-hub.meetings.update', $meeting)"
-                                            :delete-action="route('admin.assessment-hub.meetings.destroy', $meeting)"
+                                            on-delete="confirmingDelete = true"
                                             :stages="$stages" />
                                     </div>
                                 </div>
                                 @endif
 
-                                @if (in_array('delete', $tabData['actions'], true))
-                                {{-- Delete confirm --}}
-                                <div x-show="confirmingDelete" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;"
-                                >
-                                    <div class="w-full max-w-sm overflow-hidden rounded-xl bg-white text-center shadow-xl">
-                                        <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 text-white">
-                                            <p class="text-base font-bold">Delete Meeting</p>
-                                        </div>
-                                        <div class="px-6 pb-6 pt-5">
-                                            <p class="text-sm text-gray-600">
-                                                Remove this {{ $meeting->stage }} meeting with <strong>{{ $meeting->startup->company_name }}</strong>? This cannot be undone.
-                                            </p>
-                                            <form method="POST" action="{{ route('admin.assessment-hub.meetings.destroy', $meeting) }}" class="mt-5 flex gap-3">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="button" @click="confirmingDelete = false"
-                                                    class="flex-1 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
-                                                    Cancel
-                                                </button>
-                                                <button type="submit"
-                                                    class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-semibold text-white transition hover:opacity-95">
-                                                    Delete
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
+                                @if (in_array('delete', $tabData['actions'], true) || in_array('reschedule', $tabData['actions'], true))
+                                {{-- Same confirmation as Roadblock Management's Delete (shared
+                                     x-confirm-action-modal) — also opened from the Reschedule
+                                     modal's Delete button. --}}
+                                <x-confirm-action-modal
+                                    show="confirmingDelete"
+                                    close="confirmingDelete = false"
+                                    title="Delete Meeting"
+                                    message="Are you sure you want to delete this meeting? This action is permanent and cannot be undone."
+                                    :action="route('admin.assessment-hub.meetings.destroy', $meeting)"
+                                    confirm-label="Delete" />
                                 @endif
                             </td>
                         </tr>
