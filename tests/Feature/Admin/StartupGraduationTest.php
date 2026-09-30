@@ -237,6 +237,42 @@ class StartupGraduationTest extends TestCase
         );
     }
 
+    /**
+     * Regression for the actual computation change behind the above
+     * invariant: Total Startup now includes Applicants in its own count
+     * (it used to leave them out entirely -- see
+     * StartupProfileController::index()'s $countedInTotal comment), with
+     * Applicant broken out as its own line in the card's breakdown rather
+     * than folded into a cohort's number. The test above only proves the
+     * invariant holds when there happen to be zero Applicants; this one
+     * exercises it with a real one.
+     */
+    public function test_total_startup_count_and_breakdown_include_applicants(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+
+        $this->activeStartup();
+        // No InformationSheet at all -- lands in scopeOnboarding()
+        // (Applicant) by default via the factory's blank
+        // startup_photo_path, same condition scopeOnboarding() itself
+        // checks.
+        Startup::factory()->create();
+
+        $response = $this->actingAs($admin)->get(route('admin.startups.index'));
+
+        $totals = $response->viewData('totals');
+
+        $this->assertSame(1, $totals['active']);
+        $this->assertSame(1, $totals['applicant']);
+        $this->assertSame(2, $totals['total']);
+
+        // cohortBreakdown itself stays a pure per-cohort list -- Applicant
+        // isn't folded into it, only appended as a separate line in the
+        // view (admin.startups.index).
+        $breakdown = $response->viewData('cohortBreakdown');
+        $this->assertFalse($breakdown->contains(fn ($row) => $row['label'] === 'Applicant'));
+    }
+
     public function test_startup_card_shows_the_graduated_and_completed_tags(): void
     {
         $admin = User::factory()->create(['role' => 'Admin']);
