@@ -28,6 +28,7 @@ class EvaluationScheduleController extends Controller
                 $evaluationSchedule->startup,
                 'Information Sheet',
                 'set_evaluation',
+                subjectLabel: $evaluationSchedule->startup->company_name,
                 changes: ChangeLog::initial($evaluationSchedule, HistoryFields::evaluationSchedule()),
             );
         }
@@ -48,7 +49,7 @@ class EvaluationScheduleController extends Controller
         $changes = ChangeLog::track($evaluationSchedule, HistoryFields::evaluationSchedule(), fn () => $evaluationSchedule->update($data));
 
         if ($evaluationSchedule->startup) {
-            VersionHistory::recordChanges($evaluationSchedule->startup, 'Information Sheet', 'reschedule_evaluation', $changes);
+            VersionHistory::recordChanges($evaluationSchedule->startup, 'Information Sheet', 'reschedule_evaluation', $changes, $evaluationSchedule->startup->company_name);
         }
 
         $this->notifyFounder($evaluationSchedule, rescheduled: true);
@@ -80,6 +81,7 @@ class EvaluationScheduleController extends Controller
                 $startup,
                 'Information Sheet',
                 'delete_evaluation',
+                subjectLabel: $startup->company_name,
                 changes: $slot === '' ? [] : ChangeLog::note("Evaluation removed ({$slot})"),
             );
         }

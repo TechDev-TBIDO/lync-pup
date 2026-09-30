@@ -255,7 +255,7 @@ class AssessmentController extends Controller
         ];
 
         // A save that changed nothing isn't logged.
-        VersionHistory::recordChanges($startup, $validated['stage'], 'update_readiness_assessment', $changes);
+        VersionHistory::recordChanges($startup, $validated['stage'], 'update_readiness_assessment', $changes, $startup->company_name);
 
         // Redirect back to the exact same RL type sub-tab the admin was on
         // (not just the same stage) — plain back() would land on the right
@@ -389,7 +389,7 @@ class AssessmentController extends Controller
         }
 
         // A save that changed nothing isn't logged.
-        VersionHistory::recordChanges($startup, $validated['stage'], 'update_assessment_document', $changes);
+        VersionHistory::recordChanges($startup, $validated['stage'], 'update_assessment_document', $changes, $startup->company_name);
 
         // Same as update() above — echo back which document sub-tab (6/7/8)
         // was open so Active-Assessment doesn't snap back to Document 6 on

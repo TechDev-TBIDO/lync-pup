@@ -505,6 +505,13 @@
                 </div>
             </div>
 
+            @if ($incompleteAssessments->isNotEmpty())
+            <div class="mt-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                <p class="font-semibold">This startup still has incomplete requirements:</p>
+                <p class="mt-1">{{ $incompleteAssessments->implode(', ') }}</p>
+            </div>
+            @endif
+
             <div class="mt-6 flex flex-col gap-3 sm:flex-row">
                 <button type="button" @click="showClearConfirm = true" :disabled="! hasContent()"
                     class="h-11 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white sm:flex-1">
