@@ -82,7 +82,6 @@
                 @media (max-width: 639px) {
                     .startup-stat-card { padding: 12px !important; }
                     .startup-stat-card .stat-watermark-lg svg { width: 56px !important; height: 56px !important; }
-                    .startup-stat-card .stat-text-wrap { padding-right: 44px !important; }
                     .startup-stat-card .stat-value-lg { font-size: 1.35rem !important; }
                     .startup-stat-card .stat-value-plain { font-size: 1.35rem !important; }
                 }
@@ -95,6 +94,47 @@
                    2xl breakpoint, so the 4-up lg/xl range in between still gets it too. */
                 @media (min-width: 640px) and (max-width: 1535px) {
                     .startup-stat-card .stat-watermark-lg svg { width: 72px !important; height: 72px !important; }
+                }
+
+                /* Some labels ("Active / Assign Coordinator") are long enough to wrap
+                   onto two or three lines in these narrow columns, breaking mid-word,
+                   and used to run into the big number on the right once they did.
+                   Fixed at the layout level instead of with a fixed pixel gutter that
+                   has to be re-tuned per breakpoint (that approach still broke at
+                   ~1024-1150px viewports, where the sidebar + 4-up grid makes the
+                   card just as narrow as it is on phones): the number now sizes
+                   itself in a flex row and the text takes whatever's left, so it can
+                   never overlap it. If a label still doesn't fit, it truncates with
+                   an ellipsis rather than colliding with the number. */
+                .startup-stat-card .stat-card-body {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .startup-stat-card .stat-text-wrap {
+                    min-width: 0;
+                    flex: 1 1 auto;
+                }
+                .startup-stat-card .stat-value-lg {
+                    flex-shrink: 0;
+                }
+                .startup-stat-card .stat-label,
+                .startup-stat-card .stat-breakdown-row {
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                @media (max-width: 639px) {
+                    .startup-stat-card .stat-label,
+                    .startup-stat-card .stat-breakdown-row {
+                        font-size: 9.5px !important;
+                    }
+                }
+                @media (min-width: 640px) {
+                    .startup-stat-card .stat-label,
+                    .startup-stat-card .stat-breakdown-row {
+                        font-size: 13px !important;
+                    }
                 }
             </style>
 
@@ -116,34 +156,34 @@
 
                     {{-- relative lifts the text above the watermark without needing z-index
                  on the watermark itself. --}}
-                    <div class="relative h-full">
+                    <div class="relative h-full stat-card-body">
                         @if (! empty($stat['breakdown']) && $stat['breakdown']->isNotEmpty())
-                            <div class="stat-text-wrap" style="padding-right: 70px;">
-                                <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <div class="stat-text-wrap">
+                                <p class="text-gray-600 text-sm stat-label">{{ $stat['label'] }}</p>
                                 <div class="mt-1.5 space-y-0.5">
                                     @foreach ($stat['breakdown'] as $b)
-                                        <p class="text-sm leading-tight">
+                                        <p class="text-sm leading-tight stat-breakdown-row">
                                             <span class="font-semibold text-[#6D0D23] inline-block text-right" style="min-width: 26px;">{{ $b['count'] }}</span>
                                             <span class="text-gray-500">&middot; {{ $b['label'] }}</span>
                                         </p>
                                     @endforeach
                                 </div>
                             </div>
-                            <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                            <p class="stat-value-lg text-4xl font-bold">{{ $stat['value'] }}</p>
                         @elseif (! empty($stat['note']))
-                            <div class="stat-text-wrap" style="padding-right: 70px;">
-                                <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <div class="stat-text-wrap">
+                                <p class="text-gray-600 text-sm stat-label">{{ $stat['label'] }}</p>
                                 <p class="text-sm text-[#6D0D23] mt-1 leading-snug">{{ $stat['note'] }}</p>
                             </div>
-                            <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                            <p class="stat-value-lg text-4xl font-bold">{{ $stat['value'] }}</p>
                         @else
                             {{-- No breakdown/note to show (e.g. Total Startup with no
                                  cohorts yet) — number still sits on the right like
                                  every other card. --}}
-                            <div class="stat-text-wrap" style="padding-right: 70px;">
-                                <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <div class="stat-text-wrap">
+                                <p class="text-gray-600 text-sm stat-label">{{ $stat['label'] }}</p>
                             </div>
-                            <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                            <p class="stat-value-lg text-4xl font-bold">{{ $stat['value'] }}</p>
                         @endif
                     </div>
                 </div>
