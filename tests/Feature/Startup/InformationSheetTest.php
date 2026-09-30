@@ -313,6 +313,27 @@ class InformationSheetTest extends TestCase
         $this->assertEquals('Pending', $sheet->approval_status);
     }
 
+    public function test_submitting_the_sheet_never_changes_the_startup_profile(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+        $startup->update([
+            'business_description' => 'Profile description stays as typed.',
+            'contact_phone' => '09998887777',
+            'location' => 'Profile address',
+        ]);
+
+        $this->actingAs($user)->patch(
+            route('startup.information-sheet.update'),
+            array_merge($this->validInformationSheetPayload(), ['intent' => 'submit'])
+        )->assertRedirect(route('startup.information-sheet.edit'));
+
+        // The sheet and the Startup Profile are separate records.
+        $fresh = $startup->fresh();
+        $this->assertSame('Profile description stays as typed.', $fresh->business_description);
+        $this->assertSame('09998887777', $fresh->contact_phone);
+        $this->assertSame('Profile address', $fresh->location);
+    }
+
     public function test_a_draft_save_never_reopens_a_rejected_sheet(): void
     {
         [$user, $startup] = $this->makeFounder('Rejected');
