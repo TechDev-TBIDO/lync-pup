@@ -38,9 +38,25 @@ class Startup extends Model
         ];
     }
 
+    /**
+     * Cohort Name per cohort number, loaded once per request so a page
+     * listing many startups doesn't query the cohorts table once per card.
+     */
+    protected static ?array $cohortNamesByNumber = null;
+
+    /**
+     * The startup's cohort as admins named it (the Cohort Name field),
+     * matched on cohort_number - the field every cohort filter in the app
+     * uses. Falls back to "Cohort N" when no cohort with that number exists
+     * any more (e.g. it was deleted).
+     */
     public function getBatchLabelAttribute(): string
     {
-        return "Cohort {$this->cohort_number}";
+        static::$cohortNamesByNumber ??= Cohort::all()
+            ->mapWithKeys(fn ($cohort) => [$cohort->number => $cohort->display_label])
+            ->all();
+
+        return static::$cohortNamesByNumber[$this->cohort_number] ?? "Cohort {$this->cohort_number}";
     }
 
     /**

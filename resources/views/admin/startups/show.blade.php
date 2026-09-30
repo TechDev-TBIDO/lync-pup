@@ -196,7 +196,7 @@ default => null,
                                 <h1 class="text-4xl font-bold">{{ $startup->company_name }}</h1>
                                 <span class="flex-shrink-0 bg-white/95 text-[#6D0D23] rounded-full px-4 py-1 text-xs font-semibold">{{ $startup->status }}</span>
                             </div>
-                            <p class="text-white/70 text-sm mt-2">{{ $startup->industry_sector }} · Cohort {{ $startup->cohort_number }} · {{ $startup->location }}</p>
+                            <p class="text-white/70 text-sm mt-2">{{ $startup->industry_sector }} · {{ $startup->batch_label }} · {{ $startup->location }}</p>
                         </div>
                     </div>
                 </div>

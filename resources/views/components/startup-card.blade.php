@@ -96,7 +96,7 @@ $hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
         <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
                 <p class="text-sm font-bold leading-snug text-gray-900">{{ $startup->company_name }}</p>
-                <p class="text-[11px] text-gray-500">{{ $startup->industry_sector }} &middot; Cohort {{ $startup->cohort_number }}</p>
+                <p class="text-[11px] text-gray-500">{{ $startup->industry_sector }} &middot; {{ $startup->batch_label }}</p>
             </div>
 
             <div class="relative shrink-0">
