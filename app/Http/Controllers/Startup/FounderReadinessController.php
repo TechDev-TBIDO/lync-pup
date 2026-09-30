@@ -58,7 +58,7 @@ class FounderReadinessController extends Controller
             'stages' => self::STAGES,
             'assessment' => $assessment,
             'meta' => ReadinessRubric::meta($stage),
-            'overallLabel' => ReadinessRubric::overallLabel($assessment->overall_score ?? null),
+            'overallLabel' => ReadinessRubric::journeyLabel($startup?->exit_status),
             'newStages' => $newStages,
         ]);
     }

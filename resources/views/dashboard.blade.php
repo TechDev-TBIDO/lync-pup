@@ -176,7 +176,7 @@
                             <p class="stat-number font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $stats['at_risk_startup']['value'] }}</p>
                         </div>
                     </div>
-                    <p class="text-sm text-[#6D0D23] mt-3">{{ $stats['at_risk_startup']['percent_of_total'] }}% of total startup</p>
+                    <p class="text-sm text-[#6D0D23] mt-3">{{ $stats['at_risk_startup']['percent_of_total'] }}% of approved startups</p>
                 </div>
             </div>
 
@@ -423,7 +423,7 @@
                         <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
                             style="top: 25px; right: 25px; bottom: 25px; left: 25px;">
                             <span class="font-bold text-gray-800" style="font-size: 2rem;">{{ $riskClassification['total'] }}</span>
-                            <span class="text-sm text-gray-500">Total Startups</span>
+                            <span class="text-gray-500" style="font-size: 11px;">Approved Startups</span>
                         </div>
                     </div>
                     <table class="w-full text-sm">
@@ -526,8 +526,8 @@
                             </div>
                         </div>
                         <p class="text-xs text-gray-400 mt-4">
-                            Average across all {{ $averageReadiness['startup_count'] }} startups ({{ $averageReadiness['assessed_count'] }} assessed, {{ $averageReadiness['pending_count'] }} pending) &middot;
-                            Overall: {{ number_format($averageReadiness['overall_score'], 1) }}/9 ({{ $averageReadiness['overall_label'] }})
+                            Average across {{ $averageReadiness['startup_count'] }} approved startups ({{ $averageReadiness['assessed_count'] }} assessed, {{ $averageReadiness['pending_count'] }} pending) &middot;
+                            Overall: {{ number_format($averageReadiness['overall_score'], 1) }}/9
                         </p>
                     @else
                         <p class="text-sm text-gray-400 py-16 text-center">No {{ $readinessStage }} scores recorded yet.</p>

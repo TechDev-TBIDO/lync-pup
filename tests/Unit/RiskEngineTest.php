@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\CoordinatorAssignment;
 use App\Models\InformationSheet;
@@ -175,6 +176,63 @@ class RiskEngineTest extends TestCase
         $this->assertSame(0, $result['score']);
         $this->assertSame('None', $result['level']);
         $this->assertCount(0, $result['indicators']);
+    }
+
+    public function test_assessment_overdue_indicators_do_not_trigger_before_a_startup_is_approved(): void
+    {
+        // AssignLatestCohortOnVerification places every startup into a real
+        // cohort -- with a start_date -- the moment they verify their
+        // email, well before an admin ever looks at their Information
+        // Sheet. Without the $isApproved guard, a startup still sitting in
+        // Awaiting Schedule/Evaluation (never yet eligible to submit a
+        // Pre-Assessment) would start racking up "Overdue" risk purely
+        // because its cohort's 2-month due window had passed.
+        $cohort = Cohort::create([
+            'number' => 101,
+            'start_date' => now()->subMonths(6),
+            'end_date' => now()->addMonths(6),
+            'status' => 'Active',
+        ]);
+        $startup = Startup::factory()->create([
+            'cohort_id' => $cohort->cohort_id,
+            'cohort_number' => $cohort->number,
+        ]);
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Pending',
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh());
+
+        $this->assertNull($this->indicator($result, 'no_pre_assessment'));
+        $this->assertNull($this->indicator($result, 'no_active_assessment'));
+        $this->assertNull($this->indicator($result, 'no_post_assessment'));
+        $this->assertNull($this->indicator($result, 'no_venture_exit'));
+        $this->assertSame(0, $result['score']);
+    }
+
+    public function test_pre_assessment_overdue_triggers_once_a_startup_is_approved_and_past_the_cohort_due_date(): void
+    {
+        $cohort = Cohort::create([
+            'number' => 102,
+            'start_date' => now()->subMonths(6),
+            'end_date' => now()->addMonths(6),
+            'status' => 'Active',
+        ]);
+        $startup = Startup::factory()->create([
+            'cohort_id' => $cohort->cohort_id,
+            'cohort_number' => $cohort->number,
+        ]);
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh());
+        $indicator = $this->indicator($result, 'no_pre_assessment');
+
+        $this->assertNotNull($indicator);
+        $this->assertSame('High', $indicator['severity']);
     }
 
     public function test_classify_matches_the_confirmed_thresholds(): void

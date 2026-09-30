@@ -250,8 +250,18 @@ class RiskEngine
         // the startup's COHORT start date instead of its own timeline. No
         // cohort / no start_date set means there's nothing to measure
         // against, so these simply never trigger for that startup.
+        //
+        // Also gated on $isApproved, same reasoning as the Portfolio
+        // Coordinator indicator above: AssignLatestCohortOnVerification
+        // places every startup into a real cohort (with a start_date) the
+        // moment they verify their email, well before an admin has even
+        // looked at their Information Sheet. Without this guard, a startup
+        // still sitting in Awaiting Schedule/Evaluation — never yet
+        // eligible to submit any of these forms — would start racking up
+        // "Overdue" risk the moment its cohort's due window passed, which
+        // isn't a real risk, just an artifact of when it happened to verify.
         $cohortStart = $startup->cohort?->start_date ? Carbon::parse($startup->cohort->start_date) : null;
-        if ($cohortStart) {
+        if ($isApproved && $cohortStart) {
             // isFullyScored() requires all four of TRL/MRL/TMRL/SRL to have a
             // score, not just overall_score being non-null — overall_score
             // goes non-blank the moment just one of the four forms is

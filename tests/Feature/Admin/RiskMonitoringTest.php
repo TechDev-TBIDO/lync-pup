@@ -55,6 +55,10 @@ class RiskMonitoringTest extends TestCase
     public function test_a_startup_with_a_failed_roadblock_appears_in_the_risk_rows(): void
     {
         $startup = Startup::factory()->create(['company_name' => 'AgriSense PH']);
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+        ]);
         Roadblock::factory()->create([
             'startup_id' => $startup->startup_id,
             'status' => 'Failed',
@@ -66,6 +70,29 @@ class RiskMonitoringTest extends TestCase
         $riskRows = $response->viewData('riskRows');
         $this->assertTrue($riskRows->contains(fn ($row) => $row['startup']->startup_id === $startup->startup_id));
         $response->assertSee('AgriSense PH');
+    }
+
+    public function test_an_applicant_without_an_approved_information_sheet_never_appears_in_risk_monitoring(): void
+    {
+        // Same setup as the failed-roadblock test above (a real, currently
+        // scoreable risk indicator with no $isApproved guard of its own),
+        // but this startup's sheet is still Pending -- it should be
+        // excluded from Risk Monitoring entirely, not merely scored 0.
+        $startup = Startup::factory()->create();
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Pending',
+        ]);
+        Roadblock::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'status' => 'Failed',
+        ]);
+
+        $response = $this->actingAs($this->admin())->get(route('admin.risk-monitoring.index'));
+
+        $riskRows = $response->viewData('riskRows');
+        $this->assertFalse($riskRows->contains(fn ($row) => $row['startup']->startup_id === $startup->startup_id));
+        $this->assertSame(0, $response->viewData('totalStartups'));
     }
 
     public function test_a_fully_healthy_startup_is_excluded_from_the_risk_rows(): void
@@ -105,9 +132,14 @@ class RiskMonitoringTest extends TestCase
         $this->assertFalse($riskRows->contains(fn ($row) => $row['startup']->startup_id === $startup->startup_id));
     }
 
-    public function test_the_risk_register_counts_every_startup_exactly_once(): void
+    public function test_the_risk_register_counts_every_approved_startup_exactly_once(): void
     {
-        Startup::factory()->count(3)->create();
+        Startup::factory()->count(3)->create()->each(
+            fn (Startup $startup) => InformationSheet::factory()->create([
+                'startup_id' => $startup->startup_id,
+                'approval_status' => 'Approved',
+            ])
+        );
 
         $response = $this->actingAs($this->admin())->get(route('admin.risk-monitoring.index'));
 

@@ -78,7 +78,7 @@
                     <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
                         style="top: 24px; right: 24px; bottom: 24px; left: 24px;">
                         <span class="text-3xl font-bold text-gray-800">{{ $totalStartups }}</span>
-                        <span class="text-xs text-gray-500">Total Startups</span>
+                        <span class="text-gray-500" style="font-size: 10px;">Approved Startups</span>
                     </div>
                 </div>
                 {{-- Scroll wrapper: if even the full-width row is too narrow for the

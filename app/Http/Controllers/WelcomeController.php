@@ -110,9 +110,8 @@ class WelcomeController extends Controller
 
         // Journey badge, not a readiness score: every publicly shown startup is
         // "Development" (it appears once its Information Sheet is Approved) until
-        // its Venture Exit form's Exit Status says Completed or Graduated. The
-        // score-based ReadinessRubric::overallLabel() is untouched elsewhere.
-        $stageLabel = in_array($exitStatus, ['Completed', 'Graduated'], true) ? $exitStatus : 'Development';
+        // its Venture Exit form's Exit Status says Completed or Graduated.
+        $stageLabel = ReadinessRubric::journeyLabel($exitStatus);
 
         $stages = $startup->readinessAssessments
             ->mapWithKeys(fn ($assessment) => [

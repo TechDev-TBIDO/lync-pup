@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ReadinessRubric;
 use App\Support\VentureExitForm;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -217,6 +218,12 @@ class Startup extends Model
      * getStatusAttribute() over the usual Active/Assign Coordinator/etc.
      * status once set.
      */
+    /** Development / Completed / Graduated - see ReadinessRubric::journeyLabel(). */
+    public function getJourneyLabelAttribute(): string
+    {
+        return ReadinessRubric::journeyLabel($this->exit_status);
+    }
+
     public function getExitStatusAttribute(): ?string
     {
         $status = data_get($this->ventureExitDocument?->data, 'exit_status');

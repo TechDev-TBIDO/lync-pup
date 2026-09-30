@@ -93,10 +93,9 @@
                 <thead>
                     <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-left text-white">
                         <th class="px-4 py-3 font-semibold">File Name</th>
-                        <th class="px-4 py-3 font-semibold">Format</th>
-                        <th class="px-4 py-3 font-semibold">Pages</th>
-                        <th class="px-4 py-3 font-semibold">Size</th>
-                        <th class="px-4 py-3 font-semibold">Generated</th>
+                        <th class="px-4 py-3 text-center font-semibold">Format</th>
+                        <th class="px-4 py-3 text-center font-semibold">Size</th>
+                        <th class="px-4 py-3 text-center font-semibold">Generated</th>
                         <th class="px-4 py-3 text-center font-semibold">Actions</th>
                     </tr>
                 </thead>
@@ -110,10 +109,9 @@
                                 {{ $report->file_name }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-gray-600">{{ $report->format }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $report->page_count ?: '—' }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $report->file_size_label }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $report->created_at->format('M d, Y g:i A') }}</td>
+                        <td class="px-4 py-3 text-center text-gray-600">{{ $report->format }}</td>
+                        <td class="px-4 py-3 text-center text-gray-600">{{ $report->file_size_label }}</td>
+                        <td class="px-4 py-3 text-center text-gray-600">{{ $report->created_at->format('M d, Y g:i A') }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-3">
                                 <a href="{{ route('admin.exports.download', $report) }}"
