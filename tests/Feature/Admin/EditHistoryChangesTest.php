@@ -245,8 +245,10 @@ class EditHistoryChangesTest extends TestCase
         $cohort = Cohort::where('number', 2)->firstOrFail();
         $cohort->update(['start_date' => '2026-01-05', 'end_date' => '2026-06-30']);
 
+        // A cohort's name/number is fixed at creation now (see
+        // StoreCohortRequest) — the edit form no longer submits 'label' at
+        // all, so only Description shows up as changed here.
         $this->actingAs($this->admin())->patch(route('admin.cohorts.update', $cohort), [
-            'label' => 'Cohort Two',
             'start_date' => '2026-01-05',
             'end_date' => '2026-06-30',
             'description' => 'Fintech track',
@@ -255,8 +257,8 @@ class EditHistoryChangesTest extends TestCase
         $entry = $this->entry('update_cohort');
 
         $this->assertSame(2, $entry->cohort_number);
-        $this->assertSame(['label' => 'Cohort Name', 'from' => 'Cohort 2', 'to' => 'Cohort Two'], $this->line($entry, 'Cohort Name'));
         $this->assertSame(['label' => 'Description', 'from' => null, 'to' => 'Fintech track'], $this->line($entry, 'Description'));
+        $this->assertNull($this->line($entry, 'Cohort Name'));
         $this->assertNull($this->line($entry, 'Start Date'));
     }
 
