@@ -56,7 +56,7 @@ class DashboardController extends Controller
             'cohortSequence' => $cohortSequence,
             'assessment' => $assessment,
             'readinessStage' => $readinessStage,
-            'overallLabel' => ReadinessRubric::overallLabel($assessment->overall_score ?? null),
+            'overallLabel' => $startup->journey_label,
             'needsProfileSetup' => ! $startup->isProfileComplete(),
             'needsInformationSheet' => $startup->isProfileComplete() && ! $startup->hasSubmittedInformationSheet(),
             'isRejected' => $isRejected,

@@ -527,7 +527,7 @@
                         </div>
                         <p class="text-xs text-gray-400 mt-4">
                             Average across all {{ $averageReadiness['startup_count'] }} startups ({{ $averageReadiness['assessed_count'] }} assessed, {{ $averageReadiness['pending_count'] }} pending) &middot;
-                            Overall: {{ number_format($averageReadiness['overall_score'], 1) }}/9 ({{ $averageReadiness['overall_label'] }})
+                            Overall: {{ number_format($averageReadiness['overall_score'], 1) }}/9
                         </p>
                     @else
                         <p class="text-sm text-gray-400 py-16 text-center">No {{ $readinessStage }} scores recorded yet.</p>

@@ -1,0 +1,152 @@
+diff --git a/app/Http/Controllers/Admin/DashboardController.php b/app/Http/Controllers/Admin/DashboardController.php
+index 3fd720f..d412c33 100644
+--- a/app/Http/Controllers/Admin/DashboardController.php
++++ b/app/Http/Controllers/Admin/DashboardController.php
+@@ -583,7 +583,6 @@ protected function buildAverageReadiness($approvedStartupIds, int $totalStartups
+             'has_data' => $hasData,
+             'scores' => $scores,
+             'overall_score' => $overall,
+-            'overall_label' => ReadinessRubric::overallLabel($overall),
+             'startup_count' => $totalStartups,
+             'assessed_count' => $assessedCount,
+             'pending_count' => max($totalStartups - $assessedCount, 0),
+diff --git a/app/Http/Controllers/Startup/DashboardController.php b/app/Http/Controllers/Startup/DashboardController.php
+index d153dbc..9708b6e 100644
+--- a/app/Http/Controllers/Startup/DashboardController.php
++++ b/app/Http/Controllers/Startup/DashboardController.php
+@@ -56,7 +56,7 @@ public function index(): View
+             'cohortSequence' => $cohortSequence,
+             'assessment' => $assessment,
+             'readinessStage' => $readinessStage,
+-            'overallLabel' => ReadinessRubric::overallLabel($assessment->overall_score ?? null),
++            'overallLabel' => $startup->journey_label,
+             'needsProfileSetup' => ! $startup->isProfileComplete(),
+             'needsInformationSheet' => $startup->isProfileComplete() && ! $startup->hasSubmittedInformationSheet(),
+             'isRejected' => $isRejected,
+diff --git a/app/Http/Controllers/Startup/FounderReadinessController.php b/app/Http/Controllers/Startup/FounderReadinessController.php
+index 7127dd1..14580de 100644
+--- a/app/Http/Controllers/Startup/FounderReadinessController.php
++++ b/app/Http/Controllers/Startup/FounderReadinessController.php
+@@ -58,7 +58,7 @@ public function index(Request $request): View
+             'stages' => self::STAGES,
+             'assessment' => $assessment,
+             'meta' => ReadinessRubric::meta($stage),
+-            'overallLabel' => ReadinessRubric::overallLabel($assessment->overall_score ?? null),
++            'overallLabel' => ReadinessRubric::journeyLabel($startup?->exit_status),
+             'newStages' => $newStages,
+         ]);
+     }
+diff --git a/app/Http/Controllers/WelcomeController.php b/app/Http/Controllers/WelcomeController.php
+index 7387823..374b70d 100644
+--- a/app/Http/Controllers/WelcomeController.php
++++ b/app/Http/Controllers/WelcomeController.php
+@@ -110,9 +110,8 @@ protected function presentStartup(Startup $startup, ?string $exitStatus = null):
+ 
+         // Journey badge, not a readiness score: every publicly shown startup is
+         // "Development" (it appears once its Information Sheet is Approved) until
+-        // its Venture Exit form's Exit Status says Completed or Graduated. The
+-        // score-based ReadinessRubric::overallLabel() is untouched elsewhere.
+-        $stageLabel = in_array($exitStatus, ['Completed', 'Graduated'], true) ? $exitStatus : 'Development';
++        // its Venture Exit form's Exit Status says Completed or Graduated.
++        $stageLabel = ReadinessRubric::journeyLabel($exitStatus);
+ 
+         $stages = $startup->readinessAssessments
+             ->mapWithKeys(fn ($assessment) => [
+diff --git a/app/Models/Startup.php b/app/Models/Startup.php
+index 5cfcea6..4a7751e 100644
+--- a/app/Models/Startup.php
++++ b/app/Models/Startup.php
+@@ -2,6 +2,7 @@
+ 
+ namespace App\Models;
+ 
++use App\Support\ReadinessRubric;
+ use App\Support\VentureExitForm;
+ use Illuminate\Database\Eloquent\Factories\HasFactory;
+ use Illuminate\Database\Eloquent\Model;
+@@ -217,6 +218,12 @@ public function ventureExitDocument()
+      * getStatusAttribute() over the usual Active/Assign Coordinator/etc.
+      * status once set.
+      */
++    /** Development / Completed / Graduated - see ReadinessRubric::journeyLabel(). */
++    public function getJourneyLabelAttribute(): string
++    {
++        return ReadinessRubric::journeyLabel($this->exit_status);
++    }
++
+     public function getExitStatusAttribute(): ?string
+     {
+         $status = data_get($this->ventureExitDocument?->data, 'exit_status');
+diff --git a/app/Support/ReadinessRubric.php b/app/Support/ReadinessRubric.php
+index e862b62..9de1dec 100644
+--- a/app/Support/ReadinessRubric.php
++++ b/app/Support/ReadinessRubric.php
+@@ -172,28 +172,15 @@ public static function scoreFromProgress(string $type, ?array $progress): ?float
+     }
+ 
+     /**
+-     * Maps an overall readiness score (0-9, the average of TRL/MRL/TMRL/SRL)
+-     * to a plain-language stage label for the founder-facing Readiness
+-     * Result page and the admin Average Readiness Level card. No such
+-     * mapping exists elsewhere in the app — these bands are a new,
+-     * deliberately simple invention (not derived from any official
+-     * PUP-TBIDO rubric document).
+-     *
+-     * Used to be 4 bands (Ideation / Development / Validation / Growth), with
+-     * an "Ideation" band below 2 for a barely-assessed startup/cohort. Per
+-     * direct feedback that distinction wasn't meaningful in practice — a low
+-     * score (including a mostly-unassessed cohort's "honest" whole-cohort
+-     * average) now just reads as "Development" too, same as anything else
+-     * under 6.
++     * The one label a startup carries everywhere (founder dashboard, Readiness
++     * Result, Startup Profile, public cohort showcase): "Development" while it
++     * is in the program, then "Completed" or "Graduated" once its Venture Exit
++     * form's Exit Status says so. Not derived from the readiness score - the
++     * score itself is still shown out of 9 alongside it.
+      */
+-    public static function overallLabel(?float $score): string
++    public static function journeyLabel(?string $exitStatus): string
+     {
+-        return match (true) {
+-            $score === null => 'Not Assessed',
+-            $score < 6 => 'Development',
+-            $score < 8 => 'Validation',
+-            default => 'Growth',
+-        };
++        return in_array($exitStatus, ['Completed', 'Graduated'], true) ? $exitStatus : 'Development';
+     }
+ 
+     public static function all(): array
+diff --git a/resources/views/dashboard.blade.php b/resources/views/dashboard.blade.php
+index 7f3bae1..ed1f8ca 100644
+--- a/resources/views/dashboard.blade.php
++++ b/resources/views/dashboard.blade.php
+@@ -527,7 +527,7 @@ class="block px-4 py-2 text-sm transition-colors {{ $readinessStage === $s ? 'te
+                         </div>
+                         <p class="text-xs text-gray-400 mt-4">
+                             Average across all {{ $averageReadiness['startup_count'] }} startups ({{ $averageReadiness['assessed_count'] }} assessed, {{ $averageReadiness['pending_count'] }} pending) &middot;
+-                            Overall: {{ number_format($averageReadiness['overall_score'], 1) }}/9 ({{ $averageReadiness['overall_label'] }})
++                            Overall: {{ number_format($averageReadiness['overall_score'], 1) }}/9
+                         </p>
+                     @else
+                         <p class="text-sm text-gray-400 py-16 text-center">No {{ $readinessStage }} scores recorded yet.</p>
+diff --git a/resources/views/startup/profile/edit.blade.php b/resources/views/startup/profile/edit.blade.php
+index 5df91d9..edee188 100644
+--- a/resources/views/startup/profile/edit.blade.php
++++ b/resources/views/startup/profile/edit.blade.php
+@@ -712,12 +712,11 @@ class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-
+                 </div>
+ 
+                 @php
+-                $overallLabel = \App\Support\ReadinessRubric::overallLabel($startup->latestReadinessAssessment->overall_score ?? null);
++                $overallLabel = $startup->journey_label;
+                 $overallTone = match ($overallLabel) {
+-                'Ideation' => 'border-violet-300 text-violet-700 bg-violet-50',
+                 'Development' => 'border-rose-300 text-rose-700 bg-rose-50',
+-                'Validation' => 'border-blue-300 text-blue-700 bg-blue-50',
+-                'Growth' => 'border-green-300 text-green-700 bg-green-50',
++                'Completed' => 'border-blue-300 text-blue-700 bg-blue-50',
++                'Graduated' => 'border-green-300 text-green-700 bg-green-50',
+                 default => 'border-gray-300 text-gray-500 bg-gray-50',
+                 };
+                 @endphp

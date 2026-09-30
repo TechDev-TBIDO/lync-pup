@@ -172,28 +172,15 @@ class ReadinessRubric
     }
 
     /**
-     * Maps an overall readiness score (0-9, the average of TRL/MRL/TMRL/SRL)
-     * to a plain-language stage label for the founder-facing Readiness
-     * Result page and the admin Average Readiness Level card. No such
-     * mapping exists elsewhere in the app — these bands are a new,
-     * deliberately simple invention (not derived from any official
-     * PUP-TBIDO rubric document).
-     *
-     * Used to be 4 bands (Ideation / Development / Validation / Growth), with
-     * an "Ideation" band below 2 for a barely-assessed startup/cohort. Per
-     * direct feedback that distinction wasn't meaningful in practice — a low
-     * score (including a mostly-unassessed cohort's "honest" whole-cohort
-     * average) now just reads as "Development" too, same as anything else
-     * under 6.
+     * The one label a startup carries everywhere (founder dashboard, Readiness
+     * Result, Startup Profile, public cohort showcase): "Development" while it
+     * is in the program, then "Completed" or "Graduated" once its Venture Exit
+     * form's Exit Status says so. Not derived from the readiness score - the
+     * score itself is still shown out of 9 alongside it.
      */
-    public static function overallLabel(?float $score): string
+    public static function journeyLabel(?string $exitStatus): string
     {
-        return match (true) {
-            $score === null => 'Not Assessed',
-            $score < 6 => 'Development',
-            $score < 8 => 'Validation',
-            default => 'Growth',
-        };
+        return in_array($exitStatus, ['Completed', 'Graduated'], true) ? $exitStatus : 'Development';
     }
 
     public static function all(): array

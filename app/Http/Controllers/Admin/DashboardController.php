@@ -583,7 +583,6 @@ class DashboardController extends Controller
             'has_data' => $hasData,
             'scores' => $scores,
             'overall_score' => $overall,
-            'overall_label' => ReadinessRubric::overallLabel($overall),
             'startup_count' => $totalStartups,
             'assessed_count' => $assessedCount,
             'pending_count' => max($totalStartups - $assessedCount, 0),

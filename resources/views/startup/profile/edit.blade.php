@@ -712,12 +712,11 @@
                 </div>
 
                 @php
-                $overallLabel = \App\Support\ReadinessRubric::overallLabel($startup->latestReadinessAssessment->overall_score ?? null);
+                $overallLabel = $startup->journey_label;
                 $overallTone = match ($overallLabel) {
-                'Ideation' => 'border-violet-300 text-violet-700 bg-violet-50',
                 'Development' => 'border-rose-300 text-rose-700 bg-rose-50',
-                'Validation' => 'border-blue-300 text-blue-700 bg-blue-50',
-                'Growth' => 'border-green-300 text-green-700 bg-green-50',
+                'Completed' => 'border-blue-300 text-blue-700 bg-blue-50',
+                'Graduated' => 'border-green-300 text-green-700 bg-green-50',
                 default => 'border-gray-300 text-gray-500 bg-gray-50',
                 };
                 @endphp
