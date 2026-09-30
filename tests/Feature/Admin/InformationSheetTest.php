@@ -182,39 +182,10 @@ class InformationSheetTest extends TestCase
         $admin = $this->adminUser();
         $startup = $this->makeStartup();
         $cohort = $this->makeCohort();
-        EvaluationSchedule::create([
-            'startup_id' => $startup->startup_id,
-            'evaluation_date' => now(),
-            'start_time' => '09:00',
-            'end_time' => '10:00',
-            'status' => 'Scheduled',
+        $startup->informationSheet->update([
+            'cohort_no' => $cohort->display_label,
+            'director_approval_date' => now()->toDateString(),
         ]);
-
-        $response = $this->actingAs($admin)->patch(route('admin.information-sheet.approve', $startup), [
-            'cohort_id' => $cohort->cohort_id,
-        ]);
-
-        $response->assertRedirect(route('admin.assessment-hub.index', ['tab' => 'approved']));
-        $this->assertEquals('Approved', $startup->informationSheet->fresh()->approval_status);
-        // The startup was already placed into a cohort at email verification
-        // (see AssignLatestCohortOnVerification) — picking a cohort here is
-        // an optional OVERRIDE that moves it to a different one.
-        $this->assertEquals($cohort->cohort_id, $startup->fresh()->cohort_id);
-    }
-
-    /**
-     * Cohort placement no longer happens at this step — it happened earlier,
-     * at email verification (see AssignLatestCohortOnVerification) — so the
-     * "Assign to Cohort" picker on the Accept confirmation is optional now.
-     * Leaving it blank must still let the approval go through, and must
-     * leave whatever cohort the startup already had untouched.
-     */
-    public function test_admin_can_approve_without_picking_a_cohort_leaving_existing_placement_untouched(): void
-    {
-        $admin = $this->adminUser();
-        $startup = $this->makeStartup();
-        $existingCohort = $this->makeCohort();
-        $startup->update(['cohort_id' => $existingCohort->cohort_id]);
         EvaluationSchedule::create([
             'startup_id' => $startup->startup_id,
             'evaluation_date' => now(),
@@ -227,7 +198,54 @@ class InformationSheetTest extends TestCase
 
         $response->assertRedirect(route('admin.assessment-hub.index', ['tab' => 'approved']));
         $this->assertEquals('Approved', $startup->informationSheet->fresh()->approval_status);
-        $this->assertEquals($existingCohort->cohort_id, $startup->fresh()->cohort_id);
+        // The Cohort No. on the sheet decides the cohort - accepting places
+        // the startup (and its founder) in exactly that one.
+        $this->assertEquals($cohort->cohort_id, $startup->fresh()->cohort_id);
+        $this->assertEquals($cohort->number, $startup->fresh()->cohort_number);
+    }
+
+    public function test_admin_cannot_approve_when_cohort_no_matches_no_existing_cohort(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+        $startup->informationSheet->update([
+            'cohort_no' => 'A Cohort That Does Not Exist',
+            'director_approval_date' => now()->toDateString(),
+        ]);
+        EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now(),
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'status' => 'Scheduled',
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('admin.information-sheet.approve', $startup));
+
+        $response->assertSessionHasErrors(['endorsement']);
+        $this->assertEquals('Pending', $startup->informationSheet->fresh()->approval_status);
+    }
+
+    public function test_saving_the_sheet_moves_the_startup_into_the_cohort_named_in_cohort_no(): void
+    {
+        $admin = $this->adminUser();
+        $startup = $this->makeStartup();
+        $cohort = $this->makeCohort();
+        EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now(),
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'status' => 'Scheduled',
+        ]);
+
+        $this->actingAs($admin)->patch(
+            route('admin.information-sheet.update', $startup),
+            $this->validInformationSheetPayload(['cohort_no' => $cohort->display_label])
+        )->assertSessionHasNoErrors();
+
+        $this->assertEquals($cohort->cohort_id, $startup->fresh()->cohort_id);
+        $this->assertEquals($cohort->number, $startup->fresh()->cohort_number);
     }
 
     public function test_admin_cannot_reject_a_startup_with_no_scheduled_evaluation(): void

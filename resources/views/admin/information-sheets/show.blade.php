@@ -604,9 +604,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     // match any current option (e.g. a coordinator who has since
                     // left, or an old seed value) is kept as its own selectable
                     // option instead of silently disappearing/blanking on save.
-                    $selectField = function ($name, $label, array $options, $required = true) use ($sheet) {
+                    $selectField = function ($name, $label, array $options, $required = true) use ($sheet, $prefill) {
                         $stored = $sheet?->{$name};
-                        $value = old($name, $stored ?? '');
+                        $value = old($name, filled($stored) ? $stored : ($prefill[$name] ?? ''));
                         $star = $required ? " <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span>" : '';
                         $requiredAttr = $required ? ' required' : '';
 
@@ -2033,19 +2033,20 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             @csrf
                             @method('PATCH')
 
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Cohort
-                                <span class="font-normal text-gray-500">
-                                    (currently {{ $startup->cohort?->display_label ?? 'unset' }} — change only to override)
+                            {{-- The cohort comes from Cohort No. under Endorsement and
+                                 Approval (see InformationSheetController::approve()):
+                                 accepting places the startup in exactly that cohort. --}}
+                            <p class="text-sm text-gray-700 mb-3">
+                                Cohort:
+                                <span class="font-semibold text-gray-900">{{ $sheet?->cohort_no ?: 'Not saved yet' }}</span>
+                                <span class="block text-xs text-gray-500 mt-0.5">
+                                    @if (filled($sheet?->cohort_no))
+                                        Taken from Cohort No. under Endorsement and Approval. The founder will be placed in this cohort. You can still change it later by editing the sheet.
+                                    @else
+                                        Pick a cohort in Cohort No. under Endorsement and Approval and save the sheet first.
+                                    @endif
                                 </span>
-                            </label>
-                            <select name="cohort_id" class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
-                                <option value="">Keep current cohort</option>
-                                @foreach ($cohorts ?? [] as $cohort)
-                                    <option value="{{ $cohort->cohort_id }}" @selected($startup->cohort_id === $cohort->cohort_id)>{{ $cohort->display_label }}</option>
-                                @endforeach
-                            </select>
-                            @error('cohort_id') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
+                            </p>
 
                             <div class="flex gap-3">
                                 <button type="button" @click="confirmingApprove = false"
