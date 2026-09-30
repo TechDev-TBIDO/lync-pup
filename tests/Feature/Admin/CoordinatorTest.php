@@ -28,7 +28,8 @@ class CoordinatorTest extends TestCase
 
         $response = $this->actingAs($startup)->get(route('admin.coordinators.index'));
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 
     public function test_guest_is_redirected_from_coordinator_index(): void

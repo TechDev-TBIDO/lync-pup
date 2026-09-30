@@ -40,7 +40,8 @@ class RiskMonitoringTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('admin.risk-monitoring.index'));
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 
     public function test_an_admin_can_view_the_risk_monitoring_page(): void

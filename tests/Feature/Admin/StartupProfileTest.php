@@ -41,7 +41,8 @@ class StartupProfileTest extends TestCase
 
         $response = $this->actingAs($startupUser)->get(route('admin.startups.index'));
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 
     public function test_guest_is_redirected_from_startup_index(): void

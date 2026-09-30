@@ -233,6 +233,7 @@ class RoadblockTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('startup.submissions.index'));
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 }

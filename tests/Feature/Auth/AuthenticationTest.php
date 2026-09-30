@@ -283,7 +283,11 @@ class AuthenticationTest extends TestCase
 
         // And even if something did send them to /dashboard directly, the
         // route itself must refuse a non-Admin rather than rendering the
-        // admin layout for them.
-        $this->get(route('dashboard'))->assertForbidden();
+        // admin layout for them -- treated as a stale/mismatched session
+        // (see CheckRole), so it's logged out and sent back to login
+        // rather than crashing.
+        $response = $this->get(route('dashboard'));
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 }
