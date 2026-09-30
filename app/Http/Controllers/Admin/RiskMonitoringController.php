@@ -27,7 +27,14 @@ class RiskMonitoringController extends Controller
         // to match its already-correct, already-displayed cohort_number.
         $cohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
 
+        // Applicants without an approved Information Sheet were never
+        // eligible for any of the things this page flags (a portfolio
+        // coordinator, a scheduled assessment, ...), so they don't belong
+        // in Risk Monitoring at all -- not just scored 0, excluded outright,
+        // the same population RiskEngine::assess() itself now assumes (see
+        // its $isApproved guard on the assessment-overdue indicators).
         $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
+            ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
             ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
             ->get();
 
@@ -90,7 +97,9 @@ class RiskMonitoringController extends Controller
         // startup set when $cohortId narrowed $startups.
         $allAssessments = $cohortId
             ? (function () {
-                $allStartups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])->get();
+                $allStartups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
+                    ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
+                    ->get();
                 $allDocuments = AssessmentDocument::whereIn('startup_id', $allStartups->pluck('startup_id'))->get()->groupBy('startup_id');
 
                 return $allStartups->mapWithKeys(fn (Startup $s) => [

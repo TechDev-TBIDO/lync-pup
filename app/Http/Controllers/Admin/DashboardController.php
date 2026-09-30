@@ -127,9 +127,9 @@ class DashboardController extends Controller
             'totalStartups' => $totalStartups,
             'stats' => $this->buildStatCards($startupIds, $totalStartups, $approvedStartupIds),
             'incubationProgress' => $this->buildIncubationProgress($startupIds),
-            'riskClassification' => $this->buildRiskClassification($startupIds),
-            'averageReadiness' => $this->buildAverageReadiness($approvedStartupIds, $totalStartups, $readinessStage),
-            'milestones' => $this->buildMilestoneCompletion($startupIds, $totalStartups),
+            'riskClassification' => $this->buildRiskClassification($approvedStartupIds),
+            'averageReadiness' => $this->buildAverageReadiness($approvedStartupIds, $readinessStage),
+            'milestones' => $this->buildMilestoneCompletion($startupIds, $totalStartups, $approvedStartupIds),
             'updates' => $this->updates(),
         ]);
     }
@@ -199,28 +199,37 @@ class DashboardController extends Controller
             ->unique()
             ->count();
 
+        // Applicants without an approved Information Sheet were never
+        // eligible to be assessed OR to trip any of RiskEngine's
+        // indicators (a portfolio coordinator, a scheduled assessment,
+        // ...), so both the risk pool and the Pre/Post RL coverage below
+        // are scoped to $approvedStartupIds, not the wider $startupIds —
+        // same population RiskMonitoringController now uses.
+        $approvedCount = count($approvedStartupIds);
+
         $startupsForRisk = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
-            ->whereIn('startup_id', $startupIds)
+            ->whereIn('startup_id', $approvedStartupIds)
             ->get();
-        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $startupIds)
+        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $approvedStartupIds)
             ->get()->groupBy('startup_id');
         $atRiskCount = $startupsForRisk->filter(
             fn (Startup $s) => RiskEngine::assess($s, $documentsByStartup->get($s->startup_id))['score'] > 0
         )->count();
-        // Percentage is against the TOTAL startup pool, not the assessed
+        // Percentage is against the approved startup pool, not the assessed
         // pool — RiskEngine flags risk independently of assessment stage
         // (via info sheet, coordinator assignment, roadblocks, etc.), so an
         // at-risk startup is not guaranteed to be one of the assessed ones.
-        // atRiskCount is filtered from the same $startupIds used for
-        // $totalStartups, so this ratio can never exceed 100%.
-        $atRiskPct = $totalStartups > 0 ? round(($atRiskCount / $totalStartups) * 100, 1) : 0.0;
+        // atRiskCount is filtered from the same $approvedStartupIds used for
+        // $approvedCount, so this ratio can never exceed 100%.
+        $atRiskPct = $approvedCount > 0 ? round(($atRiskCount / $approvedCount) * 100, 1) : 0.0;
 
-        // Coverage of the Pre/Post RL counts against the whole in-scope
-        // startup pool, used for the "Pre RL's X% | Post RL's Y%" caption —
-        // replaces the old week-over-week trend, which didn't reflect the
-        // all-four-required rule above and wasn't what the tester asked for.
-        $preRlPct = $totalStartups > 0 ? round(($preRlCount / $totalStartups) * 100, 1) : 0.0;
-        $postRlPct = $totalStartups > 0 ? round(($postRlCount / $totalStartups) * 100, 1) : 0.0;
+        // Coverage of the Pre/Post RL counts against the approved startup
+        // pool, used for the "Pre RL's X% | Post RL's Y%" caption — an
+        // applicant still sitting in Awaiting Schedule/Evaluation was never
+        // eligible to be assessed, so it's excluded here the same way it is
+        // from Average Readiness now (see buildAverageReadiness's docblock).
+        $preRlPct = $approvedCount > 0 ? round(($preRlCount / $approvedCount) * 100, 1) : 0.0;
+        $postRlPct = $approvedCount > 0 ? round(($postRlCount / $approvedCount) * 100, 1) : 0.0;
 
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
@@ -503,14 +512,20 @@ class DashboardController extends Controller
         return sprintf('(%.2f%% – %.2f%%)', $min, $max);
     }
 
-    /** Mirrors RiskMonitoringController's aggregation, scoped to $startupIds. */
-    protected function buildRiskClassification($startupIds): array
+    /**
+     * Mirrors RiskMonitoringController's aggregation, scoped to
+     * $approvedStartupIds -- same reasoning as that controller now uses: an
+     * applicant without an approved Information Sheet was never eligible
+     * to trip any of RiskEngine's indicators, so it doesn't belong in this
+     * donut at all.
+     */
+    protected function buildRiskClassification($approvedStartupIds): array
     {
         $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
-            ->whereIn('startup_id', $startupIds)
+            ->whereIn('startup_id', $approvedStartupIds)
             ->get();
 
-        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $startupIds)
+        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $approvedStartupIds)
             ->get()->groupBy('startup_id');
 
         $assessments = $startups->mapWithKeys(fn (Startup $s) => [
@@ -538,28 +553,25 @@ class DashboardController extends Controller
     }
 
     /**
-     * Average Readiness Level card: per direct testing feedback, this must
-     * be "honest" about the whole cohort, not just whoever's been assessed
-     * so far — a cohort that's mostly unassessed (early in the program)
-     * should show a correspondingly low average, not a falsely-encouraging
-     * one computed only from its few assessed startups. So each category
-     * average is SUM(score for startups that have one) ÷ TOTAL in-scope
-     * startup count, treating every unassessed startup as a 0 rather than
-     * excluding it — e.g. 7 total startups, only 3 with a Pre-Assessment
-     * TRL score of 6/8/4, averages to (6+8+4+0+0+0+0) ÷ 7 = 2.57, not
-     * (6+8+4) ÷ 3 = 6.0. Feeds the shared <x-readiness-radar> component
-     * plus the 4 category boxes.
+     * Average Readiness Level card. Each category average is SUM(score for
+     * approved startups that have one) ÷ COUNT of approved startups,
+     * treating an approved-but-not-yet-assessed startup as a 0 rather than
+     * excluding it — e.g. 5 approved startups, only 3 with a Pre-Assessment
+     * TRL score of 6/8/4, averages to (6+8+4+0+0) ÷ 5 = 3.6, not
+     * (6+8+4) ÷ 3 = 6.0, so a mostly-unassessed cohort still reads low
+     * rather than falsely encouraging. Feeds the shared
+     * <x-readiness-radar> component plus the 4 category boxes.
      *
-     * $approvedStartupIds (not every in-scope startup_id) is what the SUM is
-     * taken over — only a currently-Approved startup is actually eligible to
-     * be assessed at all, so a stray assessment row left over from before a
-     * startup was rejected/reset must not inflate this average. The
-     * TOTAL-startup denominator below is deliberately still $totalStartups,
-     * not count($approvedStartupIds) — see the "honest about the whole
-     * cohort" reasoning above.
+     * Per Macy's direction: applicants without an approved Information
+     * Sheet are excluded from this computation entirely (both the SUM and
+     * the denominator) — they were never eligible to be assessed, so they
+     * shouldn't count as a 0 here either. $approvedStartupIds is both what
+     * the SUM is taken over AND the denominator below.
      */
-    protected function buildAverageReadiness($approvedStartupIds, int $totalStartups, string $stage): array
+    protected function buildAverageReadiness($approvedStartupIds, string $stage): array
     {
+        $approvedCount = count($approvedStartupIds);
+
         $row = ReadinessLevelAssessment::whereIn('startup_id', $approvedStartupIds)
             ->where('stage', $stage)
             ->whereNotNull('overall_score')
@@ -567,9 +579,9 @@ class DashboardController extends Controller
             ->first();
 
         $assessedCount = $row ? (int) $row->n : 0;
-        $hasData = $totalStartups > 0;
+        $hasData = $approvedCount > 0;
 
-        $avg = fn ($sum) => $hasData ? round(($sum ?? 0) / $totalStartups, 1) : 0.0;
+        $avg = fn ($sum) => $hasData ? round(($sum ?? 0) / $approvedCount, 1) : 0.0;
 
         $scores = [
             'TRL' => $avg($row?->trl),
@@ -583,9 +595,9 @@ class DashboardController extends Controller
             'has_data' => $hasData,
             'scores' => $scores,
             'overall_score' => $overall,
-            'startup_count' => $totalStartups,
+            'startup_count' => $approvedCount,
             'assessed_count' => $assessedCount,
-            'pending_count' => max($totalStartups - $assessedCount, 0),
+            'pending_count' => max($approvedCount - $assessedCount, 0),
         ];
     }
 
@@ -594,7 +606,7 @@ class DashboardController extends Controller
      * elsewhere in the app) each expressed as % of scoped startups that
      * have reached it, derived from real, existing data.
      */
-    protected function buildMilestoneCompletion($startupIds, int $totalStartups): array
+    protected function buildMilestoneCompletion($startupIds, int $totalStartups, $approvedStartupIds): array
     {
         if ($totalStartups === 0) {
             $empty = collect([
@@ -633,19 +645,29 @@ class DashboardController extends Controller
         // (Pre/Post) or 3 documents (Active) that's on file contributes its
         // own fractional share, so a cohort that's half-scored across the
         // board reads as 50%, not as though nobody's started.
-        $formsScoredTotal = function (string $stage) use ($startupIds) {
-            return ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
+        // Per Macy's direction: Pre/Post-Assessment are scoped to approved
+        // startups only, both the forms counted AND the denominator -- an
+        // applicant without an approved Information Sheet was never
+        // eligible to be assessed, so it shouldn't read as unstarted
+        // progress on a milestone it couldn't have reached yet.
+        $approvedCount = count($approvedStartupIds);
+        $formsScoredTotal = function (string $stage) use ($approvedStartupIds) {
+            return ReadinessLevelAssessment::whereIn('startup_id', $approvedStartupIds)
                 ->where('stage', $stage)
                 ->get()
                 ->sum(fn (ReadinessLevelAssessment $a) => collect(ReadinessRubric::TYPES)->filter(fn ($type) => $a->scoreFor($type) !== null)->count());
         };
-        $preAssessmentPercent = round(($formsScoredTotal('Pre-Assessment') / ($totalStartups * 4)) * 100, 1);
-        $postAssessmentPercent = round(($formsScoredTotal('Post-Assessment') / ($totalStartups * 4)) * 100, 1);
+        $preAssessmentPercent = $approvedCount > 0 ? round(($formsScoredTotal('Pre-Assessment') / ($approvedCount * 4)) * 100, 1) : 0.0;
+        $postAssessmentPercent = $approvedCount > 0 ? round(($formsScoredTotal('Post-Assessment') / ($approvedCount * 4)) * 100, 1) : 0.0;
 
-        $activeDocsPresentTotal = AssessmentDocument::whereIn('startup_id', $startupIds)
+        // Per Macy's direction: Active-Assessment is scoped to approved
+        // startups only, same reasoning as Pre/Post-Assessment above -- an
+        // applicant without an approved Information Sheet was never
+        // eligible to submit any Active-Assessment document.
+        $activeDocsPresentTotal = AssessmentDocument::whereIn('startup_id', $approvedStartupIds)
             ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
             ->count();
-        $activeAssessmentPercent = round(($activeDocsPresentTotal / ($totalStartups * 3)) * 100, 1);
+        $activeAssessmentPercent = $approvedCount > 0 ? round(($activeDocsPresentTotal / ($approvedCount * 3)) * 100, 1) : 0.0;
 
         // Per direct testing feedback: unlike every other milestone here,
         // "Assign Mentor" is measured PER ROADBLOCK, not per startup — a
@@ -668,11 +690,16 @@ class DashboardController extends Controller
         // so every "is Venture Exit done" check in the app agrees. A
         // startup that's merely typed something into the form without
         // choosing an Exit Status doesn't count, no matter which field.
-        $ventureExit = AssessmentDocument::whereIn('startup_id', $startupIds)
+        // Per Macy's direction: Venture Exit is scoped to approved startups
+        // only, same reasoning as above -- an applicant without an
+        // approved Information Sheet was never eligible to reach Venture
+        // Exit in the first place.
+        $ventureExit = AssessmentDocument::whereIn('startup_id', $approvedStartupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
             ->get()
             ->filter(fn (AssessmentDocument $doc) => \App\Support\ActiveAssessmentForms::isVentureExitCompleted($doc->data ?? []))
             ->pluck('startup_id')->unique()->count();
+        $ventureExitPercent = $approvedCount > 0 ? round(($ventureExit / $approvedCount) * 100, 1) : 0.0;
 
         $pct = fn ($count) => round(($count / $totalStartups) * 100, 1);
 
@@ -684,7 +711,7 @@ class DashboardController extends Controller
             ['label' => 'Assign Mentor', 'percent' => $mentorAssignedPercent],
             ['label' => 'Active-Assessment', 'percent' => $activeAssessmentPercent],
             ['label' => 'Post-Assessment', 'percent' => $postAssessmentPercent],
-            ['label' => 'Venture Exit', 'percent' => $pct($ventureExit)],
+            ['label' => 'Venture Exit', 'percent' => $ventureExitPercent],
         ]);
 
         return [
