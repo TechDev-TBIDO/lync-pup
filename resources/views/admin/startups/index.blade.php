@@ -21,39 +21,41 @@
             return $svg;
             };
 
-            // Whole-number percentage of $total, safe against division by zero.
-            $pct = fn ($count, $total) => $total > 0 ? round(($count / $total) * 100) : 0;
-
             // One definition per card so they stay structurally identical — a change to
             // padding or watermark size happens once, not once per card.
             //
-            // 'Applicant' is included alongside Active/Assign Coordinator/Pending
-            // so these four add up to Total Startup — it's a real, populated tab
-            // on this page (scopeOnboarding: not yet ready for evaluation), and
-            // leaving it out of the summary made Total look wrong instead of
-            // just under-explained.
+            // Total Startup now includes Applicants in its own count (it
+            // used to leave them out) — the breakdown is the per-cohort
+            // list plus a final "Applicant" line appended here rather than
+            // folded into $cohortBreakdown itself, so that variable stays a
+            // pure per-cohort breakdown and Applicants read as their own
+            // bucket rather than part of a cohort's number.
             //
-            // Total Startup's list is the per-cohort breakdown plus a final
-            // "Applicants" line (same number as the Applicant card below) — added
-            // in the view rather than to $cohortBreakdown itself so that variable
-            // stays a pure per-cohort breakdown.
+            // Active / Assign Coordinator are mutually exclusive slices of
+            // the same "approved, not yet exited" pool (see
+            // Startup::scopeActive()/scopeNeedsCoordinator() — one requires
+            // an active coordinator assignment, the other requires none),
+            // so this card follows the same pattern as Graduated/Completed
+            // below: the big number is their sum, broken down into the two
+            // lines.
+            //
             // Graduated/Completed are a startup's terminal state (see
             // Startup::getExitStatusAttribute()) — once set, the startup no
-            // longer counts toward Active/Assign Coordinator (see
-            // Startup::scopeActive()/scopeNeedsCoordinator()), so these two
-            // need their own cards for the same "Total Startup should add
-            // up" reason Applicant does. Appended after Applicant so the
-            // card order still reads as the onboarding-to-exit pipeline.
+            // longer counts toward Active/Assign Coordinator, so these two
+            // need their own card for the same "Total Startup should add
+            // up" reason Applicant and Active/Assign Coordinator do.
             $stats = [
-            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => collect($cohortBreakdown)],
+            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => collect($cohortBreakdown)->push(['count' => $totals['applicant'], 'label' => 'Applicant'])],
             ['label' => 'Graduated/Completed', 'value' => $totals['graduated'] + $totals['completed'], 'icon' => 'graduate.svg', 'border' => 'border-[#A5F3FC]', 'bg' => 'bg-[#ECFEFF]', 'breakdown' => collect([
                 ['count' => $totals['graduated'], 'label' => 'Graduated'],
                 ['count' => $totals['completed'], 'label' => 'Completed'],
             ])],
-            ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['needsCoordinator'], $totals['total']).'% startup needs assigned coordinator'],
-            ['label' => 'Pending/Applicant', 'value' => $totals['pending'] + $totals['applicant'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'breakdown' => collect([
+            ['label' => 'Active / Assign Coordinator', 'value' => $totals['active'] + $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'breakdown' => collect([
+                ['count' => $totals['active'], 'label' => 'Active'],
+                ['count' => $totals['needsCoordinator'], 'label' => 'Assign Coordinator'],
+            ])],
+            ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'breakdown' => collect([
                 ['count' => $totals['pending'], 'label' => 'Pending'],
-                ['count' => $totals['applicant'], 'label' => 'Applicant'],
             ])],
             ];
             @endphp
