@@ -125,8 +125,8 @@ $archiveMonths = $monthsFor($meetingsArchive);
     @foreach ([
         'today' => ['rows' => $meetingsToday, 'actions' => ['start'], 'months' => null, 'monthKey' => null,
             'show' => "meetingTab === 'today'", 'showDate' => false, 'banner' => null],
-        'upcoming' => ['rows' => $meetingsUpcoming, 'actions' => ['start', 'reschedule'], 'months' => $upcomingMonths, 'monthKey' => 'upcoming',
-            'show' => "meetingTab === 'upcoming'", 'showDate' => false, 'banner' => null],
+        'upcoming' => ['rows' => $meetingsUpcoming, 'actions' => ['reschedule'], 'months' => $upcomingMonths, 'monthKey' => 'upcoming',
+            'show' => "meetingTab === 'upcoming'", 'showDate' => true, 'banner' => null],
         'pending' => ['rows' => $meetingsPendingReview, 'actions' => ['view', 'failed', 'resolve'], 'months' => $archiveMonths, 'monthKey' => 'archive',
             'show' => "meetingTab === 'archive' && archiveStage === 'pending'", 'showDate' => true, 'banner' => null],
         'resolved' => ['rows' => $meetingsResolved, 'actions' => ['view', 'recover'], 'months' => $archiveMonths, 'monthKey' => 'archive',

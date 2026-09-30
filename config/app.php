@@ -16,6 +16,14 @@ return [
     'name' => env('APP_NAME', 'Laravel'),
 
     /*
+    | Super Admin bootstrap. On a server where nobody is Super Admin yet, the
+    | admin with this email is promoted when migrations run (see migration
+    | 000076). Set it as an App Setting on Azure (SUPER_ADMIN_EMAIL). Ignored
+    | once any Super Admin exists, so a later Transfer is never undone.
+    */
+    'super_admin_email' => env('SUPER_ADMIN_EMAIL'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------

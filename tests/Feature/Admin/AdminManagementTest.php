@@ -235,6 +235,15 @@ class AdminManagementTest extends TestCase
         $this->assertModelExists($super);
     }
 
+    public function test_change_email_button_never_deletes_an_unverified_admin(): void
+    {
+        $admin = User::factory()->unverified()->create(['role' => 'Admin']);
+
+        $this->actingAs($admin)->post(route('verification.change-email'));
+
+        $this->assertModelExists($admin);
+    }
+
     // ── Disable / enable ─────────────────────────────────────────────────
 
     public function test_disabled_admin_cannot_log_in_and_is_kicked_out_of_open_session(): void

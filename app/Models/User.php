@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -228,6 +229,27 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function sendEmailVerificationNotification(): void
     {
+        // A page load that lands on the verify-email waiting page (fresh
+        // after registering, a stale tab reloading, the browser retrying a
+        // redirect, a second tab opened on the same link, etc.) used to
+        // send a brand new link -- and therefore a brand new email -- every
+        // single time this method ran, with nothing stopping two loads a
+        // few minutes apart from mailing the founder two identical "Verify
+        // Your Email" messages. That's exactly what QA reported (two
+        // verification emails ~4 minutes apart with no second "Resend"
+        // click in between). A real link only needs to go out once a
+        // minute at most -- the "Resend" button already enforces that same
+        // 60s cooldown client-side -- so skip re-sending (and don't burn
+        // the still-valid link by rotating its token) if one already went
+        // out within the last 60 seconds.
+        $throttleKey = "email-verification-sent:{$this->id}";
+
+        if (Cache::has($throttleKey)) {
+            return;
+        }
+
+        Cache::put($throttleKey, true, 60);
+
         $this->forceFill(['email_verification_token' => Str::random(40)])->save();
 
         $this->notify(new VerifyEmailNotification);

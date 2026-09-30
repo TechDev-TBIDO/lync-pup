@@ -46,9 +46,22 @@ class PasswordResetLinkController extends Controller
         // We will send the password reset link to this user. Once we have attempted
         // to send the link, we will examine the response then see the message we
         // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        //
+        // 'role' is included as a lookup credential (not just carried
+        // through for the "check your email" screen's branding) so this
+        // only ever matches an account of the same role as the form it was
+        // submitted from. Without it, Password::sendResetLink() looks a
+        // user up by email alone -- an Admin's email typed into the
+        // Founder-side form matched that Admin's account just fine and
+        // mailed them a reset link from the wrong flow. Now a
+        // cross-role email comes back as Password::INVALID_USER, same
+        // as any other email with no matching account, so it also never
+        // reveals whether that address belongs to an account of the
+        // other role.
+        $status = Password::sendResetLink([
+            'email' => $request->input('email'),
+            'role' => $role,
+        ]);
 
         // Redirects to an explicit URL (rather than back()) so the role
         // carries forward reliably regardless of the browser's Referer

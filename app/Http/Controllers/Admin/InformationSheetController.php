@@ -163,6 +163,7 @@ class InformationSheetController extends Controller
             $startup,
             'Information Sheet',
             'approve_information_sheet',
+            subjectLabel: $startup->company_name,
             changes: [
                 ...ChangeLog::diff($decisionBefore, ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields), $decisionFields),
                 ...ChangeLog::field(
@@ -244,6 +245,7 @@ class InformationSheetController extends Controller
             $startup,
             'Information Sheet',
             'reject_information_sheet',
+            subjectLabel: $startup->company_name,
             changes: ChangeLog::diff($decisionBefore, ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields), $decisionFields),
         );
 
@@ -502,6 +504,7 @@ class InformationSheetController extends Controller
             'Information Sheet',
             'update_information_sheet',
             $changes,
+            subjectLabel: $startup?->company_name,
             mergeWithinSeconds: self::SAVE_MERGE_SECONDS,
         );
     }

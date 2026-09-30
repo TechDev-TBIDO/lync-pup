@@ -69,11 +69,46 @@ class EmailVerificationTest extends TestCase
     }
 
     /**
-     * Each landing must send a genuinely NEW link (matching the existing
-     * "only the newest link is valid" invalidation rule), not just re-fire
-     * the notification with the old, already-issued token.
+     * Regression for the actual duplicate-email bug QA reported (two
+     * identical "Verify Your Email" messages a few minutes apart, with no
+     * second "Resend" click in between): a second landing on this page
+     * shortly after the first (a reload, a duplicate redirect, a second
+     * tab on the same link) must be suppressed by the 60s cooldown in
+     * User::sendEmailVerificationNotification() -- no second email, no
+     * second token rotation, and the first link keeps working.
      */
-    public function test_each_landing_on_the_verification_prompt_invalidates_the_previous_link(): void
+    public function test_landing_twice_within_the_cooldown_window_does_not_resend_or_invalidate_the_first_link(): void
+    {
+        Notification::fake();
+        $user = User::factory()->unverified()->create();
+
+        // First landing — sends link #1 and rotates the token.
+        $this->actingAs($user)->get(route('verification.notice'));
+        $firstVerificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email), 'token' => $user->fresh()->email_verification_token]
+        );
+
+        // Second landing moments later — within the cooldown, so this must
+        // not send anything new.
+        $this->actingAs($user)->get(route('verification.notice'));
+
+        Notification::assertSentToTimes($user, VerifyEmailNotification::class, 1);
+
+        // Link #1 must still work — nothing actually replaced it.
+        $response = $this->actingAs($user)->get($firstVerificationUrl);
+        $response->assertRedirect(route('registration.complete', absolute: false));
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    }
+
+    /**
+     * Once the cooldown passes, a later landing is a genuinely new visit
+     * (the founder came back after the first link expired, say) and must
+     * still send a fresh link and rotate the token — matching the existing
+     * "only the newest link is valid" invalidation rule.
+     */
+    public function test_landing_again_after_the_cooldown_passes_invalidates_the_previous_link(): void
     {
         $user = User::factory()->unverified()->create();
 
@@ -85,9 +120,8 @@ class EmailVerificationTest extends TestCase
             ['id' => $user->id, 'hash' => sha1($user->email), 'token' => $user->fresh()->email_verification_token]
         );
 
-        // Second landing (e.g. the founder re-opens the page, or comes back
-        // via login after the first link expired) — sends link #2 and
-        // rotates the token again.
+        // Past the 60s cooldown — this landing actually issues a new link.
+        $this->travel(61)->seconds();
         $this->actingAs($user)->get(route('verification.notice'));
 
         // Link #1 must no longer work — only the freshest one is valid.

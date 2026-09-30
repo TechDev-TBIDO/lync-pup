@@ -255,9 +255,11 @@ class PasswordResetTest extends TestCase
         Notification::fake();
         $admin = User::factory()->create(['role' => 'Admin']);
 
-        // Deliberately submitted with no 'role' field at all (simulating a
-        // stale/tampered request) — the account itself is still Admin.
-        $this->post('/forgot-password', ['email' => $admin->email]);
+        // Submitted with the Admin form's own 'role' field, same as a real
+        // request — the Founder-side form no longer reaches this account
+        // at all (see the cross-role tests below), so this covers the
+        // genuine Admin flow.
+        $this->post('/forgot-password', ['email' => $admin->email, 'role' => 'Admin']);
 
         Notification::assertSentTo($admin, ResetPassword::class, function ($notification) use ($admin) {
             $response = $this->get('/reset-password/'.$notification->token.'?email='.urlencode($admin->email).'&role=Startup');
@@ -282,7 +284,7 @@ class PasswordResetTest extends TestCase
         Notification::fake();
         $admin = User::factory()->create(['role' => 'Admin']);
 
-        $this->post('/forgot-password', ['email' => $admin->email]);
+        $this->post('/forgot-password', ['email' => $admin->email, 'role' => 'Admin']);
 
         Notification::assertSentTo($admin, ResetPassword::class, function ($notification) use ($admin) {
             $mail = $notification->toMail($admin);
@@ -344,5 +346,45 @@ class PasswordResetTest extends TestCase
         $response->assertSee('This session link has expired.');
         $response->assertSee(route('password.request', ['role' => 'Admin']), false);
         $response->assertSee(route('login', ['role' => 'Admin']), false);
+    }
+
+    /**
+     * Regression coverage for the actual reported bug: an Admin's email
+     * typed into the Founder-side forgot-password form used to be accepted
+     * and mailed a reset link anyway — the form's hidden 'role' field was
+     * only ever used for branding, never to check who the email actually
+     * belongs to. It's now a lookup credential (see
+     * PasswordResetLinkController::store()), so a cross-role email comes
+     * back exactly like any other unknown address: a generic "no account
+     * found" error, and no email sent.
+     */
+    public function test_the_founder_form_does_not_send_a_reset_link_to_an_admin_email(): void
+    {
+        Notification::fake();
+        $admin = User::factory()->create(['role' => 'Admin']);
+
+        // No 'role' field submitted -- exactly what the real Founder-side
+        // form sends (role=Startup is its default, see
+        // PasswordResetLinkController::create()).
+        $response = $this->post('/forgot-password', ['email' => $admin->email]);
+
+        Notification::assertNotSentTo($admin, ResetPassword::class);
+        $response->assertSessionHasErrors('email');
+    }
+
+    /**
+     * Symmetric case: a Founder's email typed into the Admin-side form must
+     * be rejected the same way -- an Admin's forgot-password page is for
+     * Admin accounts only.
+     */
+    public function test_the_admin_form_does_not_send_a_reset_link_to_a_founder_email(): void
+    {
+        Notification::fake();
+        $founder = User::factory()->create(['role' => 'Startup']);
+
+        $response = $this->post('/forgot-password', ['email' => $founder->email, 'role' => 'Admin']);
+
+        Notification::assertNotSentTo($founder, ResetPassword::class);
+        $response->assertSessionHasErrors('email');
     }
 }
