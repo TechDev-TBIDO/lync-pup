@@ -331,7 +331,8 @@ class RoadblockTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('admin.roadblocks.index'));
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 
     /**

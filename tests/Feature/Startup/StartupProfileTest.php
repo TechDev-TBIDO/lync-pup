@@ -46,7 +46,8 @@ class StartupProfileTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('startup.profile.edit'));
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 
     public function test_founder_can_update_own_profile(): void

@@ -37,7 +37,8 @@ class DashboardTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('dashboard'));
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 
     public function test_an_admin_can_view_the_dashboard(): void
