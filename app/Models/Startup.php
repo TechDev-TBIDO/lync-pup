@@ -50,6 +50,26 @@ class Startup extends Model
      * uses. Falls back to "Cohort N" when no cohort with that number exists
      * any more (e.g. it was deleted).
      */
+    /**
+     * Moves the startup into the given cohort. cohort_number is kept in step
+     * with cohort_id because every cohort filter in the app keys off the
+     * number. Returns whether anything actually changed.
+     */
+    public function placeInCohort(Cohort $cohort): bool
+    {
+        if ((int) $this->cohort_id === (int) $cohort->cohort_id
+            && (int) $this->cohort_number === (int) $cohort->number) {
+            return false;
+        }
+
+        $this->update([
+            'cohort_id' => $cohort->cohort_id,
+            'cohort_number' => $cohort->number,
+        ]);
+
+        return true;
+    }
+
     public function getBatchLabelAttribute(): string
     {
         static::$cohortNamesByNumber ??= Cohort::all()

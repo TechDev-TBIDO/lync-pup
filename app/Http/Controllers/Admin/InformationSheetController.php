@@ -69,11 +69,12 @@ class InformationSheetController extends Controller
             'prefill' => [
                 'mobile_no' => (string) $startup->contact_phone,
                 'founder_email' => (string) $startup->user?->email,
+                // Cohort No. starts on the cohort the founder was placed in
+                // at sign-up (the latest cohort - see
+                // AssignLatestCohortOnVerification). The admin can pick a
+                // different one; whatever is saved is the startup's cohort.
+                'cohort_no' => (string) Cohort::where('number', $startup->cohort_number)->first()?->display_label,
             ],
-            // Feeds the Accept confirmation's "Assign to Cohort" picker — an
-            // optional override only; the startup was already placed into a
-            // cohort at email verification (see AssignLatestCohortOnVerification
-            // and approve()).
             'cohorts' => Cohort::where('status', 'Active')->orderBy('number')->get(),
         ]);
     }
@@ -106,27 +107,27 @@ class InformationSheetController extends Controller
             ]);
         }
 
-        // Cohort placement no longer waits for this moment — every startup is
-        // already placed into whatever cohort was latest when its founder
-        // verified their email (see AssignLatestCohortOnVerification). The
-        // "Assign to Cohort" picker on the Accept confirmation is kept only
-        // as an optional admin override: pick a different cohort here and
-        // this startup moves to it; leave it blank and the cohort assigned
-        // at verification stands untouched.
-        $data = $request->validate([
-            'cohort_id' => ['nullable', 'exists:cohorts,cohort_id'],
-        ]);
-        $cohort = ! empty($data['cohort_id']) ? Cohort::findOrFail($data['cohort_id']) : null;
+        // The Cohort No. picked under Endorsement and Approval decides the
+        // startup's cohort: accepting moves the startup (and so its founder)
+        // into exactly that cohort, replacing the one it was placed in at
+        // email verification (see AssignLatestCohortOnVerification).
+        $cohort = Cohort::findByDisplayLabel($sheet?->cohort_no);
+
+        if (! $cohort) {
+            return back()->withErrors([
+                'endorsement' => 'The Cohort No. on this sheet does not match any existing cohort. Select a cohort under Endorsement and Approval before accepting & locking this sheet.',
+            ]);
+        }
 
         // Captured before the update so re-approving an already-approved sheet
         // (the admin can revisit this action) doesn't re-notify the founder.
         $wasApproved = $startup->hasApprovedInformationSheet();
 
         // For the Edit History entry: the decision fields (and the startup's
-        // cohort, which the optional override above can move) as they were.
+        // cohort, which the Cohort No. above can move) as they were.
         $decisionFields = HistoryFields::informationSheetDecision();
         $decisionBefore = ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields);
-        $cohortBefore = $startup->cohort_number;
+        $cohortBefore = $startup->cohort_number ? $startup->batch_label : null;
 
         $startup->informationSheet()->update([
             'approval_status' => 'Approved',
@@ -142,16 +143,8 @@ class InformationSheetController extends Controller
             'evaluator_remarks' => null,
         ]);
 
-        $startup->update([
-            'application_decided_at' => now(),
-            ...($cohort ? [
-                'cohort_id' => $cohort->cohort_id,
-                // Kept in sync so every existing "Cohort {{ $startup->cohort_number }}"
-                // display elsewhere in the app (dashboard, profile, roadblocks, etc.)
-                // continues to work without changes.
-                'cohort_number' => $cohort->number,
-            ] : []),
-        ]);
+        $startup->update(['application_decided_at' => now()]);
+        $startup->placeInCohort($cohort);
 
         if (! $wasApproved) {
             // This is the moment Meeting / Submission / Readiness Result unlock
@@ -168,8 +161,8 @@ class InformationSheetController extends Controller
                 ...ChangeLog::diff($decisionBefore, ChangeLog::snapshot($startup->informationSheet()->first(), $decisionFields), $decisionFields),
                 ...ChangeLog::field(
                     'Cohort',
-                    $cohortBefore ? "Cohort {$cohortBefore}" : null,
-                    $startup->cohort_number ? "Cohort {$startup->cohort_number}" : null,
+                    $cohortBefore,
+                    $cohort->display_label,
                 ),
             ],
         );
@@ -285,6 +278,12 @@ class InformationSheetController extends Controller
         $changes = ChangeLog::track($sheet, HistoryFields::informationSheet(), fn () => $sheet->update($data));
 
         $this->logSheetChanges($startup, $changes);
+
+        // Whatever cohort the Cohort No. names is the startup's cohort, from
+        // the moment it's saved - not only once the sheet is accepted.
+        if ($cohort = Cohort::findByDisplayLabel($sheet->cohort_no)) {
+            $startup->placeInCohort($cohort);
+        }
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Information Sheet updated.');
     }
