@@ -518,16 +518,6 @@ class UpdateInformationSheetRequest extends FormRequest
             }
         };
 
-        // Cohort no. has no founder-side counterpart - it is a TBIDO-only
-        // field and legitimately holds a space ("Cohort 3"), unlike the
-        // SEC/DTI/Business-ID codes above, so it keeps its own, looser shape:
-        // letters, digits, spaces and . - / punctuation, no length/repeated-
-        // character checks.
-        $cohortCode = fn (int $max) => [
-            'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[A-Za-z0-9][A-Za-z0-9\s\-\/\.]*)$/i',
-        ];
-
         // "N/A" or a 4-digit year that isn't later than this year - a real
         // transcript can't have graduated someone yet to come.
         $currentYear = (int) date('Y');
@@ -642,7 +632,17 @@ class UpdateInformationSheetRequest extends FormRequest
             // has been assigned. When one is given it is still held to the
             // same letters-only shape as any other name.
             'portfolio_manager' => ['nullable', 'string', 'max:150', 'regex:/^(n\/a|[\p{L}][\p{L}\s\.\-\x{2019}\']*)$/iu', new PersonName],
-            'cohort_no' => $cohortCode(20),
+            // A dropdown of existing cohorts (by Cohort Name), and the value
+            // that decides which cohort the startup is placed in - see
+            // Admin\InformationSheetController::update()/approve().
+            'cohort_no' => [
+                'required', 'string', 'max:100',
+                function ($attribute, $value, $fail) {
+                    if (! \App\Models\Cohort::findByDisplayLabel($value)) {
+                        $fail('Select one of the existing cohorts.');
+                    }
+                },
+            ],
             'endorsed_by' => array_merge($words(150), [new PersonName]),
             'endorsement_date' => ['required', 'date'],
 
@@ -756,7 +756,6 @@ class UpdateInformationSheetRequest extends FormRequest
             'startup_overview.required' => 'Describe what the startup does.',
 
             // Declaration & Endorsement — TBIDO-only, no founder-side counterpart.
-            'cohort_no.regex' => 'Cohort no. can only contain letters, numbers and spaces, for example Cohort 3.',
             'portfolio_manager.regex' => 'Use letters only.',
             'endorsed_by.regex' => 'Use letters only.',
         ];
@@ -782,7 +781,7 @@ class UpdateInformationSheetRequest extends FormRequest
             $messages[$key.'_highest_level_unit.regex'] = "The {$label} level or units can only contain letters, numbers and , . / ; & - ( ) ' punctuation.";
         }
 
-        $messages['cohort_no.required'] = 'Enter the cohort number, for example Cohort 3.';
+        $messages['cohort_no.required'] = 'Select the cohort this startup belongs to.';
         $messages['endorsed_by.required'] = 'Enter who endorsed this startup.';
         $messages['endorsement_date.required'] = 'Select the endorsement date.';
         $messages['endorsement_date.date'] = 'Enter the endorsement date as a valid date.';

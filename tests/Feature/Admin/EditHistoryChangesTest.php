@@ -528,7 +528,13 @@ class EditHistoryChangesTest extends TestCase
     public function test_approving_records_the_decision_and_the_cohort_it_was_placed_in(): void
     {
         $startup = Startup::factory()->create(['cohort_number' => 1]);
-        InformationSheet::factory()->create(['startup_id' => $startup->startup_id, 'approval_status' => 'Pending']);
+        // The Cohort No. on the sheet decides where the startup is placed.
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Pending',
+            'cohort_no' => 'Cohort 4',
+            'director_approval_date' => now()->toDateString(),
+        ]);
         EvaluationSchedule::create([
             'startup_id' => $startup->startup_id,
             'evaluation_date' => now(),
@@ -537,9 +543,8 @@ class EditHistoryChangesTest extends TestCase
             'status' => 'Scheduled',
         ]);
 
-        $this->actingAs($this->admin())->patch(route('admin.information-sheet.approve', $startup), [
-            'cohort_id' => Cohort::where('number', 4)->firstOrFail()->cohort_id,
-        ])->assertRedirect();
+        $this->actingAs($this->admin())->patch(route('admin.information-sheet.approve', $startup))
+            ->assertRedirect();
 
         $entry = $this->entry('approve_information_sheet');
 

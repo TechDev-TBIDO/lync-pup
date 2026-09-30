@@ -33,6 +33,9 @@ class AssessmentHubTest extends TestCase
         InformationSheet::factory()->create([
             'startup_id' => $startup->startup_id,
             'approval_status' => 'Pending',
+            // Accept & Lock needs the Endorsement and Approval fields.
+            'cohort_no' => 'Cohort 1',
+            'director_approval_date' => now()->toDateString(),
         ]);
         EvaluationSchedule::create([
             'startup_id' => $startup->startup_id,
@@ -68,6 +71,9 @@ class AssessmentHubTest extends TestCase
         InformationSheet::factory()->create([
             'startup_id' => $startup->startup_id,
             'approval_status' => 'Pending',
+            // Accept & Lock needs the Endorsement and Approval fields.
+            'cohort_no' => 'Cohort 1',
+            'director_approval_date' => now()->toDateString(),
         ]);
         $schedule = EvaluationSchedule::create([
             'startup_id' => $startup->startup_id,

@@ -222,7 +222,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             </span>
                             <div class="min-w-0">
                                 <p class="truncate text-sm font-bold">{{ $startup->company_name }}</p>
-                                <p class="text-xs text-gray-500">Cohort {{ $startup->cohort_number }}</p>
+                                <p class="text-xs text-gray-500">{{ $startup->batch_label }}</p>
                             </div>
                         </div>
 
@@ -330,7 +330,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             </span>
                             <div class="min-w-0">
                                 <p class="truncate text-sm font-bold">{{ $startup->company_name }}</p>
-                                <p class="text-xs text-gray-500">Cohort {{ $startup->cohort_number }}</p>
+                                <p class="text-xs text-gray-500">{{ $startup->batch_label }}</p>
                             </div>
                         </div>
 

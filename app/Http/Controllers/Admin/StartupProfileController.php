@@ -86,6 +86,9 @@ class StartupProfileController extends Controller
         $graduatedStartups = $scopedTotal()->graduated()->count();
         $completedStartups = $scopedTotal()->completed()->count();
 
+        // Cohort Name per cohort number, for the Total Startup breakdown below.
+        $cohortNames = Cohort::all()->mapWithKeys(fn ($c) => [$c->number => $c->display_label]);
+
         return view('admin.startups.index', [
             'startups' => $startups,
             'activeTab' => $request->query('tab', 'all'),
@@ -129,9 +132,12 @@ class StartupProfileController extends Controller
                 ->groupBy('cohort_number')
                 ->orderBy('cohort_number')
                 ->get()
+                // Labelled with the cohort's own Cohort Name (label), not the
+                // auto-incremented number. A number whose cohort was deleted
+                // has no name left to show, so it falls back to "Cohort N".
                 ->map(fn ($row) => [
                     'count' => $row->total,
-                    'label' => "Cohort {$row->cohort_number}",
+                    'label' => $cohortNames[$row->cohort_number] ?? "Cohort {$row->cohort_number}",
                 ]),
         ]);
     }
