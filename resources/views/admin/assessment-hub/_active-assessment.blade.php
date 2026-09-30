@@ -52,6 +52,9 @@
         $seed = [
             // Editable Startup / Company Name - starts from the startup's own name.
             'startup_name' => $doc7Data['startup_name'] ?? ($selectedStartup?->company_name ?? ''),
+            // Editable too - starts from the startup's assigned coordinator,
+            // but the admin can type over it.
+            'portfolio_coordinator' => $doc7Data['portfolio_coordinator'] ?? ($selectedStartup?->activeCoordinatorAssignment?->coordinator?->name ?? ''),
             'check_ins' => $doc7Data['check_ins'] ?? array_fill(0, \App\Support\ActiveAssessmentForms::DOCUMENT_7_DEFAULT_ROWS, $blankCheckInRow),
             'performance_matrix' => [],
         ];
@@ -554,8 +557,8 @@
                     </div>
                     <div>
                         <p class="mb-1.5 text-sm font-semibold text-gray-700">Portfolio Coordinator</p>
-                        <input type="text" value="{{ $selectedStartup?->activeCoordinatorAssignment?->coordinator?->name ?? 'Not assigned yet' }}" readonly
-                            class="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500">
+                        <input type="text" x-model="doc7.portfolio_coordinator" maxlength="255" placeholder="Portfolio Coordinator"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                     </div>
                 </div>
 

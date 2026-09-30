@@ -5,19 +5,17 @@
 $palette = ['bg-purple-600', 'bg-red-600', 'bg-blue-600', 'bg-gray-100'];
 $bgClass = $palette[$startup->startup_id % count($palette)];
 
-// Badge color now keyed per-status so "Assign Coordinator" reads as the
-// same rose/brand accent used on its primary button below (matches the
-// reference exactly), while other statuses keep their own identity.
-// Graduated/Completed reuse the same indigo/cyan pair as their summary
-// cards on the Startup Profile index (admin/startups/index.blade.php) so
-// the tag and the card it's grouped under read as the same category.
+// Badge color matches the summary card each status is counted under on
+// the Startup Profile index (admin/startups/index.blade.php):
+// Active/Assign Coordinator = amber, Graduated/Completed = cyan,
+// Pending = purple. Applicant is red so it stands out.
 $badgeClasses = match ($startup->status) {
-'Active' => 'border-blue-300 text-blue-800',
-'Assign Coordinator' => 'border-rose-300 text-rose-800',
+'Active' => 'border-amber-300 text-amber-800',
+'Assign Coordinator' => 'border-amber-300 text-amber-800',
 'Pending' => 'border-purple-300 text-purple-800',
 'Rejected' => 'border-red-300 text-red-800',
-'Applicant' => 'border-amber-300 text-amber-800',
-'Graduated' => 'border-indigo-300 text-indigo-800',
+'Applicant' => 'border-red-300 text-red-800',
+'Graduated' => 'border-cyan-300 text-cyan-800',
 'Completed' => 'border-cyan-300 text-cyan-800',
 default => 'border-gray-300 text-gray-700',
 };
