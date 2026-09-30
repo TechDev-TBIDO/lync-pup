@@ -184,7 +184,6 @@ class EditHistoryCohortFilterTest extends TestCase
         // Acting on cohort 4 while cohort 1 is the one selected.
         $this->actingAs($admin)->withSession(['selected_cohort_id' => $this->cohortId(1)])
             ->patch(route('admin.cohorts.update', Cohort::where('number', 4)->first()), [
-                'label' => 'Cohort Four',
                 'start_date' => '2026-01-05',
                 'end_date' => '2026-06-30',
             ]);

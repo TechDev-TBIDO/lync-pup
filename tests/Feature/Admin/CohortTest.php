@@ -22,58 +22,57 @@ class CohortTest extends TestCase
      * seeds cohorts 1-5 ("Cohort 1".."Cohort 5") on every fresh migration, so
      * tests build on those pre-seeded rows rather than the factory.
      */
-    public function test_cannot_create_a_cohort_with_a_name_already_in_use(): void
+    public function test_creating_a_cohort_auto_assigns_the_next_sequential_number(): void
     {
-        // "Cohort 1" already exists from the cohorts table's own seeding.
+        // No 'label' field is submitted at all anymore — free-text naming
+        // used to confuse the rest of the app (Startup::cohort_number,
+        // Information Sheets, etc.), so the number is strictly incremental
+        // and assigned by the server, never typed by the admin.
         $response = $this->actingAs($this->admin())->post(route('admin.cohorts.store'), [
-            'label' => 'Cohort 1',
             'start_date' => now()->toDateString(),
             'end_date' => now()->addMonths(6)->toDateString(),
         ]);
 
-        $response->assertSessionHasErrors('label');
-        $this->assertSame(1, Cohort::where('label', 'Cohort 1')->count());
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('cohorts', ['number' => 6, 'label' => null]);
+        $this->assertSame('Cohort 6', Cohort::where('number', 6)->firstOrFail()->display_label);
     }
 
-    public function test_can_create_a_cohort_with_a_new_unique_name(): void
+    public function test_a_submitted_label_is_ignored_when_creating_a_cohort(): void
     {
+        // Defense in depth: even if a 'label' value somehow reaches the
+        // request (the UI no longer has a field for it), it must not be
+        // accepted — the number is still auto-assigned and label stays null.
         $response = $this->actingAs($this->admin())->post(route('admin.cohorts.store'), [
-            'label' => 'Cohort 6',
+            'label' => 'Whatever Name',
             'start_date' => now()->toDateString(),
             'end_date' => now()->addMonths(6)->toDateString(),
         ]);
 
-        $response->assertSessionDoesntHaveErrors('label');
-        $this->assertDatabaseHas('cohorts', ['label' => 'Cohort 6']);
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseMissing('cohorts', ['label' => 'Whatever Name']);
+        $this->assertDatabaseHas('cohorts', ['number' => 6, 'label' => null]);
     }
 
-    public function test_cannot_rename_a_cohort_to_a_name_already_used_by_another_cohort(): void
+    public function test_updating_a_cohort_never_changes_its_number_or_name(): void
     {
         $cohort2 = Cohort::where('number', 2)->firstOrFail();
 
+        // A 'label' submitted here (there's no field for it in the UI
+        // anymore either) must have no effect — numbering is fixed once a
+        // cohort is created, only dates/description can change.
         $response = $this->actingAs($this->admin())->patch(route('admin.cohorts.update', $cohort2), [
-            'label' => 'Cohort 1',
-            'start_date' => now()->toDateString(),
-            'end_date' => now()->addMonths(6)->toDateString(),
-        ]);
-
-        $response->assertSessionHasErrors('label');
-        $this->assertSame('Cohort 2', $cohort2->fresh()->label);
-    }
-
-    public function test_can_save_a_cohort_with_its_own_unchanged_name(): void
-    {
-        $cohort2 = Cohort::where('number', 2)->firstOrFail();
-
-        $response = $this->actingAs($this->admin())->patch(route('admin.cohorts.update', $cohort2), [
-            'label' => 'Cohort 2',
+            'label' => 'Something Else',
             'description' => 'Updated description.',
             'start_date' => now()->toDateString(),
             'end_date' => now()->addMonths(6)->toDateString(),
         ]);
 
         $response->assertSessionDoesntHaveErrors();
-        $this->assertSame('Updated description.', $cohort2->fresh()->description);
+        $fresh = $cohort2->fresh();
+        $this->assertSame(2, $fresh->number);
+        $this->assertSame('Cohort 2', $fresh->label);
+        $this->assertSame('Updated description.', $fresh->description);
     }
 
     /**

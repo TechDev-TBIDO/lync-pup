@@ -34,6 +34,18 @@ $hasCohort = (bool) $selected;
 $isArchivedCohort = $selected?->isArchived() ?? false;
 $canArchive = $hasCohort && ! $isArchivedCohort;
 
+// Cohort naming is strictly sequential now (Cohort 1, 2, 3, ...) -- a
+// free-text name field used to let admins type anything ("Batch Alpha",
+// a typo'd number, one admin's "Cohort 6" next to another's "Cohort
+// Six"), and every other part of the app (Startup Profile filters, the
+// cohort breakdown stats, Information Sheet's Cohort No. dropdown) keys
+// off the real underlying number, not that text -- so an inconsistent
+// name was purely confusing, never functional. The create form no
+// longer collects a name at all; CohortController::store() already
+// computes this exact same (max + 1) value server-side, shown here only
+// so the admin knows up front what they're creating.
+$nextCohortNumber = ($cohorts->max('number') ?? 0) + 1;
+
 // Builds each cohort's link. Normally that's just this same page's own
 // URL with '?cohort=' swapped in (the old behaviour). But a page passed
 // down a $returnUrl (see the layout) because it's a drill-down reached
@@ -242,11 +254,10 @@ $reopenModal = old('_cohort_form');
                     <form id="sidebarCreateCohortForm" method="POST" action="{{ route('admin.cohorts.store') }}" class="p-6 space-y-4">
                         @csrf
                         <input type="hidden" name="_cohort_form" value="create">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Cohort Name</label>
-                            <input type="text" name="label" value="{{ $reopenModal === 'create' ? old('label') : '' }}"
-                                placeholder="e.g. Cohort 6 - AY 2026-2027" class="w-full border rounded-lg px-3 py-2 text-sm">
-                            @if ($reopenModal === 'create') @error('label') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                            <p class="text-xs font-medium text-gray-500">Cohort</p>
+                            <p class="text-sm font-semibold text-gray-800">Cohort {{ $nextCohortNumber }}</p>
+                            <p class="text-xs text-gray-400 mt-0.5">Cohorts are numbered in order automatically -- this one will be Cohort {{ $nextCohortNumber }}.</p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -300,11 +311,10 @@ $reopenModal = old('_cohort_form');
                         @method('PATCH')
 
                         <input type="hidden" name="_cohort_form" value="edit">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Cohort Name</label>
-                            <input type="text" name="label" value="{{ $reopenModal === 'edit' ? old('label', $selected->label) : $selected->label }}"
-                                class="w-full border rounded-lg px-3 py-2 text-sm">
-                            @if ($reopenModal === 'edit') @error('label') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                            <p class="text-xs font-medium text-gray-500">Cohort</p>
+                            <p class="text-sm font-semibold text-gray-800">{{ $selected->display_label }}</p>
+                            <p class="text-xs text-gray-400 mt-0.5">Cohort numbering is fixed once created -- only the dates and description below can be changed.</p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>

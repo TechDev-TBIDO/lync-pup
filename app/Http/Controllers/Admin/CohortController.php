@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCohortRequest;
 use App\Http\Requests\Admin\UpdateCohortRequest;
 use App\Models\Cohort;
-use App\Models\InformationSheet;
 use App\Models\VersionHistory;
 use App\Support\ChangeLog;
 use App\Support\HistoryFields;
@@ -54,18 +53,11 @@ class CohortController extends Controller
             unset($data['start_date'], $data['end_date']);
         }
 
-        $oldDisplayLabel = $cohort->display_label;
-
+        // A cohort's name/number is fixed at creation now (see
+        // StoreCohortRequest) — only dates/description can change here, so
+        // display_label can never drift and nothing downstream (e.g.
+        // Information Sheets' cohort_no) needs to be kept in sync anymore.
         $changes = ChangeLog::track($cohort, HistoryFields::cohort(), fn () => $cohort->update($data));
-
-        // Information Sheets name their cohort by its Cohort Name (the
-        // "Cohort No." dropdown stores display_label), so a rename has to
-        // follow through there too - otherwise those sheets would point at
-        // a name that no longer exists and could no longer be accepted.
-        if ($cohort->display_label !== $oldDisplayLabel) {
-            InformationSheet::where('cohort_no', $oldDisplayLabel)
-                ->update(['cohort_no' => $cohort->display_label]);
-        }
 
         VersionHistory::recordChanges(null, 'Cohort Management', 'update_cohort', $changes, $cohort->display_label, cohortNumber: $cohort->number);
 
