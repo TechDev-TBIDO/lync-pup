@@ -245,7 +245,7 @@
 
             @keyframes reveal-up { from { opacity: 0; transform: translateY(28px); } }
             .reveal-on .reveal { opacity: 0; }
-            .reveal-on .reveal.is-visible { opacity: 1; animation: reveal-up 0.65s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: var(--reveal-delay, 0ms); }
+            .reveal-on .reveal.is-visible { opacity: 1; animation: reveal-up 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: var(--reveal-delay, 0ms); }
 
             @keyframes panel-in { from { opacity: 0; transform: translateY(10px); } }
             .cohort-panel.is-active { animation: panel-in 0.35s ease-out; }
@@ -1024,12 +1024,12 @@
                 let queueFreeAt = 0;
                 function stepFor(el) {
                     if (el.dataset.revealStep) return parseInt(el.dataset.revealStep, 10);
-                    return el.classList.contains('startup-card') ? 150 : 280;
+                    return el.classList.contains('startup-card') ? 60 : 100;
                 }
                 function schedule(el) {
                     const now = performance.now();
                     queueFreeAt = Math.max(queueFreeAt, now);
-                    const delay = Math.min(queueFreeAt - now, 1800);
+                    const delay = Math.min(queueFreeAt - now, 300);
                     queueFreeAt = now + delay + stepFor(el);
                     el.style.setProperty('--reveal-delay', Math.round(delay) + 'ms');
                     el.classList.add('is-visible');
