@@ -73,4 +73,10 @@ class InformationSheetRejected extends FounderNotification
     {
         return 'person-x.svg';
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['highlight' => 'sheet-status'];
+    }
 }

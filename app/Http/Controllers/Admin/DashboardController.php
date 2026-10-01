@@ -333,10 +333,15 @@ class DashboardController extends Controller
 
         // Active-Assessment likewise earns partial credit toward its
         // 20-point weight, proportional to how many of its 3 documents
-        // (6/7/8) are on file for that startup.
+        // (6/7/8) actually have content for that startup. Row existence
+        // alone isn't enough -- a row is created on the first Save even
+        // with every field blank -- so this uses the same
+        // ActiveAssessmentForms::isDocumentFilled() rule as the Assessment
+        // Hub's "Started"/"Not Started" pill, keeping both screens in sync.
         $activeDocsPresent = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
-            ->get(['startup_id', 'document_number'])
+            ->get(['startup_id', 'document_number', 'data'])
+            ->filter(fn (AssessmentDocument $d) => \App\Support\ActiveAssessmentForms::isDocumentFilled((int) $d->document_number, (array) ($d->data ?? [])))
             ->groupBy('startup_id')
             ->map(fn ($docs) => $docs->pluck('document_number')->map(fn ($n) => (int) $n)->unique()->values()->all());
 
@@ -664,8 +669,13 @@ class DashboardController extends Controller
         // startups only, same reasoning as Pre/Post-Assessment above -- an
         // applicant without an approved Information Sheet was never
         // eligible to submit any Active-Assessment document.
+        // Counts only documents with real content (same isDocumentFilled()
+        // rule as the Hub), not blank rows left by an empty Save.
         $activeDocsPresentTotal = AssessmentDocument::whereIn('startup_id', $approvedStartupIds)
             ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
+            ->get(['startup_id', 'document_number', 'data'])
+            ->filter(fn (AssessmentDocument $d) => \App\Support\ActiveAssessmentForms::isDocumentFilled((int) $d->document_number, (array) ($d->data ?? [])))
+            ->unique(fn (AssessmentDocument $d) => $d->startup_id.'-'.$d->document_number)
             ->count();
         $activeAssessmentPercent = $approvedCount > 0 ? round(($activeDocsPresentTotal / ($approvedCount * 3)) * 100, 1) : 0.0;
 

@@ -42,4 +42,10 @@ class NewRoadblockSubmitted extends FounderNotification
     {
         return 'submit-roadblock.svg';
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['tab' => 'manage', 'highlight' => 'roadblock-'.$this->roadblock->roadblock_id];
+    }
 }

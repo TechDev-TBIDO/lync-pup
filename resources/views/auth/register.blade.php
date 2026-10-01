@@ -32,7 +32,10 @@
         }">
         <div class="w-full max-w-md">
 
-            <a href="{{ route('login') }}" class="inline-flex text-gray-500 hover:text-gray-800 mb-6">
+            {{-- Back goes to the landing page when the visitor came from its "Apply Now" button
+                 (?from=landing, kept across a failed submit since back() returns to this URL);
+                 otherwise to Sign in as before. --}}
+            <a href="{{ request()->query('from') === 'landing' ? route('welcome') : route('login') }}" class="inline-flex text-gray-500 hover:text-gray-800 mb-6">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
@@ -58,7 +61,7 @@
                         <svg class="w-4 h-4 absolute left-3 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" data-person-name
+                        <input id="name" type="text" name="name" value="{{ old('name') }}" required @if (! $errors->any()) autofocus @endif autocomplete="name" data-person-name
                             placeholder="Juan Dela Cruz"
                             class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-800 focus:border-rose-800">
                     </div>
@@ -198,8 +201,8 @@
                 </div>
 
                 <div class="flex items-start gap-2">
-                    <input id="terms" type="checkbox" name="terms" value="1" {{ old('terms') ? 'checked' : '' }}
-                        class="mt-0.5 rounded border-gray-300 text-rose-800 focus:ring-rose-800">
+                    <input id="terms" type="checkbox" name="terms" value="1" {{ old('terms') ? 'checked' : '' }} required
+                        class="mt-0.5 rounded text-rose-800 focus:ring-rose-800 {{ $errors->has('terms') ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300' }}">
                     <label for="terms" class="text-sm text-gray-600">
                         I agree to the
                         <a href="{{ route('legal.terms') }}" target="_blank" class="font-semibold text-rose-800 hover:underline">Terms of Service</a>
@@ -220,5 +223,21 @@
             </p>
         </div>
     </div>
+    @if ($errors->any())
+        <script>
+            // After a failed submit, bring the admin straight to the first
+            // field that actually failed (in on-screen order) instead of
+            // jumping back to Full Name.
+            document.addEventListener('DOMContentLoaded', () => {
+                const failed = @js($errors->keys());
+                const order = ['name', 'email', 'password', 'password_confirmation', 'company_name', 'terms'];
+                const first = order.find((f) => failed.includes(f)) ?? failed[0];
+                const el = first && document.getElementById(first);
+                if (!el) return;
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.focus({ preventScroll: true });
+            });
+        </script>
+    @endif
 </body>
 </html>

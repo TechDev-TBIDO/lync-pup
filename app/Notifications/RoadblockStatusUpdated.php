@@ -44,4 +44,10 @@ class RoadblockStatusUpdated extends FounderNotification
     {
         return 'assessmentHub.svg';
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['tab' => 'archive', 'highlight' => 'roadblock-'.$this->roadblock->roadblock_id];
+    }
 }

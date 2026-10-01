@@ -80,10 +80,16 @@ class RoadblockController extends Controller
             ->values()
             ->all();
 
-        $user->markFounderModuleVisited('founder_submissions', 'startup.submissions.index', $visitedAt);
-        $user->forceFill(['module_seen_at' => array_merge($user->module_seen_at ?? [], [
-            'founder_weekly_rows' => $weeklyUpdates->map($fingerprint)->values()->all(),
-        ])])->save();
+        // Only the tab actually opened counts as seen: the Archive dots /
+        // stamp clear when Archive is viewed, the Update dots when Update is
+        // viewed, each tab's notifications likewise. Switching tabs later
+        // reports the newly opened tab via the page-seen endpoint.
+        \App\Support\PageVisit::markSeen(
+            $user,
+            'startup.submissions.index',
+            \App\Support\PageVisit::location('startup.submissions.index', request()->query()),
+            $visitedAt,
+        );
 
         return view('startup.roadblocks.index', [
             'newRoadblockIds' => $newRoadblockIds,
@@ -93,6 +99,32 @@ class RoadblockController extends Controller
             'otherCategorySuggestions' => $otherCategorySuggestions,
             'weeklyUpdates' => $weeklyUpdates,
         ]);
+    }
+
+    /**
+     * Remember the Update tab's current Document 7 rows as seen, so their
+     * red dots don't come back next visit (Document 7 rows have no
+     * timestamps of their own - see index()).
+     */
+    public static function rememberWeeklyRowsSeen(\App\Models\User $user): void
+    {
+        $startup = $user->startup;
+
+        $doc7 = $startup ? AssessmentDocument::where('startup_id', $startup->startup_id)
+            ->where('stage', 'Active-Assessment')
+            ->where('document_number', 7)
+            ->first() : null;
+
+        $fingerprints = collect($doc7?->data['check_ins'] ?? [])
+            ->filter(fn ($row) => collect($row)->contains(fn ($value) => trim((string) $value) !== ''))
+            ->sortByDesc(fn ($row) => $row['dates'] ?? '')
+            ->map(fn ($row) => md5(json_encode($row)))
+            ->values()
+            ->all();
+
+        $user->forceFill(['module_seen_at' => array_merge($user->module_seen_at ?? [], [
+            'founder_weekly_rows' => $fingerprints,
+        ])])->save();
     }
 
     public function store(StoreRoadblockRequest $request)

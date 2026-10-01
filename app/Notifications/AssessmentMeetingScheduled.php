@@ -62,4 +62,10 @@ class AssessmentMeetingScheduled extends FounderNotification
     {
         return ['assessment_meeting_id' => $this->meeting->assessment_meeting_id];
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['highlight' => 'assessment-'.$this->meeting->assessment_meeting_id];
+    }
 }

@@ -98,6 +98,9 @@
         @endphp
         <div x-data="{
             tab: @js($initialTab),
+                // Tabs the user has looked at and then left - their red "new" dots
+                // are hidden from then on (no reload needed).
+                leftTabs: [],
             archiveStage: @js($initialArchiveStage),
 
             /* Pending Roadblock filters. Client-side because $pending is a full
@@ -177,7 +180,17 @@
             },
         }"
             x-init="
-            $watch('tab', value => setQueryParam('tab', value));
+            $watch('tab', (value, previous) => {
+            if (previous && ! leftTabs.includes(previous)) leftTabs.push(previous);
+            setQueryParam('tab', value);
+            // Tell the server this tab has now been opened, so its
+            // notifications / red dots clear (App\\Support\\PageVisit).
+            fetch(@js(route('page-seen')), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
+                body: JSON.stringify({ route: 'admin.roadblocks.index', tab: value }),
+            }).catch(() => {});
+        });
             $watch('archiveStage', value => setQueryParam('stage', value));
             $watch('upcomingSort', () => sortUpcomingRows());
         ">
@@ -260,7 +273,7 @@
                     @php $banners = ['from-purple-500 to-purple-700', 'from-blue-500 to-blue-700', 'from-teal-500 to-teal-700']; @endphp
                     {{-- Sorting flips CSS order rather than reordering the DOM, so each
                      card keeps its own Alpine state (open modals, previews) intact. --}}
-                    <div class="flex h-full flex-col overflow-hidden rounded-xl border"
+                    <div data-highlight-id="roadblock-{{ $roadblock->roadblock_id }}" class="flex h-full flex-col overflow-hidden rounded-xl border"
                         data-highlight-id="startup-{{ $roadblock->startup_id }}"
                         x-show="matchesPending(@js(['name' => $roadblock->startup->company_name, 'category' => $roadblock->display_category]))"
                         :style="`order: ${pendingSort === 'newest' ? {{ $loop->index }} : {{ $pendingCount - 1 }} - {{ $loop->index }}}`"
@@ -285,7 +298,7 @@
 
                             {{-- New since the admin's last visit (see RoadblockController::index()) --}}
                             @if (in_array($roadblock->roadblock_id, $newRoadblockIds ?? [], true))
-                            <x-new-dot size="md" class="absolute left-3 top-3 ring-2 ring-white" />
+                            <x-new-dot size="md" x-show="! leftTabs.includes('manage')" class="absolute left-3 top-3 ring-2 ring-white" />
                             @endif
 
                         </div>

@@ -68,4 +68,10 @@ class MentorshipCancelled extends FounderNotification
     {
         return ['roadblock_id' => $this->roadblock->roadblock_id];
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['tab' => 'archive', 'highlight' => 'roadblock-'.$this->roadblock->roadblock_id];
+    }
 }

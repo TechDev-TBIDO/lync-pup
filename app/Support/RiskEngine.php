@@ -282,6 +282,9 @@ class RiskEngine
             $activeDocsCount = $documents
                 ->where('stage', 'Active-Assessment')
                 ->whereIn('document_number', [6, 7, 8])
+                // Only documents with real content count (same rule as the
+                // Assessment Hub's "Started" pill), not blank rows.
+                ->filter(fn ($d) => ActiveAssessmentForms::isDocumentFilled((int) $d->document_number, (array) ($d->data ?? [])))
                 ->pluck('document_number')
                 ->unique()
                 ->count();
@@ -304,7 +307,10 @@ class RiskEngine
             }
 
             $hasVentureExit = $documents->contains(
-                fn (AssessmentDocument $d) => $d->document_number === VentureExitForm::DOCUMENT_NUMBER
+                // Only an actual Exit Status of Graduated/Completed counts --
+                // same rule as the dashboard and Assessment Hub -- not a blank row.
+                fn (AssessmentDocument $d) => (int) $d->document_number === VentureExitForm::DOCUMENT_NUMBER
+                    && ActiveAssessmentForms::isVentureExitCompleted((array) ($d->data ?? []))
             );
             if (! $hasVentureExit) {
                 $score = self::assessmentDueScore($cohortStart, self::ASSESSMENT_DUE_MONTHS['no_venture_exit']);

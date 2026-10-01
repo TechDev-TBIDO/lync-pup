@@ -33,6 +33,13 @@ use App\Http\Controllers\Startup\FounderReadinessController;
 
 require __DIR__.'/auth.php';
 
+// A tab opened without a page reload (Submission / Meetings / Admin
+// Roadblocks) reports itself here so that tab's notifications and red dots
+// clear only once it's actually been viewed - see App\Support\PageVisit.
+Route::post('/page-seen', \App\Http\Controllers\PageSeenController::class)
+    ->middleware('auth')
+    ->name('page-seen');
+
 // Public marketing landing page — meant to be linked from/embedded in the
 // incubation's own public website, not part of the app's internal nav.
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');

@@ -149,6 +149,11 @@ class DashboardController extends Controller
         $activeDocsCount = AssessmentDocument::where('startup_id', $startup->startup_id)
             ->where('stage', 'Active-Assessment')
             ->whereIn('document_number', [6, 7, 8])
+            ->get(['document_number', 'data'])
+            // Only documents with real content count (same rule as the
+            // Assessment Hub's "Started" pill) -- not blank rows from an empty Save.
+            ->filter(fn ($d) => \App\Support\ActiveAssessmentForms::isDocumentFilled((int) $d->document_number, (array) ($d->data ?? [])))
+            ->unique('document_number')
             ->count();
         $exitDocument = AssessmentDocument::where('startup_id', $startup->startup_id)
             ->where('stage', 'Venture Exit')

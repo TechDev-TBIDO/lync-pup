@@ -72,4 +72,10 @@ class AssessmentMeetingStatusUpdated extends FounderNotification
             'status' => $this->status,
         ];
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['tab' => 'archive', 'highlight' => 'assessment-'.$this->meeting->assessment_meeting_id];
+    }
 }

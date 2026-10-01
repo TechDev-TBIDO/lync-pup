@@ -160,8 +160,8 @@
 
                         <template x-if="renamingId !== {{ $entry->version_history_id }}">
                             <div class="flex items-start justify-between gap-2">
-                                <div class="min-w-0">
-                                    <p class="truncate text-sm font-semibold text-gray-900" title="{{ $entry->display_label }}">{{ $entry->display_label }}</p>
+                                <div class="min-w-0 flex-1">
+                                    <p class="break-words text-sm font-semibold leading-snug text-gray-900">{{ $entry->display_label }}</p>
                                     @if ($i === 0)
                                         <p class="text-xs text-gray-400">Current Version</p>
                                     @endif

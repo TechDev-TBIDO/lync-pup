@@ -4,681 +4,482 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Lync PUP-TBIDO — Where Innovation Meets Opportunity</title>
+    <title>LYNC PUP-TBIDO — Where Innovation Meets Opportunity</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
 
-<body x-data="landingPage()" class="overflow-x-hidden antialiased bg-white">
-
-    {{-- ==================== HERO ==================== --}}
-    <header id="hero" class="relative min-h-[560px] overflow-hidden bg-[#2C0F35] text-white sm:min-h-[740px]">
-        {{-- Sized and positioned by the fitHeroArt() script at the bottom of the page, so the
-             guys' belts always land right on the curve's cut. The classes below (plain
-             object-cover) are just the fallback if JS is off. --}}
-        <img id="hero-art" src="{{ asset('images/landing/landing.png') }}" alt=""
-            class="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[70%_55%]" aria-hidden="true">
-
-        <div id="hero-content" class="relative z-10 pt-8" style="padding-bottom: var(--hero-pad-bottom);">
-                {{-- ==================== NAVBAR ==================== --}}
-                <div class="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-                
-                    <nav x-data="{ mobileNavOpen: false }" @click.outside="mobileNavOpen = false"
-                        class="relative flex flex-wrap items-center justify-between gap-2 rounded-full bg-white px-3 py-1.5 text-gray-800 shadow-lg sm:gap-4 sm:px-5 sm:py-2.5">
-                        <a href="{{ route('welcome') }}" class="flex shrink-0 items-center gap-2">
-                            <img src="{{ asset('images/logo/logo-sidebar.png') }}" alt="DOST PUP PYLON" class="h-6 w-6 rounded-full object-cover sm:h-9 sm:w-9">
-                            <span class="hidden text-[10px] font-extrabold uppercase leading-tight text-[#6D0D23] sm:block">
-                                DOST PUP PYLON
-                                <span class="block text-[9px] font-medium normal-case text-gray-500">Technology Business Incubation</span>
-                            </span>
-                        </a>
-
-
-                        <div class="hidden items-center gap-6 text-sm font-semibold text-gray-700 lg:flex">
-                            <a href="https://www.puptbi.site/" class="transition hover:text-[#6D0D23]">Home</a>
-                            <a href="https://www.puptbi.site/programs" class="transition hover:text-[#6D0D23]">Programs</a>
-                            <a href="#cohorts" @click.prevent="scrollToCohorts()" class="transition hover:text-[#6D0D23]">Incubatees</a>
-                            <a href="https://www.puptbi.site/blogs" class="transition hover:text-[#6D0D23]">Blogs</a>
-                        </div>
-
-                        <div class="flex shrink-0 items-center gap-1 sm:gap-2">
-                            {{-- 8px text + tighter padding on mobile — keeps the pill nav
-                                 itself compact/short instead of growing taller. --}}
-                            <a href="{{ route('login') }}" class="rounded-full border border-gray-300 px-2 py-1 text-[8px] font-semibold text-gray-700 transition hover:bg-gray-50 sm:px-4 sm:py-1.5 sm:text-xs">
-                                View Status
-                            </a>
-                            <a href="{{ route('register') }}" class="rounded-full border border-[#6D0D23] px-2 py-1 text-[8px] font-bold text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white sm:px-4 sm:py-1.5 sm:text-xs">
-                                Apply Now
-                            </a>
-                            {{-- Hamburger toggle — only shown under lg, alongside the
-                                 login/apply buttons instead of replacing them. --}}
-                            <button type="button" @click="mobileNavOpen = !mobileNavOpen"
-                                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 sm:h-8 sm:w-8 lg:hidden"
-                                aria-label="Toggle navigation menu" :aria-expanded="mobileNavOpen">
-                                <svg x-show="!mobileNavOpen" class="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
-                                </svg>
-                                <svg x-show="mobileNavOpen" x-cloak class="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {{-- Mobile/tablet dropdown with the same links the lg:flex row
-                             hides below 1024px. --}}
-                        <div x-show="mobileNavOpen" x-cloak x-transition
-                            class="absolute inset-x-0 top-full z-20 mt-2 flex flex-col gap-1 rounded-2xl bg-white p-2 text-sm font-semibold text-gray-700 shadow-lg lg:hidden">
-                            <a href="https://www.puptbi.site/" class="rounded-xl px-4 py-2.5 transition hover:bg-gray-50 hover:text-[#6D0D23]">Home</a>
-                            <a href="https://www.puptbi.site/programs" class="rounded-xl px-4 py-2.5 transition hover:bg-gray-50 hover:text-[#6D0D23]">Programs</a>
-                            <a href="#cohorts" @click.prevent="scrollToCohorts(); mobileNavOpen = false" class="rounded-xl px-4 py-2.5 transition hover:bg-gray-50 hover:text-[#6D0D23]">Incubatees</a>
-                            <a href="https://www.puptbi.site/blogs" class="rounded-xl px-4 py-2.5 transition hover:bg-gray-50 hover:text-[#6D0D23]">Blogs</a>
-                        </div>
-                    </nav>
-                </div>
-
-                <div class="hero-body relative mx-auto mt-6 max-w-6xl px-4 sm:mt-10 sm:px-6 lg:mt-12 lg:px-8">
-                    {{-- Badge shrunk hard for mobile (7px text, tighter padding/icon) —
-                         it was still eating into the space the heading/photo need. --}}
-                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[7px] font-bold text-[#6D0D23] shadow-sm sm:gap-2 sm:px-4 sm:py-1.5 sm:text-xs">
-                        <img src="{{ asset('images/login-signup/lync-logo.png') }}" alt="" class="h-2.5 w-2.5 shrink-0 object-contain sm:h-3.5 sm:w-3.5">
-                        LYNC PUP MANAGEMENT SYSTEM
-                    </span>
-
-                    {{-- Fluid clamp() instead of 3 fixed breakpoint jumps: 24px floor
-                         at 320px (matches the old mobile size), ~38px around 768px
-                         (close to the old sm-tier 36px), scaling continuously up to a
-                         54px ceiling reached around 1280px and held flat from there —
-                         so it never looks stuck mid-transition on in-between widths,
-                         and the clamp() max keeps it from ever growing "too large" on
-                         big monitors or when the browser is zoomed out. --}}
-                    <h1 class="mt-4 max-w-2xl text-[clamp(1.5rem,0.875rem_+_3.125vw,3.375rem)] font-extrabold leading-tight sm:mt-10">
-                        Where <span class="text-amber-400">Innovation</span>
-                        <br>
-                        Meets <span class="text-amber-400">Opportunity.</span>
-                    </h1>
-
-                    {{-- text-[11px], leading tightened at every breakpoint so the
-                         wrapped lines sit closer together — safe now that the
-                         header has a min-height floor (see header comment). --}}
-                    {{-- On desktop the paragraph's width/font are tied to the headline (see .hero-para in
-                         the <style> below) so it wraps to 3 lines ending at the "i" of "Opportunity". --}}
-                    <p class="hero-para mt-3 text-[11px] font-normal leading-snug text-white sm:mt-8 sm:text-base sm:leading-tight">
-                        PUP TBIDO empowers startups to transform ideas into impactful ventures
-                        with the support of experts, networks, and real-world resources.
-                    </p>
-
-                    {{-- flex-wrap already let this drop to two rows on narrow screens,
-                         but the divide-x rules don't reflow with it (a divider was
-                         landing mid-row at the wrap point) — sizing each stat down a
-                         notch on mobile keeps all three on one row through phone
-                         widths instead, so the dividers stay meaningful. Numbers/labels
-                         shrunk further (text-sm / 8px) and padding tightened so the
-                         whole card takes less vertical room. --}}
-                    <div class="hero-stats mt-6 flex items-stretch divide-x divide-gray-200 rounded-2xl bg-white text-center text-[#6D0D23] sm:mt-8">
-                        <div class="flex-1 px-2.5 py-2 sm:px-5 sm:py-3">
-                            <p class="text-sm font-extrabold sm:text-2xl">{{ $stats['active_ventures'] }}</p>
-                            <p class="text-[8px] font-medium text-gray-600 sm:text-xs">Active Ventures</p>
-                        </div>
-                        <div class="flex-1 px-2.5 py-2 sm:px-5 sm:py-3">
-                            <p class="text-sm font-extrabold sm:text-2xl">{{ $stats['sectors'] }}</p>
-                            <p class="text-[8px] font-medium text-gray-600 sm:text-xs">Sectors</p>
-                        </div>
-                        <div class="flex-1 px-2.5 py-2 sm:px-5 sm:py-3">
-                            <p class="text-sm font-extrabold sm:text-2xl">{{ $stats['graduated'] }}</p>
-                            <p class="text-[8px] font-medium text-gray-600 sm:text-xs">Graduated</p>
-                        </div>
-                    </div>
-
-                    {{-- Content-sized (not flex-1/stretched) pills at every breakpoint —
-                         they size to their own text/icon instead of splitting the full
-                         row width in half, which was making them wider than the stats
-                         card above and crowding the row's edges on narrow phones.
-                         flex-wrap on the parent is the overflow safety net: if both
-                         pills together don't fit one row at very narrow widths, the
-                         second one drops to its own row instead of overflowing. --}}
-                    <div class="hero-cta mt-6 flex flex-row flex-wrap gap-1.5 sm:mt-8 sm:gap-3">
-                        <a href="#cohorts"
-                            @click.prevent="scrollToCohorts()"
-                            class="inline-flex shrink-0 items-center justify-center gap-1 rounded-full bg-[#6D0D23] px-2.5 py-2 text-[9px] font-bold text-white shadow-lg transition hover:opacity-90 sm:gap-2 sm:px-6 sm:py-3 sm:text-sm">
-                            Explore Startups
-                            <svg class="h-3 w-3 shrink-0 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                            </svg>
-                        </a>
-
-                        <a href="{{ route('login') }}"
-                            class="inline-flex shrink-0 items-center justify-center gap-1 rounded-full bg-white px-2.5 py-2 text-[9px] font-bold text-[#11386A] shadow-lg transition hover:bg-gray-50 sm:gap-2 sm:px-6 sm:py-3 sm:text-sm">
-                            Founder / Admin Login
-                            <svg class="h-3 w-3 shrink-0 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                            </svg>
-                        </a>
-                    </div>
-                </div>
-            </div>
-    </header>
-
-    {{-- ==================== MEET OUR INCUBATEES ==================== --}}
-    {{-- `isolate` is the important bit here: without it, <main> doesn't
-         create its own stacking context, so the watermark img below (which
-         uses -z-10) would render BEHIND <main>'s own bg-white (invisible)
-         instead of just behind the content inside it. --}}
-    {{-- The top edge is a single wide, shallow circular arc that meets the left and right
-         edges of the page at a SHARP corner (rather than curving down to vertical there,
-         which is what plain rounded corners do). The polygon below traces that arc; its
-         drop is expressed in multiples of --hero-arch, so it scales with it.
-         --hero-arch scales with the viewport width (8vw — the proportion of the design
-         mock: ~84px of rise over a ~1048px-wide page), clamped so it stays visible on
-         phones and doesn't get towering on very wide screens.
-         The section is pulled up by exactly that amount so the arc's two ends land on
-         the hero's bottom edge, and the header's bottom padding (see the header
-         above) grows with it so the buttons never sit under the peak.
-         Plain scoped CSS: the app's CSS bundle is pre-compiled and won't contain new
-         arbitrary values. Also safe for the heading/tabs at the top — the arc is at
-         its highest right where the (centered) heading sits, and only drops toward
-         the far edges. --}}
+    {{-- Landing page styles. Kept as plain scoped CSS (not new Tailwind arbitrary values) because
+         the app's compiled CSS bundle won't contain classes that only appear here. --}}
     <style>
-        /* The arc's rise follows the page width at every size (no cap), so the whole hero keeps the
-           same proportions when the browser is zoomed out. */
-        :root { --hero-arch: max(32px, 8vw); }
+        :root {
+            --lp-maroon: #6D0D23;
+            --lp-navy: #11386A;
+            --lp-gold: #E6AC3D;
+            --lp-ink: #111111;
+            --lp-gutter: clamp(1rem, 6.8vw, 7rem);
+            /* Rise of the white arc under the hero (follows the page width). */
+            --hero-arch: max(32px, 8vw);
+        }
+        body.lp { font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif; color: var(--lp-ink); }
 
-        /* ---- Hero layout, by width ----
-           >= 1024px: text on the left, the three people on the right (side by side), the buttons
-           sitting just above the arc's peak. Above 1440px the whole text layer is zoomed up in
-           step with the width (--hero-zoom, set by fitHeroArt() below) so it stays in proportion
-           with the artwork, which scales with the width.
-           < 1024px (tablets, phones, zoomed-in desktop): stacked — the text block on top, and the
-           people underneath it, so words never sit on top of their faces. */
+        /* ==================== HERO ==================== */
+        #hero { position: relative; display: flex; flex-direction: column; overflow: hidden; background: #4d0406; color: #fff; }
+        #hero-art { pointer-events: none; user-select: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% 40%; }
         #hero-content {
-            zoom: var(--hero-zoom, 1);
-            /* --hero-arch is a real-pixel length; inside the zoomed layer it has to be divided by the zoom
-               (fitHeroArt() works that out and sets --hero-arch-inner; the fallback is for zoom = 1). */
-            --hero-arch: var(--hero-arch-inner, max(32px, 8vw));
-            --people-h: min(56.8vw, 441px); /* = 525 image px x the scale fitHeroArt() uses (capped at 0.84) */
-            --hero-pad-bottom: calc(var(--hero-arch) + var(--people-h) + 1rem);
+            position: relative; z-index: 10; flex: 1 1 auto;
+            /* Stacked (< 1024px): the people sit under the text, so the bottom padding makes room for them. */
+            --people-h: min(42.6vw, 386px);
+            padding-bottom: calc(var(--hero-arch) + var(--people-h) + 1rem);
         }
         @media (min-width: 1024px) {
-            #hero-content { --hero-pad-bottom: calc(var(--hero-arch) + 3.75rem + 44px + 1.25rem); }
+            /* Desktop: the hero height follows the width, like the mock (~64% of the page width), so the
+               people keep the same size and position at every desktop width. */
+            #hero { min-height: 50vw; }
+            #hero-content { padding-bottom: calc(var(--hero-arch) + 2rem); }
         }
-        /* Stacked: hero background continues the artwork's top edge colours (set by fitHeroArt()), and
-           the artwork's top edge fades into it, because the picture no longer reaches the top of the
-           hero. */
         #hero.hero-stacked #hero-art {
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 90px);
-            mask-image: linear-gradient(to bottom, transparent 0, #000 90px);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 120px);
+            mask-image: linear-gradient(to bottom, transparent 0, #000 120px);
         }
+        .lp-wrap { max-width: 1440px; margin: 0 auto; padding-left: var(--lp-gutter); padding-right: var(--lp-gutter); }
 
-        /* Desktop hero height follows the page WIDTH (63vw) instead of a fixed
-           800px, like the design mock. The artwork is scaled to fill the width, so a fixed
-           height meant that on any screen wider than ~1230px the image got zoomed in to
-           cover it: the three people ended up oversized, with their heads jammed up under
-           the navbar and hardly any dark space on the left. Tying the height to the width
-           keeps their size (and the empty space above and beside them) the same at every
-           desktop width. Phones/tablets keep their own min-heights above, since the hero
-           text needs that room there. */
+        /* ---- Navbar ---- */
+        .lp-nav { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: clamp(1rem, 2.4vw, 2.4rem); }
+        .lp-brand { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; color: #fff; }
+        .lp-brand-mark { display: flex; align-items: center; justify-content: center; width: clamp(32px, 2.4vw, 40px); height: clamp(32px, 2.4vw, 40px); border-radius: 8px; background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+        .lp-brand-mark img { width: 62%; height: 62%; object-fit: contain; }
+        .lp-brand-name { font-size: clamp(1.1rem, 1.25vw, 1.35rem); font-weight: 700; letter-spacing: 0.04em; }
+        /* Partner logos beside LYNC: a thin divider, then the PUP seal and the PUP TBIDO mark. */
+        .lp-brand-group { display: flex; align-items: center; gap: clamp(0.6rem, 1.1vw, 1.1rem); flex-shrink: 0; }
+        .lp-brand-sep { width: 1px; height: clamp(26px, 2.2vw, 36px); background: rgba(255,255,255,.45); }
+        .lp-partners { display: flex; align-items: center; gap: clamp(0.2rem, 0.4vw, 0.4rem); }
+        .lp-partners img { height: clamp(36px, 3vw, 50px); width: auto; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,.25)); }
+        @media (max-width: 380px) { .lp-brand-sep, .lp-partners { display: none; } }
+        .lp-links { display: none; align-items: center; gap: clamp(1.25rem, 3.2vw, 3.25rem); font-size: clamp(0.8125rem, 0.85vw, 0.9375rem); font-weight: 500; }
+        .lp-links a { position: relative; padding: 0.4rem 0; color: rgba(255,255,255,.92); transition: color .2s ease; }
+        .lp-links a:hover { color: #fff; }
+        .lp-links a::after { content: ''; position: absolute; left: 50%; bottom: -0.15rem; width: 0; height: 2px; border-radius: 9999px; background: var(--lp-gold); transform: translateX(-50%); transition: width .25s ease; }
+        .lp-links a:hover::after, .lp-links a.is-active::after { width: 100%; }
+        .lp-actions { display: flex; align-items: center; gap: clamp(0.4rem, 1vw, 1rem); flex-shrink: 0; }
+        .lp-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 9999px; font-weight: 500; white-space: nowrap; transition: background-color .2s ease, color .2s ease, transform .2s ease, box-shadow .2s ease;
+            font-size: clamp(0.75rem, 0.85vw, 0.9375rem); height: clamp(32px, 2.5vw, 42px); padding: 0 clamp(0.9rem, 1.7vw, 1.85rem); }
+        .lp-btn--ghost { border: 1.5px solid rgba(255,255,255,.9); color: #fff; }
+        .lp-btn--ghost:hover { background: rgba(255,255,255,.12); }
+        .lp-btn--solid { background: #fff; color: var(--lp-maroon); font-weight: 600; box-shadow: 0 0 18px rgba(255,255,255,.35); }
+        .lp-btn--solid:hover { transform: translateY(-2px); box-shadow: 0 0 24px rgba(255,255,255,.55); }
+        .lp-burger { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9999px; color: #fff; }
+        .lp-burger:hover { background: rgba(255,255,255,.12); }
+        .lp-mobile-menu { position: absolute; left: 0; right: 0; top: calc(100% + 0.6rem); z-index: 30; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem; border-radius: 1rem; background: #fff; color: #374151; font-weight: 600; font-size: 0.875rem; box-shadow: 0 12px 30px rgba(0,0,0,.25); }
+        .lp-mobile-menu a { padding: 0.65rem 1rem; border-radius: 0.75rem; }
+        .lp-mobile-menu a:hover { background: #f9fafb; color: var(--lp-maroon); }
         @media (min-width: 1024px) {
-            #hero { min-height: 63vw; }
+            .lp-links { display: flex; }
+            .lp-burger, .lp-mobile-menu { display: none !important; }
+        }
+        @media (max-width: 479px) {
+            .lp-btn--ghost { display: none; } /* "Log in" moves into the menu on very narrow phones */
         }
 
-        /* Hero paragraph + stats card (desktop): both are exactly as wide as the headline up to the
-           "i" in "Opportunity" (8.58 x the headline's font size, which is the same clamp the h1
-           uses), so their right edges line up with it at every width. The paragraph's font is a
-           fraction of the same size, so it wraps to 3 lines and stays clear of the people. Below
-           1024px they wrap naturally. */
-        :root { --hero-h1: clamp(1.5rem, 0.875rem + 3.125vw, 3.375rem); }
-        .hero-para { max-width: 36rem; }
-        .hero-stats { width: fit-content; max-width: 100%; }
-        .hero-stats > div { white-space: nowrap; }
-        /* Bigger numbers (were 14px / 24px). The line-height stays what it was, so the card doesn't
-           get any taller. */
-        .hero-stats > div > p:first-child { font-size: 1.25rem; line-height: 1.25rem; }
-        @media (min-width: 640px) { .hero-stats > div > p:first-child { font-size: 2.5rem; line-height: 2rem; } }
-        /* Breathing room between each number and its label (cell padding trimmed a touch to pay for it). */
-        .hero-stats > div > p + p { margin-top: 0.25rem; }
-        @media (min-width: 640px) {
-            .hero-stats > div { padding-top: 0.625rem; padding-bottom: 0.625rem; }
-            .hero-stats > div > p + p { margin-top: 0.5rem; }
+        /* ---- Hero copy ---- */
+        .hero-body { margin-top: clamp(2rem, 6vw, 6.5rem); padding-left: clamp(0rem, 1.7vw, 1.75rem); }
+        .hero-title { font-size: clamp(1.75rem, 3.6vw, 3.75rem); font-weight: 800; line-height: 0.98; letter-spacing: -0.01em; }
+        .hero-title span { color: var(--lp-gold); }
+        .hero-para { margin-top: clamp(1rem, 2.2vw, 2.4rem); max-width: 31em; font-size: clamp(0.85rem, 1.1vw, 1.2rem); font-weight: 500; line-height: 1.2; color: #fff; }
+        @media (min-width: 1024px) { .hero-para { max-width: 28em; } }
+        .hero-stats { margin-top: clamp(1.25rem, 3vw, 3.25rem); display: flex; align-items: stretch; width: min(100%, clamp(18rem, 28vw, 30rem)); border-radius: clamp(14px, 1.3vw, 22px); background: #fff; text-align: center; color: var(--lp-maroon);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,.45); padding: clamp(0.5rem, 0.7vw, 0.8rem) 0; }
+        .hero-stats > div { flex: 1 1 0; padding: 0 0.5rem; }
+        .hero-stats > div + div { border-left: 1px solid #d1d5db; }
+        .hero-stats .num { font-size: clamp(1.35rem, 1.75vw, 1.9rem); font-weight: 700; line-height: 1.1; }
+        .hero-stats .lbl { margin-top: 0.15rem; font-size: clamp(0.7rem, 0.75vw, 0.85rem); font-weight: 500; color: var(--lp-ink); white-space: nowrap; }
+
+        /* ==================== MEET THE INNOVATORS ==================== */
+        .hero-arch {
+            margin-top: calc(-1 * var(--hero-arch));
+            padding-top: clamp(2rem, 3vw, 3rem);
+            clip-path: polygon(0% calc(var(--hero-arch) * 1.0000), 2.5% calc(var(--hero-arch) * 0.9002), 5% calc(var(--hero-arch) * 0.8060), 7.5% calc(var(--hero-arch) * 0.7173), 10% calc(var(--hero-arch) * 0.6341), 12.5% calc(var(--hero-arch) * 0.5562), 15% calc(var(--hero-arch) * 0.4836), 17.5% calc(var(--hero-arch) * 0.4163), 20% calc(var(--hero-arch) * 0.3541), 22.5% calc(var(--hero-arch) * 0.2972), 25% calc(var(--hero-arch) * 0.2453), 27.5% calc(var(--hero-arch) * 0.1984), 30% calc(var(--hero-arch) * 0.1566), 32.5% calc(var(--hero-arch) * 0.1198), 35% calc(var(--hero-arch) * 0.0879), 37.5% calc(var(--hero-arch) * 0.0610), 40% calc(var(--hero-arch) * 0.0390), 42.5% calc(var(--hero-arch) * 0.0220), 45% calc(var(--hero-arch) * 0.0098), 47.5% calc(var(--hero-arch) * 0.0024), 50% 0, 52.5% calc(var(--hero-arch) * 0.0024), 55% calc(var(--hero-arch) * 0.0098), 57.5% calc(var(--hero-arch) * 0.0220), 60% calc(var(--hero-arch) * 0.0390), 62.5% calc(var(--hero-arch) * 0.0610), 65% calc(var(--hero-arch) * 0.0879), 67.5% calc(var(--hero-arch) * 0.1198), 70% calc(var(--hero-arch) * 0.1566), 72.5% calc(var(--hero-arch) * 0.1984), 75% calc(var(--hero-arch) * 0.2453), 77.5% calc(var(--hero-arch) * 0.2972), 80% calc(var(--hero-arch) * 0.3541), 82.5% calc(var(--hero-arch) * 0.4163), 85% calc(var(--hero-arch) * 0.4836), 87.5% calc(var(--hero-arch) * 0.5562), 90% calc(var(--hero-arch) * 0.6341), 92.5% calc(var(--hero-arch) * 0.7173), 95% calc(var(--hero-arch) * 0.8060), 97.5% calc(var(--hero-arch) * 0.9002), 100% calc(var(--hero-arch) * 1.0000), 100% 100%, 0 100%);
         }
-        @media (min-width: 640px) {
-            .hero-stats > div { flex: 1 1 auto; min-width: 6rem; padding-left: 1rem; padding-right: 1rem; }
+        .lp-section { max-width: 80rem; margin: 0 auto; padding-left: 1rem; padding-right: 1rem; }
+        @media (min-width: 640px) { .lp-section { padding-left: 1.5rem; padding-right: 1.5rem; } }
+        @media (min-width: 1024px) { .lp-section { padding-left: 2rem; padding-right: 2rem; } }
+        .lp-heading { font-size: clamp(1.5rem, 1.85vw, 2rem); font-weight: 700; color: var(--lp-ink); }
+        .lp-heading span { background: linear-gradient(90deg, #4a1d4f, #1c3a78); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .lp-sub { margin-top: 0.25rem; font-size: clamp(0.8rem, 1vw, 1.05rem); color: var(--lp-ink); }
+
+        /* Cohort tabs: full-width row, equal-width tabs, grey rule underneath, one sliding maroon bar. */
+        .cohort-tabs { position: relative; margin-top: clamp(1.5rem, 3vw, 3rem); display: flex; flex-wrap: wrap; border-bottom: 2px solid #d1d5db; }
+        .cohort-tab { flex: 1 1 0; min-width: 7rem; padding: 0 0.75rem 0.6rem; font-size: clamp(1rem, 1.4vw, 1.5rem); font-weight: 700; line-height: 1.4; color: var(--lp-ink); transition: color .2s ease; }
+        .cohort-tab:hover { color: #4b5563; }
+        .cohort-tab.is-active { color: var(--lp-maroon); }
+        .cohort-indicator { position: absolute; height: 3px; border-radius: 9999px; background: var(--lp-maroon); pointer-events: none; }
+        .cohort-panels { margin-top: clamp(1.25rem, 1.8vw, 2rem); display: grid; }
+        .cohort-panels > .cohort-panel { grid-area: 1 / 1; min-width: 0; }
+        .lp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+        @media (min-width: 640px) { .lp-grid { gap: 1.25rem; } }
+        @media (min-width: 768px) { .lp-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (min-width: 1024px) { .lp-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+        /* Startup carousel */
+        .lp-carousel { position: relative; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); overflow-x: auto; overflow-y: hidden;
+            scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 1.5rem 0 2.25rem; }
+        .lp-carousel::-webkit-scrollbar { display: none; }
+        .lp-track { display: flex; width: max-content; align-items: center; gap: clamp(1rem, 2.4vw, 2.5rem);
+            padding-left: calc(50vw - var(--slide-w) / 2); padding-right: calc(50vw - var(--slide-w) / 2); }
+        .lp-carousel { --slide-w: clamp(13.5rem, 62vw, 19rem); }
+        @media (min-width: 768px) { .lp-carousel { --slide-w: clamp(16rem, 24vw, 21rem); } }
+        .lp-slide { flex: 0 0 auto; width: var(--slide-w); transform-origin: center; will-change: transform, opacity; }
+        .lp-slide .startup-card { height: 100%; }
+        .lp-carousel-hint { margin-top: 0.25rem; text-align: center; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: #9a8d93; }
+        .lp-carousel-hint span[aria-hidden] { margin: 0 0.6rem; }
+        .lp-carousel-hint .hint-touch { display: none; }
+        .lp-viewall { display: none; }
+        /* Phones & tablets (< 1024px): no carousel - the plain card grid (2 columns, 3 from 768px),
+           first 4 cards plus a "View All Startups" button. */
+        @media (max-width: 1023px) {
+            .lp-carousel { margin-left: 0; margin-right: 0; overflow: visible; padding: 0; }
+            .lp-track { display: grid; width: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; padding: 0; }
+            .lp-slide { width: auto; transform: none !important; opacity: 1 !important; }
+            .lp-slide.lp-extra:not(.is-shown) { display: none; }
+            .lp-carousel-hint { display: none; }
+            .lp-viewall { display: flex; }
+            .lp-viewall[style*="display: none"] { display: none; }
         }
-        @media (min-width: 1024px) {
-            .hero-para { width: calc(var(--hero-h1) * 8.58); max-width: none; font-size: calc(var(--hero-h1) * 0.32); }
-            .hero-stats { width: calc(var(--hero-h1) * 8.58); max-width: none; }
-            .hero-stats > div { flex: 1 1 0; }
+        @media (min-width: 640px) and (max-width: 1023px) { .lp-track { gap: 1.25rem; } }
+        @media (min-width: 768px) and (max-width: 1023px) { .lp-track { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+        /* Banner hover layers: a shade that deepens, and a running number. */
+        .banner-shade { position: absolute; inset: 0; z-index: 2; background: rgba(42, 8, 20, 0.08); transition: background-color .7s cubic-bezier(.2,.7,.2,1); pointer-events: none; }
+        .banner-num { position: absolute; left: 0.8rem; top: 0.6rem; z-index: 3; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; color: rgba(255,255,255,.9); text-shadow: 0 1px 4px rgba(0,0,0,.35); }
+        .startup-banner > img { transition: transform .9s cubic-bezier(.2,.7,.2,1); }
+
+        /* Startup card */
+        .startup-card { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid #c9c9cf; border-radius: 12px; background: #f0f0f0;
+            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+        .startup-banner { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; aspect-ratio: 7 / 4; }
+        .startup-banner > img, .startup-banner > .initial { transition: transform .5s ease; }
+        .startup-banner .initial { font-size: clamp(1.5rem, 3vw, 2.75rem); font-weight: 800; }
+        .stage-badge { position: absolute; right: 0.5rem; top: 0.5rem; z-index: 10; border-radius: 9999px; border: 1px solid var(--lp-maroon); background: #fff; color: #3b0a16; font-size: clamp(9px, 0.75vw, 12px); line-height: 1; padding: 0.3em 0.9em; }
+        @media (min-width: 640px) { .stage-badge { right: 0.75rem; top: 0.75rem; } }
+        .stage-badge--completed { background: #fef3c7; color: #92400e; border-color: #d97706; }
+        .stage-badge--graduated { background: #dcfce7; color: #166534; border-color: #16a34a; }
+        .card-body { display: flex; flex: 1 1 auto; flex-direction: column; padding: clamp(0.65rem, 1.15vw, 1.25rem); }
+        .card-name { font-size: clamp(0.8rem, 1.05vw, 1.1rem); font-weight: 700; color: var(--lp-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .card-meta { margin-top: 0.1rem; font-size: clamp(0.65rem, 0.85vw, 0.9rem); color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .card-desc { margin-top: 0.7rem; flex: 1 1 auto; min-height: 2.6em; font-size: clamp(0.62rem, 0.72vw, 0.78rem); line-height: 1.75; color: #444; overflow-wrap: anywhere;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .card-foot { margin-top: 0.6rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: clamp(0.6rem, 0.68vw, 0.75rem); color: #444; }
+        .card-foot .loc { display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
+        .card-foot .loc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .card-foot .rls { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; font-weight: 600; color: var(--lp-ink); }
+        /* Gradient-outlined button (maroon -> navy), used by View and View All Startups. */
+        .lp-outline { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 8px; color: #1f1640; font-weight: 500;
+            background: linear-gradient(#fff, #fff) padding-box, linear-gradient(90deg, var(--lp-maroon), var(--lp-navy)) border-box; border: 1.5px solid transparent;
+            transition: color .2s ease, background .2s ease; }
+        .lp-outline:hover { color: #fff; background: linear-gradient(90deg, var(--lp-maroon), var(--lp-navy)) padding-box, linear-gradient(90deg, var(--lp-maroon), var(--lp-navy)) border-box; }
+        .card-view { margin-top: clamp(0.65rem, 1.1vw, 1.1rem); width: 100%; padding: clamp(0.3rem, 0.5vw, 0.5rem) 0; font-size: clamp(0.7rem, 0.85vw, 0.9rem); }
+        .view-all { padding: 0.75rem 2.25rem; border-radius: 10px; font-size: clamp(0.9rem, 1.05vw, 1.1rem); font-weight: 600; color: #1c2a5c; }
+        .view-all svg { transition: transform .2s ease; }
+        .view-all:hover svg { transform: translateX(4px); }
+        @media (hover: hover) {
+            .startup-card:hover { box-shadow: 0 30px 60px -30px rgba(109, 13, 35, 0.55); border-color: #e4c4cc; }
+            .startup-card:hover .startup-banner > img { transform: scale(1.08); }
+            .startup-card:hover .banner-shade { background: rgba(42, 8, 20, 0.6); }
+            .startup-card:hover .startup-banner > .initial { transform: scale(1.15); }
         }
 
-        /* Explore Startups / Login buttons: centered, and on desktop sat just above the peak of
-           the arc (the arc's peak is --hero-arch above the header's bottom edge). #hero-content
-           is made to fill the whole header so "bottom" is measured from the header's bottom;
-           .hero-body stops being a positioning parent so the buttons anchor to #hero-content,
-           not to it. Below desktop they stay in the normal flow, just centered. */
-        #hero { display: flex; flex-direction: column; }
-        #hero-content { flex: 1 1 auto; }
-        .hero-cta { justify-content: center; }
-        @media (min-width: 1024px) {
-            #hero .hero-body { position: static; }
-            #hero .hero-cta {
-                position: absolute;
-                left: 0;
-                right: 0;
-                margin: 0;
-                bottom: calc(var(--hero-arch) + 3.75rem);
-            }
-        }
+        /* Lync logo watermark at the left edge, never allowed to rise into the arc. (Image is 542x759.) */
+        /* Whole logo shown (not cropped): smaller, tucked into the bottom-left, never rising into the arc. */
+        .lync-watermark { --wm-w: clamp(240px, 27vw, 440px); width: var(--wm-w); left: calc(var(--wm-w) * -0.1808); bottom: auto; /* visible logo flush with the left edge (PNG has a 98px transparent margin) */
+            top: max(calc(var(--hero-arch) + 2rem), calc(100% - var(--wm-w) * 1.4004 - 2rem)); }
+        /* On laptops the script at the bottom (placeWatermark) sizes it so its tip touches the curve and
+           its base sits on the footer. */
 
-        /* The two buttons: only a faint white edge + a barely-there halo, and a hover effect
-           (lifts a little, glow and colour brighten, arrow nudges right). */
-        .hero-cta a {
-            box-shadow:
-                0 0 0 1px rgba(255, 255, 255, 0.6),
-                0 0 8px 0 rgba(255, 255, 255, 0.18);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
-        }
-        .hero-cta a svg { transition: transform 0.2s ease; }
-        .hero-cta a:hover {
-            opacity: 1;
-            transform: translateY(-3px);
-            box-shadow:
-                0 0 0 1px rgba(255, 255, 255, 0.85),
-                0 8px 18px -4px rgba(0, 0, 0, 0.35),
-                0 0 16px 2px rgba(255, 255, 255, 0.3);
-        }
-        .hero-cta a:hover svg { transform: translateX(4px); }
-        .hero-cta a:active { transform: translateY(-1px) scale(0.98); }
-        /* Explore Startups (the maroon one) has no white border, just its faint halo. */
-        .hero-cta a:first-child { box-shadow: 0 0 8px 0 rgba(255, 255, 255, 0.18); }
-        .hero-cta a:first-child:hover {
-            background-color: #8a1230;
-            box-shadow: 0 8px 18px -4px rgba(0, 0, 0, 0.35), 0 0 16px 2px rgba(255, 255, 255, 0.3);
-        }
-        .hero-cta a:last-child:hover { background-color: #eef3fb; }
-        @media (prefers-reduced-motion: reduce) {
-            .hero-cta a, .hero-cta a svg { transition: none; }
-            .hero-cta a:hover, .hero-cta a:hover svg, .hero-cta a:active { transform: none; }
-        }
+        /* ==================== FOOTER ==================== */
+        .lp-footer { color: #fff; padding: clamp(1.5rem, 2.2vw, 2.25rem) 0;
+            background:
+                radial-gradient(ellipse 22% 55% at 100% 100%, rgba(10, 45, 140, .95), transparent 70%),
+                radial-gradient(ellipse 35% 80% at 75% 40%, rgba(75, 25, 90, .75), transparent 70%),
+                linear-gradient(100deg, #4a0610 0%, #250510 28%, #1b0a24 48%, #33103d 70%, #3a0d36 85%, #1c1d58 100%); }
+        .lp-footer-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+        @media (min-width: 640px) { .lp-footer-grid { grid-template-columns: 1fr 1fr; } .lp-footer-grid > :first-child { grid-column: span 2; } }
+        @media (min-width: 900px) { .lp-footer-grid { grid-template-columns: 1.6fr 0.8fr 1fr; gap: 2rem; } .lp-footer-grid > :first-child { grid-column: auto; } }
+        .lp-footer h3 { font-size: clamp(1rem, 1.1vw, 1.2rem); line-height: 1.3; font-weight: 700; }
+        .lp-footer .lead { margin-top: 0.5rem; max-width: 30rem; text-wrap: pretty; font-size: clamp(0.78rem, 0.8vw, 0.875rem); line-height: 1.55; color: rgba(255,255,255,.9); }
+        .lp-footer .copy { margin-top: 0.75rem; font-size: clamp(0.7rem, 0.7vw, 0.78rem); color: rgba(255,255,255,.85); }
+        .lp-footer ul { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem; font-size: clamp(0.78rem, 0.8vw, 0.875rem); color: rgba(255,255,255,.9); overflow-wrap: anywhere; }
+        .lp-footer ul a { transition: color .2s ease; }
+        .lp-footer ul a:hover { color: var(--lp-gold); }
 
-        /* "Meet Our Incubatees" breathing room: the design mock spaces this block out in
-           proportion to the page width (more air between the arc and the heading, and
-           between the subtitle and the cohort tabs), so both gaps scale with the viewport
-           instead of being fixed at 40px / 32px. */
-        main.hero-arch { padding-top: clamp(1.5rem, 3.5vw, 3.5rem); }
-        #cohorts .cohort-tabs { margin-top: clamp(1.25rem, 2.75vw, 2.75rem); column-gap: 0; }
-
-        /* Lync logo watermark: normally sits on the bottom edge of <main> (as before), but it is
-           never allowed to rise into the arc — when <main> is short (few cards) it is lowered so
-           its top starts just under the arc and the overflow is cropped at the bottom instead of
-           being sliced off by the curve. (Image is 542x759, so its height is 1.4004 x its width.) */
-        .lync-watermark { --wm-w: 560px; bottom: auto; top: max(calc(var(--hero-arch) + 0.25rem), calc(100% - var(--wm-w) * 1.4004)); }
-        @media (min-width: 640px) { .lync-watermark { --wm-w: 680px; } }
-
-        /* ---------- Motion ----------
-           Everything below only runs when the visitor hasn't asked for reduced motion. */
+        /* ==================== MOTION ==================== */
         @media (prefers-reduced-motion: no-preference) {
-            /* Hero entrance: each piece rises in one after another; the artwork fades in.
-               (fill-mode "backwards" = hold the hidden state during the delay, then hand back to
-               the normal styles, so hover effects etc. aren't overridden afterwards.) */
             @keyframes hero-rise { from { opacity: 0; transform: translateY(22px); } }
             @keyframes hero-drop { from { opacity: 0; transform: translateY(-16px); } }
             @keyframes hero-fade { from { opacity: 0; } }
             #hero-art { animation: hero-fade 1.2s ease-out backwards; }
-            #hero-content > div:first-child { animation: hero-drop 0.6s ease-out backwards; }
+            #hero .lp-nav { animation: hero-drop 0.6s ease-out backwards; }
             #hero .hero-body > * { animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
             #hero .hero-body > :nth-child(1) { animation-delay: 0.15s; }
             #hero .hero-body > :nth-child(2) { animation-delay: 0.30s; }
             #hero .hero-body > :nth-child(3) { animation-delay: 0.45s; }
-            #hero .hero-body > :nth-child(4) { animation-delay: 0.60s; }
-            #hero .hero-body > :nth-child(5) { animation-delay: 0.75s; }
-            /* Explore Startups / Login: instead of rising with the rest, the two buttons start a little
-               apart (each pushed slightly outward) and slide in to the centre while fading in. */
-            @keyframes cta-from-left { from { opacity: 0; transform: translateX(calc(-1 * clamp(2.5rem, 7vw, 6rem))); } }
-            @keyframes cta-from-right { from { opacity: 0; transform: translateX(clamp(2.5rem, 7vw, 6rem)); } }
-            #hero .hero-body > .hero-cta { animation: none; }
-            #hero .hero-cta a:first-child { animation: cta-from-left 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) 0.75s backwards; }
-            #hero .hero-cta a:last-child { animation: cta-from-right 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) 0.75s backwards; }
-            /* While the hero is scrolled out of view the entrance animations are switched off, so they
-               start over when it comes back. */
-            #hero.hero-idle #hero-art,
-            #hero.hero-idle #hero-content > div:first-child,
-            #hero.hero-idle .hero-body > *,
-            #hero.hero-idle .hero-cta a { animation: none; }
+            #hero.hero-idle #hero-art, #hero.hero-idle .lp-nav, #hero.hero-idle .hero-body > * { animation: none; }
 
-            /* Scroll reveal: .reveal things stay hidden until the script below adds .is-visible
-               (only when it runs — no JS, no hiding). The script queues them so they play one at a time. */
             @keyframes reveal-up { from { opacity: 0; transform: translateY(28px); } }
             .reveal-on .reveal { opacity: 0; }
-            .reveal-on .reveal.is-visible {
-                opacity: 1;
-                animation: reveal-up 0.65s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-                animation-delay: var(--reveal-delay, 0ms); /* set by the script so items play one after another */
-            }
+            .reveal-on .reveal.is-visible { opacity: 1; animation: reveal-up 0.65s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: var(--reveal-delay, 0ms); }
 
-            /* Switching cohort: the new panel of cards fades/rises in. */
             @keyframes panel-in { from { opacity: 0; transform: translateY(10px); } }
             .cohort-panel.is-active { animation: panel-in 0.35s ease-out; }
-
-            /* Sliding cohort underline. */
             .cohort-indicator.is-ready { transition: left 0.3s ease, width 0.3s ease, top 0.3s ease, opacity 0.2s ease; }
         }
-
-        /* Every cohort panel sits in the same grid cell (see .cohort-panels). */
-        .cohort-panels > .cohort-panel { grid-area: 1 / 1; min-width: 0; }
-
-        /* Cohort underline: one bar that the script slides under the active tab. */
-        .cohort-indicator { position: absolute; height: 2px; border-radius: 9999px; background: #6D0D23; pointer-events: none; }
-
-        /* Startup cards: lift + soft maroon shadow on hover, banner photo/initial zooms a bit.
-           Only on devices that really hover (so a tap on a phone doesn't leave a card "stuck" up). */
-        .startup-card { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
-        .startup-banner > img, .startup-banner > span:not(:first-child) { transition: transform 0.5s ease; }
-        @media (hover: hover) {
-            .startup-card:hover { transform: translateY(-6px); box-shadow: 0 16px 30px -12px rgba(109, 13, 35, 0.35); border-color: #e4c4cc; }
-            .startup-card:hover .startup-banner > img { transform: scale(1.08); }
-            .startup-card:hover .startup-banner > span:not(:first-child) { transform: scale(1.18); }
-        }
         @media (prefers-reduced-motion: reduce) {
-            .startup-card, .startup-banner > img, .startup-banner > span { transition: none; }
-            .startup-card:hover { transform: none; }
+            .startup-card, .startup-banner > img, .startup-banner > .initial, .lp-btn { transition: none; }
+            .startup-card:hover, .lp-btn--solid:hover { transform: none; }
         }
+    </style>
+</head>
 
-        /* Longer cohort underline: the active tab's underline spans the whole tab, and the
-           tabs have generous side padding (as in the mock) instead of hugging their label. */
-        #cohorts .cohort-tab { padding-left: clamp(1.5rem, 7vw, 6rem); padding-right: clamp(1.5rem, 7vw, 6rem); }
-        /* Bigger cohort tab labels (was text-sm / 14px). */
-        #cohorts .cohort-tab { font-size: clamp(1rem, 0.75rem + 0.6vw, 1.25rem); line-height: 1.5; }
+<body x-data="landingPage()" class="lp overflow-x-hidden antialiased bg-white">
 
-        /* Stats card border: just a faint white halo now (the strong pink/violet glow was too much). */
-        .hero-stats {
-            box-shadow:
-                0 0 0 1px rgba(255, 255, 255, 0.55),
-                0 0 6px 1px rgba(255, 255, 255, 0.22);
-        }
-        .hero-arch {
-            margin-top: calc(-1 * var(--hero-arch));
-            clip-path: polygon(0% calc(var(--hero-arch) * 1.0000),
-                    2.5% calc(var(--hero-arch) * 0.9002),
-                    5% calc(var(--hero-arch) * 0.8060),
-                    7.5% calc(var(--hero-arch) * 0.7173),
-                    10% calc(var(--hero-arch) * 0.6341),
-                    12.5% calc(var(--hero-arch) * 0.5562),
-                    15% calc(var(--hero-arch) * 0.4836),
-                    17.5% calc(var(--hero-arch) * 0.4163),
-                    20% calc(var(--hero-arch) * 0.3541),
-                    22.5% calc(var(--hero-arch) * 0.2972),
-                    25% calc(var(--hero-arch) * 0.2453),
-                    27.5% calc(var(--hero-arch) * 0.1984),
-                    30% calc(var(--hero-arch) * 0.1566),
-                    32.5% calc(var(--hero-arch) * 0.1198),
-                    35% calc(var(--hero-arch) * 0.0879),
-                    37.5% calc(var(--hero-arch) * 0.0610),
-                    40% calc(var(--hero-arch) * 0.0390),
-                    42.5% calc(var(--hero-arch) * 0.0220),
-                    45% calc(var(--hero-arch) * 0.0098),
-                    47.5% calc(var(--hero-arch) * 0.0024),
-                    50% calc(var(--hero-arch) * 0.0000),
-                    52.5% calc(var(--hero-arch) * 0.0024),
-                    55% calc(var(--hero-arch) * 0.0098),
-                    57.5% calc(var(--hero-arch) * 0.0220),
-                    60% calc(var(--hero-arch) * 0.0390),
-                    62.5% calc(var(--hero-arch) * 0.0610),
-                    65% calc(var(--hero-arch) * 0.0879),
-                    67.5% calc(var(--hero-arch) * 0.1198),
-                    70% calc(var(--hero-arch) * 0.1566),
-                    72.5% calc(var(--hero-arch) * 0.1984),
-                    75% calc(var(--hero-arch) * 0.2453),
-                    77.5% calc(var(--hero-arch) * 0.2972),
-                    80% calc(var(--hero-arch) * 0.3541),
-                    82.5% calc(var(--hero-arch) * 0.4163),
-                    85% calc(var(--hero-arch) * 0.4836),
-                    87.5% calc(var(--hero-arch) * 0.5562),
-                    90% calc(var(--hero-arch) * 0.6341),
-                    92.5% calc(var(--hero-arch) * 0.7173),
-                    95% calc(var(--hero-arch) * 0.8060),
-                    97.5% calc(var(--hero-arch) * 0.9002),
-                    100% calc(var(--hero-arch) * 1.0000),
-                    100% 100%,
-                    0 100%);
-        }
-        /* Journey badge (Development -> Completed -> Graduated). Development keeps the
-       plain white pill; the two exit states get their own colour so they read as
-       distinct at a glance on the card's top-right corner. */
-    .stage-badge--completed { background: #fef3c7; color: #92400e; }
-    .stage-badge--graduated { background: #dcfce7; color: #166534; }
-</style>
-    <main class="hero-arch relative isolate overflow-hidden bg-white pb-16 pt-10">
-        <div id="cohorts" class="mx-auto max-w-6xl scroll-mt-8 px-4 sm:px-6 lg:px-8">
+    {{-- ==================== HERO ==================== --}}
+    <header id="hero">
+        {{-- Sized and positioned by fitHeroArt() at the bottom of the page so the people land right
+             on the white arc's cut at every width; object-cover above is only the no-JS fallback. --}}
+        <img id="hero-art" src="{{ asset('images/landing/landing-hero.jpg') }}" alt="" aria-hidden="true">
+
+        <div id="hero-content">
+            <div class="lp-wrap">
+                {{-- ==================== NAVBAR ==================== --}}
+                <nav x-data="{ mobileNavOpen: false }" @click.outside="mobileNavOpen = false" class="lp-nav">
+                    <div class="lp-brand-group">
+                        <a href="{{ route('welcome') }}" class="lp-brand">
+                            <span class="lp-brand-mark">
+                                <img src="{{ asset('images/login-signup/lync-logo.png') }}" alt="">
+                            </span>
+                            <span class="lp-brand-name">LYNC</span>
+                        </a>
+                        <span class="lp-brand-sep" aria-hidden="true"></span>
+                        <span class="lp-partners">
+                            <img src="{{ asset('images/logo/pup-seal.png') }}" alt="Polytechnic University of the Philippines">
+                            <img src="{{ asset('images/logo/pup-tbido.png') }}" alt="PUP TBIDO">
+                        </span>
+                    </div>
+
+                    <div class="lp-links">
+                        <a href="{{ route('welcome') }}" class="is-active">Home</a>
+                        <a href="#cohorts" @click.prevent="scrollToCohorts()">Our Innovators</a>
+                        <a href="#contact" @click.prevent="scrollToContact()">Contact Us</a>
+                    </div>
+
+                    <div class="lp-actions">
+                        <a href="{{ route('login') }}" class="lp-btn lp-btn--ghost">Log in</a>
+                        <a href="{{ route('register', ['from' => 'landing']) }}" class="lp-btn lp-btn--solid">Apply Now</a>
+                        <button type="button" @click="mobileNavOpen = !mobileNavOpen" class="lp-burger"
+                            aria-label="Toggle navigation menu" :aria-expanded="mobileNavOpen">
+                            <svg x-show="!mobileNavOpen" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                            </svg>
+                            <svg x-show="mobileNavOpen" x-cloak class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div x-show="mobileNavOpen" x-cloak x-transition class="lp-mobile-menu">
+                        <a href="{{ route('welcome') }}">Home</a>
+                        <a href="#cohorts" @click.prevent="scrollToCohorts(); mobileNavOpen = false">Our Innovators</a>
+                        <a href="#contact" @click.prevent="scrollToContact(); mobileNavOpen = false">Contact Us</a>
+                        <a href="{{ route('login') }}">Log in</a>
+                    </div>
+                </nav>
+
+                <div class="hero-body">
+                    <h1 class="hero-title">
+                        Where <span>Innovation</span><br>
+                        Meets <span>Opportunity.</span>
+                    </h1>
+
+                    <p class="hero-para">
+                        PUP TBIDO empowers startups to transform ideas into impactful ventures
+                        with the support of experts, networks, and real-world resources.
+                    </p>
+
+                    <div class="hero-stats">
+                        <div>
+                            <p class="num">{{ $stats['active_ventures'] }}</p>
+                            <p class="lbl">Active Ventures</p>
+                        </div>
+                        <div>
+                            <p class="num">{{ $stats['sectors'] }}</p>
+                            <p class="lbl">Sectors</p>
+                        </div>
+                        <div>
+                            <p class="num">{{ $stats['graduated'] }}</p>
+                            <p class="lbl">Graduated</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    {{-- ==================== MEET THE INNOVATORS ==================== --}}
+    {{-- `isolate` gives <main> its own stacking context so the -z-10 watermark sits behind the
+         content but in front of <main>'s white background. --}}
+    <main class="hero-arch relative isolate overflow-hidden bg-white pb-16">
+        <div id="cohorts" class="lp-section scroll-mt-8">
             <div class="reveal text-center">
-                <h2 class="text-2xl font-extrabold text-gray-900 sm:text-3xl">
-                    Meet Our <span class="text-[#11386A]">Incubatees</span>
-                </h2>
-                <p class="mt-1 text-sm text-gray-500">Innovative Startups. Real Solutions. Growing Impact.</p>
+                <h2 class="lp-heading">Meet the <span>Innovators</span></h2>
+                <p class="lp-sub">Innovative Startups. Real Solutions. Growing Impact.</p>
             </div>
 
             @if ($cohortShowcase->isEmpty())
                 <x-empty-state variant="startups" size="lg" title="No Startups to Show Yet." highlight="Startups" message="Our incubated startups will be featured here soon." class="mt-6" />
             @else
-                {{-- Cohort tabs. flex-wrap (+ a smaller mobile gap) instead of a
-                     fixed nowrap row, so extra cohorts don't overflow narrow
-                     screens — each tab keeps its own underline indicator so
-                     wrapping to a second line still looks right. --}}
-                {{-- The single .cohort-indicator underline slides to the active tab (placed by
-                     placeTabIndicator() in landingPage(), and re-placed on resize / font load). --}}
-                <div class="cohort-tabs reveal relative mt-8 flex flex-wrap justify-center gap-x-5 gap-y-2 border-b border-gray-200 sm:gap-x-8"
+                <div class="cohort-tabs reveal"
                     x-effect="placeTabIndicator($el, activeCohortIndex)"
                     x-init="window.addEventListener('resize', () => placeTabIndicator($el, activeCohortIndex)); document.fonts && document.fonts.ready.then(() => placeTabIndicator($el, activeCohortIndex))">
                     <span class="cohort-indicator" :class="{ 'is-ready': tabIndicator.ready }" aria-hidden="true"
                         :style="`left:${tabIndicator.left}px;width:${tabIndicator.width}px;top:${tabIndicator.top}px;opacity:${tabIndicator.width ? 1 : 0}`"></span>
                     @foreach ($cohortShowcase as $index => $group)
-                        <button type="button"
-                            @click="activeCohortIndex = {{ $index }}"
-                            class="cohort-tab relative -mb-px pb-3 text-sm font-bold transition"
-                            :class="activeCohortIndex === {{ $index }} ? 'text-[#6D0D23]' : 'text-gray-500 hover:text-gray-700'">
+                        <button type="button" @click="activeCohortIndex = {{ $index }}"
+                            class="cohort-tab {{ $index === 0 ? 'is-active' : '' }}"
+                            :class="{ 'is-active': activeCohortIndex === {{ $index }} }">
                             {{ $group['cohort']->display_label }}
                         </button>
                     @endforeach
                 </div>
 
-                {{-- Cohort panels. All panels share ONE grid cell (stacked on top of each
-                     other) and the inactive ones are only made invisible, not display:none,
-                     so the section is always as tall as the tallest cohort. Switching tabs
-                     no longer makes "Meet Our Incubatees" grow/shrink or the About card and
-                     footer jump. --}}
-                <div class="cohort-panels mt-8 grid">
+                {{-- All panels share one grid cell; inactive ones are only made invisible, so the
+                     section is always as tall as the tallest cohort and the footer doesn't jump. --}}
+                <div class="cohort-panels">
                 @foreach ($cohortShowcase as $index => $group)
                     @php
-                        $paletteBg = ['bg-purple-600', 'bg-red-600', 'bg-blue-600', 'bg-gray-100'];
-                        $paletteTone = ['text-white', 'text-white', 'text-white', 'text-blue-600'];
+                        $paletteBg = ['#7E57C2', '#F0261A', '#2563EB', '#FFFFFF'];
+                        $paletteTone = ['#FFFFFF', '#FFFFFF', '#FFFFFF', '#2563EB'];
                     @endphp
                     <div class="cohort-panel {{ $index === 0 ? 'is-active' : 'invisible pointer-events-none' }}"
                         :class="{ 'is-active': activeCohortIndex === {{ $index }}, 'invisible': activeCohortIndex !== {{ $index }}, 'pointer-events-none': activeCohortIndex !== {{ $index }} }"
                         :aria-hidden="activeCohortIndex !== {{ $index }}">
-                        {{-- Mobile now shows 2-up (was 1 per row) with a tighter gap;
-                             sm/md/lg steps (2/3/4 columns) are unchanged from before. --}}
-                        <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+                        {{-- Carousel (like the bymacy.vercel.app Projects section): on desktop, moving the mouse
+                             left/right across it pans the row; on touch it swipes. The card nearest the
+                             centre is full size, the others shrink, drop and fade with distance. --}}
+                        <div class="lp-carousel reveal" data-carousel>
+                            <div class="lp-track">
                             @foreach ($group['startups'] as $sIndex => $startup)
-                                <div x-show="{{ $sIndex }} < 4 || isExpanded({{ $group['cohort']->cohort_id }})"
-                                    {{-- bg-white added: this card had no background of its own, so
-                                         the Lync logo watermark (behind it in z-index, but visible
-                                         through the transparent card body) was bleeding through the
-                                         text. A solid background keeps it truly hidden behind the
-                                         card instead of just behind in stacking order. --}}
-                                    class="startup-card reveal flex min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm sm:rounded-2xl">
-                                    {{-- Back to the flat per-startup palette color block (reverted
-                                         the gradient banner version) — this is the design that's
-                                         wanted. photo_url still renders here when present, falling
-                                         back to the initial otherwise. break-words on the
-                                         description (added to the original line-clamp-3) is what
-                                         stops a description saved with no spaces from overflowing
-                                         the card instead of wrapping/clamping normally. Banner height
-                                         and badge/initial sizes step down on mobile now that 2 cards
-                                         share a row. --}}
-                                    <div class="{{ $paletteBg[$startup['palette_index']] }} startup-banner relative flex h-16 items-center justify-center overflow-hidden sm:h-28">
-                                        <span class="absolute right-1.5 top-1.5 z-10 rounded-full px-1.5 py-0.5 text-[8px] font-semibold sm:right-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px] {{ $startup['stage_key'] === 'development' ? 'bg-white text-gray-700' : 'stage-badge--'.$startup['stage_key'] }}">
+                                <div class="lp-slide {{ $sIndex >= 4 ? 'lp-extra' : '' }}" data-card
+                                    :class="{ 'is-shown': isExpanded({{ $group['cohort']->cohort_id }}) }">
+                                <div class="startup-card">
+                                    <div class="startup-banner" style="background: {{ $paletteBg[$startup['palette_index']] }};">
+                                        <span class="banner-shade" aria-hidden="true"></span>
+                                        <span class="banner-num" aria-hidden="true">{{ str_pad($sIndex + 1, 2, '0', STR_PAD_LEFT) }}</span>
+                                        <span class="stage-badge {{ $startup['stage_key'] === 'development' ? '' : 'stage-badge--'.$startup['stage_key'] }}">
                                             {{ $startup['stage_label'] }}
                                         </span>
                                         @if ($startup['photo_url'])
-                                            {{-- Photo fills the whole banner rectangle instead of a
-                                                 small centered square. --}}
                                             <img src="{{ $startup['photo_url'] }}" alt="" class="absolute inset-0 h-full w-full object-cover">
                                         @else
-                                            <span class="{{ $paletteTone[$startup['palette_index']] }} text-base font-extrabold sm:text-2xl">
+                                            <span class="initial" style="color: {{ $paletteTone[$startup['palette_index']] }};">
                                                 {{ strtoupper(substr($startup['name'], 0, 1)) }}
                                             </span>
                                         @endif
                                     </div>
 
-                                    <div class="flex flex-1 flex-col gap-1 p-2.5 sm:gap-2 sm:p-4">
-                                        <div>
-                                            <p class="truncate text-xs font-bold text-gray-900 sm:text-sm">{{ $startup['name'] }}</p>
-                                            <p class="truncate text-[9px] text-gray-500 sm:text-[11px]">{{ $startup['sector'] ?? 'Uncategorized' }} &middot; {{ $startup['cohort_label'] }}</p>
-                                        </div>
+                                    <div class="card-body">
+                                        <p class="card-name">{{ $startup['name'] }}</p>
+                                        <p class="card-meta">{{ $startup['sector'] ?? 'Uncategorized' }} &bull; {{ $startup['cohort_label'] }}</p>
 
-                                        {{-- line-clamp-2 on mobile (was 3) — with 2-up cards there's
-                                             less width for text to wrap into, so 3 clamped lines was
-                                             making the card noticeably taller than its neighbor. --}}
-                                        <p class="min-h-[1.8rem] flex-1 break-words text-[9px] leading-relaxed text-gray-500 line-clamp-2 sm:min-h-[2.5rem] sm:text-[11px] sm:line-clamp-3">
-                                            {{ $startup['description'] ?? 'No description submitted yet.' }}
-                                        </p>
+                                        <p class="card-desc">{{ $startup['description'] ?? 'No description submitted yet.' }}</p>
 
-                                        {{-- Location removed from this row (kept only RLS score) — was the
-                                             map-pin span with $startup['location']. --}}
-                                        <div class="flex items-center justify-end text-[9px] text-gray-500 sm:text-[11px]">
+                                        <div class="card-foot">
+                                            <span class="loc">
+                                                @if ($startup['location'])
+                                                    <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7-6.1-7-11.5a7 7 0 1 1 14 0C19 14.9 12 21 12 21Z" />
+                                                        <circle cx="12" cy="9.5" r="2.5" />
+                                                    </svg>
+                                                    <span>{{ $startup['location'] }}</span>
+                                                @endif
+                                            </span>
                                             @if ($startup['overall_score'] !== null)
-                                                <span class="flex shrink-0 items-center gap-1 font-semibold text-emerald-600">
-                                                    <svg viewBox="0 0 20 20" fill="currentColor" class="h-2.5 w-2.5 sm:h-3 sm:w-3">
-                                                        <path fill-rule="evenodd" d="M12 5a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0V6.81l-5.22 5.22a.75.75 0 0 1-1.06 0L7.5 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06l5.25-5.25a.75.75 0 0 1 1.06 0l2.97 2.97L16.19 5.75h-3.44A.75.75 0 0 1 12 5Z" clip-rule="evenodd" />
+                                                <span class="rls">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M15 7h6v6" />
                                                     </svg>
                                                     RLS {{ number_format($startup['overall_score'], 1) }}
                                                 </span>
                                             @endif
                                         </div>
 
-                                        <button type="button"
-                                            @click="openStartup(@js($startup))"
-                                            class="mt-1 w-full rounded-lg border border-rose-800 py-1 text-center text-[10px] font-semibold text-rose-900 transition hover:bg-rose-50 sm:py-1.5 sm:text-xs">
+                                        <button type="button" @click="openStartup(@js($startup))" class="lp-outline card-view">
                                             View
                                         </button>
                                     </div>
                                 </div>
+                                </div>
                             @endforeach
+                            </div>
                         </div>
-
                         @if ($group['startups']->count() > 4)
-                            <div class="reveal mt-6 flex justify-center" x-show="!isExpanded({{ $group['cohort']->cohort_id }})">
-                                <button type="button" @click="expandCohort({{ $group['cohort']->cohort_id }})"
-                                    class="inline-flex items-center gap-2 rounded-full border border-gray-300 px-5 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
+                            {{-- Phones/tablets only (the carousel shows every card on laptops). --}}
+                            <div class="lp-viewall mt-8 justify-center" x-show="!isExpanded({{ $group['cohort']->cohort_id }})">
+                                <button type="button" @click="expandCohort({{ $group['cohort']->cohort_id }})" class="lp-outline view-all">
                                     View All Startups
                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6" />
                                     </svg>
                                 </button>
                             </div>
                         @endif
+                        <p class="lp-carousel-hint reveal">
+                            {{ $group['startups']->count() }} {{ \Illuminate\Support\Str::plural('startup', $group['startups']->count()) }}
+                            <span aria-hidden="true">/</span>
+                            <span class="hint-desk">Move left or right to browse</span><span class="hint-touch">Swipe to browse</span>
+                        </p>
+
                     </div>
                 @endforeach
                 </div>
             @endif
         </div>
 
-        {{-- Faint Lync logo watermark bleeding off the left edge. bottom-0
-             anchors it to the bottom edge of <main> itself, so it sits right
-             above the footer with no white gap between them — pushing it up
-             (a taller/higher offset) would leave empty space showing below
-             it before the footer starts. Purely decorative; -z-10 keeps it
-             behind the content inside <main> (the `isolate` on <main> is
-             what makes that possible instead of the watermark disappearing
-             behind <main>'s own bg-white). Bigger + pushed further left than
-             before, intentionally cropping roughly half of it off the left
-             edge (<main>'s overflow-hidden clips it) — the size/left offset
-             are eyeballed against the reference, not exact. --}}
+        {{-- Faint Lync logo watermark bleeding off the left edge (decorative). --}}
         <img src="{{ asset('images/login-signup/lync-logo.png') }}" alt=""
-            class="lync-watermark pointer-events-none absolute -left-56 -z-10 w-[560px] max-w-none opacity-10 sm:-left-64 sm:w-[680px]">
-
-        {{-- ==================== ABOUT LYNC PUP ==================== --}}
-        <div class="reveal mx-auto mt-16 max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div class="rounded-2xl bg-gradient-to-r from-[#6D0D23] to-[#11386A] p-5 text-white sm:p-8">
-                <h3 class="text-xl font-extrabold">About Lync PUP</h3>
-                <p class="mt-2 max-w-5xl text-sm text-white/80">
-                    A centralized management system that streamlines the incubation lifecycle through automated progress
-                    monitoring, data-driven readiness assessments, and secure intellectual property governance.
-                </p>
-
-                <div class="mt-6 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
-                    @foreach ([
-                        ['icon' => 'check-box.svg', 'title' => 'Readiness', 'body' => 'Track TRL, MRL, TMRL & SRL signals across every venture.'],
-                        ['icon' => 'riskMon.svg', 'title' => 'Progress Analytics', 'body' => 'Identify at-risk ventures through real-time monitoring.'],
-                        ['icon' => '3person.svg', 'title' => 'Mentoring', 'body' => 'Connect with experts to clear roadblocks.'],
-                        ['icon' => '2connect.svg', 'title' => 'Centralized', 'body' => 'Incubation lifecycle through a unified growth portal.'],
-                    ] as $feature)
-                        <div class="reveal flex items-center gap-2 rounded-xl bg-white p-2.5 text-gray-900 shadow-sm sm:gap-3 sm:p-4 lg:gap-4"
-                            data-reveal-step="140">
-                            {{-- shrink-0 keeps the circle from being squeezed by the
-                                 text column on narrow cards; sizes step up to the
-                                 reference's ~54px circle at lg. --}}
-                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#6D0D23] text-white sm:h-12 sm:w-12 lg:h-[54px] lg:w-[54px]">
-                                <x-icon name="{{ $feature['icon'] }}" class="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
-                            </span>
-                            <div class="min-w-0">
-                                <p class="text-xs font-semibold sm:text-sm">{{ $feature['title'] }}</p>
-                                <p class="mt-0.5 text-[10px] leading-snug text-gray-500 sm:text-xs">{{ $feature['body'] }}</p>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
+            class="lync-watermark pointer-events-none absolute -z-10 max-w-none opacity-10">
     </main>
 
     {{-- ==================== FOOTER ==================== --}}
-    {{-- Full-bleed gradient footer. Content links (Facebook, Official
-         Website, Apply Now) point to real destinations already established
-         elsewhere on the page; "TBIDO Address" has no dedicated page yet so
-         it's a placeholder "#" for now. --}}
-    <footer class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] pb-8 pt-10 text-white sm:pb-10 sm:pt-12">
-        {{-- Mobile (<640px): single stacked column — Contact us, then Quick
-             Links, then Contacts, then the copyright inside the first block —
-             matching natural reading order. Large-mobile/small-tablet
-             (640-767px) steps up to 2 columns with Contact us spanning both
-             (it's the longest block) so Quick Links and Contacts sit side by
-             side underneath instead of one long single column. Tablet/desktop
-             (768px+) reverts to the original even 3-column row. --}}
-        <div class="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 sm:grid-cols-2 sm:gap-8 sm:px-6 md:grid-cols-3 md:gap-16 lg:px-8">
-            <div class="sm:col-span-2 md:col-span-1">
-                <h3 class="text-lg font-extrabold">Contact us</h3>
-                {{-- max-w-xs was forcing an awkward 3-line, unevenly-lengthed
-                     wrap; max-w-sm gives it enough room for exactly 2 lines,
-                     and text-balance evens out how much text each of those
-                     2 lines gets instead of the browser's default greedy
-                     line-fill. --}}
-                <p class="mt-3 max-w-sm text-balance text-sm text-white/80">
-                    PYLON Hub fosters innovation and entrepreneurship by supporting technology-based startups and
-                    empowering students and faculty.
-                </p>
-                <p class="mt-5 text-[11px] text-white/60 sm:mt-6 sm:text-xs">&copy; {{ date('Y') }} Technology Business Incubation and Development Office</p>
-            </div>
+    <footer id="contact" class="lp-footer">
+        <div class="lp-section">
+            <div class="lp-footer-grid">
+                <div>
+                    <h3>Contact us</h3>
+                    <p class="lead">
+                        PYLON Hub fosters innovation and entrepreneurship by supporting technology-based startups and
+                        empowering students and faculty.
+                    </p>
+                    <p class="copy">&copy; {{ date('Y') }} Technology Business Incubation and Development Office</p>
+                </div>
 
-            {{-- text-center now only applies from md up (the desktop 3-column
-                 layout it was added for) — on mobile this reads as one vertical
-                 list under "Contact us", so it stays left-aligned like the other
-                 two sections instead of centering on its own. --}}
-            <div class="md:text-center">
-                <h3 class="text-lg font-extrabold">Quick Links</h3>
-                <ul class="mt-3 space-y-2.5 text-sm text-white/80">
-                    <li><a href="https://www.facebook.com/DOSTPUPPYLONTBI" target="_blank" rel="noopener" class="transition hover:text-white">Facebook</a></li>
-                    <li><a href="https://www.puptbi.site/" class="transition hover:text-white">Official Website</a></li>
-                    <li><a href="#" class="transition hover:text-white">TBIDO Address</a></li>
-                    <li><a href="{{ route('register') }}" class="transition hover:text-white">Apply Now</a></li>
-                </ul>
-            </div>
+                <div>
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="https://www.facebook.com/DOSTPUPPYLONTBI" target="_blank" rel="noopener">Facebook</a></li>
+                        <li><a href="https://www.puptbi.site/">Official Website</a></li>
+                        <li><a href="#">TBIDO Address</a></li>
+                        <li><a href="{{ route('register', ['from' => 'landing']) }}">Apply Now</a></li>
+                    </ul>
+                </div>
 
-            <div>
-                <h3 class="text-lg font-extrabold">Contacts</h3>
-                {{-- break-words: a long email/Facebook URL should wrap onto a
-                     second line on a narrow phone instead of overflowing. --}}
-                <ul class="mt-3 space-y-2.5 break-words text-sm text-white/80">
-                    <li>tbido@pup.edu.ph</li>
-                    <li>fb.com/DOSTPUPPYLONTBI</li>
-                    <li>PUP Sta. Mesa, Manila</li>
-                </ul>
+                <div>
+                    <h3>Contacts</h3>
+                    <ul>
+                        <li>tbido@pup.edu.ph</li>
+                        <li>fb.com/DOSTPUPPYLONTBI</li>
+                        <li>PUP Sta. Mesa, Manila</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </footer>
@@ -703,16 +504,7 @@
                          tagline, meta) moved into its own gradient banner
                          below, matching the "Meet Our Incubatees" card style. --}}
                     <div class="flex shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 sm:px-6 sm:py-4">
-                        {{-- Icon circle also standardized to the confirm-action-modal's
-                             treatment: the brand gradient fill with a white icon, instead
-                             of the one-off rose-100/rose-800 tint. --}}
-                        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
-                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="8" r="3.25" />
-                                <path stroke-linecap="round" d="M4.5 19.5c0-3.4 3.4-5.4 7.5-5.4s7.5 2 7.5 5.4" />
-                            </svg>
-                        </span>
-                        <h3 class="text-sm font-bold text-rose-900">Startup</h3>
+                        <h3 class="text-sm font-bold text-rose-900" x-text="activeStartup.cohort_label || 'Startup'"></h3>
                         {{-- Standardized to the SAME close button used by
                              components/confirm-action-modal.blade.php (the admin-side
                              delete confirmation) — every "X" in the app should look like
@@ -966,6 +758,10 @@
                     document.getElementById('cohorts')?.scrollIntoView({ behavior: 'smooth' });
                 },
 
+                scrollToContact() {
+                    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+                },
+
                 isExpanded(cohortId) {
                     return this.expandedCohorts.includes(cohortId);
                 },
@@ -1034,53 +830,35 @@
         }
     </script>
     <script>
-        // Hero artwork: keeps the guys' belts exactly on the arch's cut, at every screen
-        // size. A fixed object-position can't do that — where the cut falls depends on
-        // the header's height (which follows its content) and on the arch height (which
-        // follows the viewport width, see --hero-arch), and both change independently of
-        // how the image itself gets scaled to cover the header. So this works the
-        // placement out directly:
-        //   - scale: the smallest that still covers the whole header, bumped up only if
-        //     the belt otherwise couldn't reach the cut without leaving a gap above the image;
-        //   - position: horizontally the same 70% focus the CSS used to have; vertically,
-        //     the belt line on the point where the white section starts.
-        // The image constants are pixels in public/images/landing/landing.png — update
-        // them if that artwork is ever swapped.
+        // Hero artwork placement: keeps the people's waistline exactly on the white arc's cut at
+        // every screen size. Image constants are pixels in public/images/landing/landing-hero.jpg —
+        // update them if that artwork is ever swapped.
         (function fitHeroArt() {
             const header = document.getElementById('hero');
             const art = document.getElementById('hero-art');
             const section = document.querySelector('.hero-arch');
             if (!header || !art || !section) return;
 
-            const IMG_W = 1534, IMG_H = 1025;
-            const BELT_Y = 845; // a little below the belts, so they show with a sliver of trousers under them, as in the mock
+            const IMG_W = 1728, IMG_H = 903;
+            const BELT_Y = 730;     // image row that should sit on the arc's peak
             const FOCUS_X = 0.7;
-            const GROUP_W = 924;   // width (in image px) of the three people, from the laptop to the right edge
-            const STACK_MAX = 1023; // keep in step with the 1024px breakpoint in the <style> above
-            // The picture's top-edge colours (left -> right) at these fractions of its width, used to
-            // paint the hero's background above the picture in the stacked layout.
-            const TOP_STOPS = [[0.02, '#39062a'], [0.2, '#2e0c35'], [0.4, '#241242'], [0.55, '#161a54'],
-                               [0.7, '#0c236a'], [0.85, '#052879'], [0.98, '#012984']];
+            const GROUP_W = 1080;   // width of the four people (plus a little margin), in image px
+            const STACK_MAX = 1023; // keep in step with the 1024px breakpoint in the <style>
+            // Top-edge colours of the artwork (left -> right), painted above it in the stacked layout.
+            const TOP_STOPS = [[0.02, '#530607'], [0.2, '#56050a'], [0.4, '#570408'], [0.7, '#3f0405'], [0.98, '#400807']];
             const stackedQuery = window.matchMedia('(max-width: ' + STACK_MAX + 'px)');
 
             function fit() {
                 const stacked = stackedQuery.matches;
-                // Above 1440px the hero's text layer is zoomed up in step with the width (see --hero-zoom in the
-                // <style>), so it stays in proportion with the artwork, which scales with the width.
-                const zoom = !stacked && header.clientWidth > 1440 ? header.clientWidth / 1440 : 1;
-                header.style.setProperty('--hero-zoom', zoom);
-                header.style.setProperty('--hero-arch-inner', (Math.max(32, 0.08 * window.innerWidth) / zoom) + 'px');
                 header.classList.toggle('hero-stacked', stacked);
 
                 const W = header.clientWidth;
                 const H = header.clientHeight;
-                // Where the white section's peak sits, measured down from the header's top.
                 const cutY = section.getBoundingClientRect().top - header.getBoundingClientRect().top;
 
                 let scale, w, h, left, top;
                 if (stacked) {
-                    // The three people fill the width, sitting right under the text, belts on the cut,
-                    // pushed to the right edge of the picture.
+                    // People fill the width under the text, waistline on the cut, pushed to the right edge.
                     scale = Math.min(W / GROUP_W, 0.84);
                     w = IMG_W * scale;
                     h = IMG_H * scale;
@@ -1093,13 +871,12 @@
                     scale = Math.max(W / IMG_W, H / IMG_H, cutY / BELT_Y);
                     w = IMG_W * scale;
                     h = IMG_H * scale;
-                    // Clamped so the image can never pull away from the header's top/bottom edge.
                     top = Math.min(0, Math.max(H - h, cutY - BELT_Y * scale));
                     left = (W - w) * FOCUS_X;
                     header.style.background = '';
                 }
 
-                art.style.cssText = 'position:absolute;right:auto;bottom:auto;max-width:none;'
+                art.style.cssText = 'position:absolute;right:auto;bottom:auto;max-width:none;object-fit:fill;'
                     + 'width:' + w + 'px;height:' + h + 'px;'
                     + 'left:' + left + 'px;top:' + top + 'px;';
             }
@@ -1120,6 +897,101 @@
         // (.hero-idle switches its entrance animations off while it's out of view, so they
         // restart when it returns). Skipped entirely for reduced motion, and .reveal only hides
         // things once this has run, so nothing stays invisible without JS.
+        // Startup carousels: the card nearest the middle of the screen is full size; the further a card
+        // is from it, the smaller, lower and fainter it gets. On a mouse/trackpad, the pointer's
+        // left/right position over the row picks where it pans to (eased); touch devices swipe natively.
+        // Lync watermark (laptop widths): sized so the arrow tip touches the white curve and the base
+        // sits exactly on the footer. The PNG (542x759) has transparent margins: 62px above the tip,
+        // 17px under the base, and the tip is at 48.7% of its width.
+        (function placeWatermark() {
+            const img = document.querySelector('.lync-watermark');
+            const main = document.querySelector('main.hero-arch');
+            if (!img || !main) return;
+            const desk = window.matchMedia('(min-width: 1024px)');
+            // Drop of the curve (as a fraction of --hero-arch) every 2.5% across the page - same
+            // numbers as the clip-path polygon on .hero-arch.
+            const K = [1, .9002, .806, .7173, .6341, .5562, .4836, .4163, .3541, .2972, .2453, .1984, .1566, .1198, .0879, .061, .039, .022, .0098, .0024, 0];
+            const TOP = 62 / 759, BOT = 17 / 759, TIP_X = 264 / 542, RATIO = 542 / 759, LEFT_PAD = 98 / 542;
+
+            function curveY(f, arch) {
+                f = Math.min(Math.max(f, 0), 1);
+                if (f > 0.5) f = 1 - f;
+                const i = Math.min(Math.floor(f / 0.025), K.length - 2), t = f / 0.025 - i;
+                return arch * (K[i] + (K[i + 1] - K[i]) * t);
+            }
+
+            function place() {
+                if (!desk.matches) { img.style.cssText = ''; return; }
+                const W = main.clientWidth, H = main.clientHeight;
+                const arch = Math.max(32, 0.08 * window.innerWidth);
+                let h = H, y = 0;
+                for (let n = 0; n < 4; n++) {
+                    y = curveY(((TIP_X - LEFT_PAD) * h * RATIO) / W, arch);
+                    h = (H - y) / (1 - TOP - BOT);
+                }
+                img.style.cssText = 'left:' + (-LEFT_PAD * h * RATIO) + 'px;top:' + (y - TOP * h) + 'px;bottom:auto;'
+                    + 'height:' + h + 'px;width:' + (h * RATIO) + 'px;';
+            }
+
+            place();
+            window.addEventListener('load', place);
+            window.addEventListener('resize', place);
+            if ('ResizeObserver' in window) new ResizeObserver(place).observe(main);
+        })();
+
+        (function startupCarousels() {
+            const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const desk = window.matchMedia('(min-width: 1024px)');
+
+            document.querySelectorAll('[data-carousel]').forEach(function (el) {
+                const slides = Array.prototype.slice.call(el.querySelectorAll('[data-card]'));
+                let target = el.scrollLeft, raf = 0;
+
+                function paint() {
+                    if (!desk.matches) {
+                        slides.forEach(function (s) { s.style.transform = ''; s.style.opacity = ''; s.style.zIndex = ''; });
+                        return;
+                    }
+                    const mid = el.getBoundingClientRect().left + el.clientWidth / 2;
+                    slides.forEach(function (s) {
+                        const b = s.getBoundingClientRect();
+                        const d = Math.min(Math.abs(b.left + b.width / 2 - mid) / (b.width * 1.15), 1); // 0 centre -> 1 neighbour+
+                        s.style.transform = 'translateY(' + (d * 26).toFixed(1) + 'px) scale(' + (1 - d * 0.3).toFixed(3) + ')';
+                        s.style.opacity = (1 - d * 0.5).toFixed(3);
+                        s.style.zIndex = String(100 - Math.round(d * 50));
+                    });
+                }
+
+                function tick() {
+                    const diff = target - el.scrollLeft;
+                    if (Math.abs(diff) < 0.5) { el.scrollLeft = target; raf = 0; paint(); return; }
+                    el.scrollLeft += reduce ? diff : diff * 0.09;
+                    paint();
+                    raf = requestAnimationFrame(tick);
+                }
+
+                {
+                    el.addEventListener('mousemove', function (e) {
+                        if (!desk.matches) return;
+                        const r = el.getBoundingClientRect();
+                        const max = el.scrollWidth - el.clientWidth;
+                        if (max <= 0) return;
+                        // Middle 80% of the width maps to the full range, so the ends are easy to reach.
+                        const f = Math.min(Math.max(((e.clientX - r.left) / r.width - 0.1) / 0.8, 0), 1);
+                        target = f * max;
+                        if (!raf) raf = requestAnimationFrame(tick);
+                    });
+                    el.addEventListener('wheel', function () { target = el.scrollLeft; }, { passive: true });
+                }
+                el.addEventListener('scroll', function () { if (!raf) { target = el.scrollLeft; paint(); } }, { passive: true });
+                window.addEventListener('resize', paint);
+                if (desk.addEventListener) desk.addEventListener('change', function () { el.scrollLeft = 0; target = 0; paint(); });
+                // Start on the first card, centred.
+                el.scrollLeft = 0; target = 0;
+                paint();
+            });
+        })();
+
         (function scrollReveal() {
             if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
             if (!('IntersectionObserver' in window)) return;

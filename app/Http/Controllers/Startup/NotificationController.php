@@ -35,6 +35,10 @@ class NotificationController extends Controller
         $params = $record->data['route_params']
             ?? ($record->type === \App\Notifications\CoordinatorAssigned::class ? ['highlight' => 'portfolio-coordinator'] : []);
 
-        return redirect()->route($route, is_array($params) ? $params : []);
+        // Always open the exact tab/stage the card is about - including
+        // cards stored before they carried one (App\Support\PageVisit).
+        $params = [...\App\Support\PageVisit::target($record), ...(is_array($params) ? $params : [])];
+
+        return redirect()->route($route, $params);
     }
 }

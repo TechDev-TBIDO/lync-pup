@@ -126,7 +126,7 @@ class VersionHistory extends Model
      * (ACTION_LABELS' human-readable name for the action, e.g. "Rejected
      * Information Sheet") — with subject_label appended when one was
      * recorded, since a combined feed has to say what each row is about on
-     * its own (e.g. "Deleted Mentor — Juan Dela Cruz"). The original
+     * its own (e.g. "Deleted Mentor - Juan Dela Cruz"). The original
      * Assessment Hub/Info Sheet pilot's panel is already scoped to one
      * specific startup+stage by the page it's opened from, so it never sets
      * subject_label — action_label alone (e.g. "Set Evaluation", "Rejected
@@ -145,7 +145,7 @@ class VersionHistory extends Model
         }
 
         if ($this->subject_label) {
-            return "{$this->action_label} — {$this->subject_label}";
+            return "{$this->action_label} - {$this->subject_label}";
         }
 
         if ($this->action) {

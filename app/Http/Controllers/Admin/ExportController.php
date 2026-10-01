@@ -105,7 +105,13 @@ class ExportController extends Controller
             ->get();
 
         foreach ($documents as $document) {
-            if (filled($document->data)) {
+            // A saved-but-blank form still has a non-empty data array (every
+            // key present, values empty), so check for real content instead.
+            $data = (array) ($document->data ?? []);
+            $hasContent = (int) $document->document_number === 13
+                ? \App\Support\ActiveAssessmentForms::isVentureExitFilled($data)
+                : \App\Support\ActiveAssessmentForms::isDocumentFilled((int) $document->document_number, $data);
+            if ($hasContent) {
                 $available[] = $document->document_number;
             }
         }

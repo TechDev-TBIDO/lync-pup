@@ -173,7 +173,7 @@ class MentorController extends Controller
         $mentor->roadblocks()
             ->where('status', 'Scheduled')
             ->get()
-            ->each(fn (Roadblock $roadblock) => $roadblock->update(Roadblock::pendingResetAttributes()));
+            ->each(fn (Roadblock $roadblock) => $roadblock->resetToPendingAndRetractNotice());
 
         if ($mentor->mentor_photo_path) {
             Storage::disk('public')->delete($mentor->mentor_photo_path);

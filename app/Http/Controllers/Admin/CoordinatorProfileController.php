@@ -174,7 +174,7 @@ class CoordinatorProfileController extends Controller
         $coordinator->roadblocks()
             ->where('status', 'Scheduled')
             ->get()
-            ->each(fn (Roadblock $roadblock) => $roadblock->update(Roadblock::pendingResetAttributes()));
+            ->each(fn (Roadblock $roadblock) => $roadblock->resetToPendingAndRetractNotice());
 
         if ($coordinator->coordinator_photo_path) {
             Storage::disk('public')->delete($coordinator->coordinator_photo_path);

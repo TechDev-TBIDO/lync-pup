@@ -231,7 +231,7 @@ class EditHistoryCohortFilterTest extends TestCase
         $response = $this->actingAs($this->admin())->get(route('admin.mentors.index'));
 
         $response->assertOk();
-        $response->assertSee('Deleted Mentor — Dr. Cruz', false);
+        $response->assertSee('Deleted Mentor - Dr. Cruz', false);
         $response->assertDontSee('data-history-changes', false);
     }
 

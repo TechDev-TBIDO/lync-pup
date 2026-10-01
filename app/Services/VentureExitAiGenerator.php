@@ -280,7 +280,9 @@ class VentureExitAiGenerator
         $activeDocuments = AssessmentDocument::where('startup_id', $startup->startup_id)
             ->where('stage', 'Active-Assessment')
             ->whereIn('document_number', [6, 7, 8])
-            ->get();
+            ->get()
+            // Skip blank forms so the AI isn't fed empty documents as if they were done.
+            ->filter(fn ($d) => \App\Support\ActiveAssessmentForms::isDocumentFilled((int) $d->document_number, (array) ($d->data ?? [])));
 
         if ($activeDocuments->isNotEmpty()) {
             $lines[] = "\n--- Active-Assessment Documents (raw form data) ---";

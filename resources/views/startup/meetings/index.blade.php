@@ -103,6 +103,9 @@
             <div x-data="{
                 viewingNote: null,
                 tab: @js($initialTab),
+                // Tabs the user has looked at and then left - their red "new" dots
+                // are hidden from then on (no reload needed).
+                leftTabs: [],
                 archiveStatusFilter: @js($initialArchiveStatusFilter),
                 archivedStatuses: @js($archivedMeetings->pluck('archive_status')),
                 archivedTypes: @js($archivedMeetings->pluck('type')),
@@ -126,7 +129,17 @@
                 },
             }"
                 x-init="
-                    $watch('tab', value => setQueryParam('tab', value));
+                    $watch('tab', (value, previous) => {
+            if (previous && ! leftTabs.includes(previous)) leftTabs.push(previous);
+            setQueryParam('tab', value);
+            // Tell the server this tab has now been opened, so its
+            // notifications / red dots clear (App\\Support\\PageVisit).
+            fetch(@js(route('page-seen')), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
+                body: JSON.stringify({ route: 'startup.meetings.index', tab: value }),
+            }).catch(() => {});
+        });
                     $watch('archiveStatusFilter', value => setQueryParam('status', value));
                     $watch('meetingSort', value => setQueryParam('sort', value));
                     $watch('meetingType', value => setQueryParam('type', value));
@@ -145,8 +158,8 @@
             <div class="border-b border-gray-200 mb-6">
                 <nav class="flex gap-5 overflow-x-auto sm:gap-8">
                     {{-- Red dot = something in that tab is new/updated since the last visit. --}}
-                    <button type="button" @click="tab = 'meetings'" :class="tab === 'meetings' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Meetings @if ($meetings->contains('is_new', true)) <x-new-dot /> @endif</button>
-                    <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive @if ($archivedMeetings->contains('is_new', true)) <x-new-dot /> @endif</button>
+                    <button type="button" @click="tab = 'meetings'" :class="tab === 'meetings' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Meetings @if ($meetings->contains('is_new', true)) <x-new-dot x-show="! leftTabs.includes('meetings')" /> @endif</button>
+                    <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive @if ($archivedMeetings->contains('is_new', true)) <x-new-dot x-show="! leftTabs.includes('archive')" /> @endif</button>
                 </nav>
             </div>
 
@@ -216,11 +229,11 @@
                 {{-- Stacks on phones, three columns side by side from sm up.
                      $meetings is already soonest-first; "Furthest first" just
                      reverses the visual order via CSS `order`. --}}
-                <div x-show="meetingType === 'all' || meetingType === '{{ $meeting['type'] }}'"
+                <div data-highlight-id="{{ $meeting['highlight_id'] ?? '' }}" x-show="meetingType === 'all' || meetingType === '{{ $meeting['type'] }}'"
                     :style="`order: ${meetingSort === 'furthest' ? {{ $meetings->count() - $loop->index }} : {{ $loop->index }}}`"
                     class="relative flex flex-col overflow-hidden rounded-2xl border bg-white xl:flex-row">
                     @if (! empty($meeting['is_new']))
-                    <x-new-dot size="md" class="absolute right-3 top-3 z-10 ring-2 ring-white" />
+                    <x-new-dot size="md" x-show="! leftTabs.includes('meetings')" class="absolute right-3 top-3 z-10 ring-2 ring-white" />
                     @endif
 
                     {{-- Band: full-width strip on phones, vertical column from sm up --}}
@@ -668,7 +681,7 @@
                 {{-- Flex column so the cards' CSS `order` (Sort by date) applies. --}}
                 <div class="flex flex-col">
                 @forelse ($archivedMeetings as $meeting)
-                <div x-show="(archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $meeting['archive_status'] }}')
+                <div data-highlight-id="{{ $meeting['highlight_id'] ?? '' }}" x-show="(archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $meeting['archive_status'] }}')
                         && (archiveType === 'all' || archiveType === '{{ $meeting['type'] }}')"
                     :style="`order: ${archiveSort === 'oldest' ? {{ $archivedMeetings->count() - $loop->index }} : {{ $loop->index }}}`"
                     class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
@@ -680,7 +693,7 @@
                     <div class="min-w-0 flex-1 px-4 py-3 sm:px-5 sm:py-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <div class="min-w-0">
-                                <p class="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">{{ $typeLabels[$meeting['type']] }} Meeting @if (! empty($meeting['is_new'])) <x-new-dot /> @endif</p>
+                                <p class="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">{{ $typeLabels[$meeting['type']] }} Meeting @if (! empty($meeting['is_new'])) <x-new-dot x-show="! leftTabs.includes('archive')" /> @endif</p>
 
                                 @if ($meeting['type'] === 'mentorship')
                                 <p class="text-sm text-gray-700">
