@@ -522,6 +522,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     $guard = match (true) {
                     in_array($name, ['surname', 'first_name', 'middle_name', 'name_extension', 'portfolio_manager', 'endorsed_by'], true) => 'data-person-name',
                     $name === 'mobile_no' => 'data-ph-mobile inputmode="tel" maxlength="13"',
+                    $name === 'blood_type' => 'data-no-digits',
+                    in_array($name, ['gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin'], true) => 'data-no-letters',
                     default => '',
                     };
                     // The input sits in its own flex-1 column so a validation
@@ -707,7 +709,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     <div class="flex flex-col gap-1">
                                         <span class="text-xs text-gray-500">&bull; By Birth</span>
                                         <div class="flex-1 min-w-0">
-                                            <textarea name="citizenship_by_birth" rows="1" form="info-sheet-form" required
+                                            <textarea name="citizenship_by_birth" rows="1" form="info-sheet-form" required data-letters-only
                                             :readonly="!editing" placeholder="e.g. Filipino"
                                             x-init="autoGrow($el)" @keydown.enter.prevent
                                             @input="dirty = true; autoGrow($el)"

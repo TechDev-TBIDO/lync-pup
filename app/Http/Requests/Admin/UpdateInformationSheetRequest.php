@@ -327,7 +327,8 @@ class UpdateInformationSheetRequest extends FormRequest
         // citizenship by birth, so this is only used for citizenship_by_birth.
         $citizenshipByBirth = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu',
+            // Letters and spaces only - no numbers, no symbols.
+            'regex:/^[\p{L}][\p{L}\p{M}\s]*$/u',
         ];
 
         // A single "contains a letter" check still lets something like
