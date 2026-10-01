@@ -5,7 +5,7 @@
 @include('admin.exports._letterhead', ['formNo' => 'PUP-TBIDO FORM No. 007', 'title' => 'WEEKLY CHECK-INS'])
 
 <div class="field-row"><span class="field-label">Startup Name:</span> {!! $v(filled(data_get($data, 'startup_name')) ? data_get($data, 'startup_name') : $startup->company_name) !!}</div>
-<div class="field-row"><span class="field-label">Portfolio Coordinator:</span> {!! $v($startup->activeCoordinatorAssignment?->coordinator?->name ?? null) !!}</div>
+<div class="field-row"><span class="field-label">Portfolio Coordinator:</span> {!! $v(filled(data_get($data, 'portfolio_coordinator')) ? data_get($data, 'portfolio_coordinator') : $startup->activeCoordinatorAssignment?->coordinator?->name) !!}</div>
 
 <table class="bordered" style="margin-top: 6px;">
     <tr>

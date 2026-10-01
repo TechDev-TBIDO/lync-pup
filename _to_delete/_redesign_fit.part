@@ -1,0 +1,61 @@
+    <script>
+        // Hero artwork placement: keeps the people's waistline exactly on the white arc's cut at
+        // every screen size. Image constants are pixels in public/images/landing/landing-hero.jpg —
+        // update them if that artwork is ever swapped.
+        (function fitHeroArt() {
+            const header = document.getElementById('hero');
+            const art = document.getElementById('hero-art');
+            const section = document.querySelector('.hero-arch');
+            if (!header || !art || !section) return;
+
+            const IMG_W = 1728, IMG_H = 1121;
+            const BELT_Y = 975;     // image row that should sit on the arc's peak
+            const FOCUS_X = 0.7;
+            const GROUP_W = 1080;   // width of the four people (plus a little margin), in image px
+            const STACK_MAX = 1023; // keep in step with the 1024px breakpoint in the <style>
+            // Top-edge colours of the artwork (left -> right), painted above it in the stacked layout.
+            const TOP_STOPS = [[0.02, '#920c16'], [0.2, '#69090e'], [0.4, '#3f070c'], [0.7, '#3c060b'], [0.98, '#3d070b']];
+            const stackedQuery = window.matchMedia('(max-width: ' + STACK_MAX + 'px)');
+
+            function fit() {
+                const stacked = stackedQuery.matches;
+                header.classList.toggle('hero-stacked', stacked);
+
+                const W = header.clientWidth;
+                const H = header.clientHeight;
+                const cutY = section.getBoundingClientRect().top - header.getBoundingClientRect().top;
+
+                let scale, w, h, left, top;
+                if (stacked) {
+                    // People fill the width under the text, waistline on the cut, pushed to the right edge.
+                    scale = Math.min(W / GROUP_W, 0.84);
+                    w = IMG_W * scale;
+                    h = IMG_H * scale;
+                    left = W - w;
+                    top = cutY - BELT_Y * scale;
+                    header.style.background = 'linear-gradient(90deg, ' + TOP_STOPS.map(function (s) {
+                        return s[1] + ' ' + (((left + s[0] * w) / W) * 100).toFixed(1) + '%';
+                    }).join(', ') + ')';
+                } else {
+                    scale = Math.max(W / IMG_W, H / IMG_H, cutY / BELT_Y);
+                    w = IMG_W * scale;
+                    h = IMG_H * scale;
+                    top = Math.min(0, Math.max(H - h, cutY - BELT_Y * scale));
+                    left = (W - w) * FOCUS_X;
+                    header.style.background = '';
+                }
+
+                art.style.cssText = 'position:absolute;right:auto;bottom:auto;max-width:none;object-fit:fill;'
+                    + 'width:' + w + 'px;height:' + h + 'px;'
+                    + 'left:' + left + 'px;top:' + top + 'px;';
+            }
+
+            fit();
+            window.addEventListener('load', fit);
+            if ('ResizeObserver' in window) {
+                new ResizeObserver(fit).observe(header);
+            } else {
+                window.addEventListener('resize', fit);
+            }
+        })();
+    </script>

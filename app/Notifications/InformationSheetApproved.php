@@ -34,4 +34,10 @@ class InformationSheetApproved extends FounderNotification
     {
         return 'check-shield.svg';
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['highlight' => 'sheet-status'];
+    }
 }

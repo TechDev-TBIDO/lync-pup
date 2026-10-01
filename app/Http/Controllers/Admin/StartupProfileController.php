@@ -16,6 +16,9 @@ use Illuminate\Http\RedirectResponse;
 
 class StartupProfileController extends Controller
 {
+    // Same "Items per page" choices as Founder Applications.
+    private const PER_PAGE_OPTIONS = [4, 10, 20, 50];
+
     public function index(Request $request): View
     {
         // The app-wide selected cohort (see ResolveSelectedCohort) — picking
@@ -54,7 +57,12 @@ class StartupProfileController extends Controller
             default => $query,
         };
 
-        $startups = $query->latest()->paginate(12)->withQueryString();
+        $perPage = (int) $request->query('per_page', 10);
+        if (! in_array($perPage, self::PER_PAGE_OPTIONS, true)) {
+            $perPage = 10;
+        }
+
+        $startups = $query->latest()->paginate($perPage)->withQueryString();
 
         $scopedTotal = fn () => $applyCohort(Startup::applicationApproved());
 
@@ -92,6 +100,8 @@ class StartupProfileController extends Controller
         return view('admin.startups.index', [
             'startups' => $startups,
             'activeTab' => $request->query('tab', 'all'),
+            'perPage' => $perPage,
+            'perPageOptions' => self::PER_PAGE_OPTIONS,
             // One shared, page-wide Edit History feed of every Assign/Edit
             // Coordinator + Delete Startup action across every startup
             // (see VersionHistoryController for its rename/delete actions).

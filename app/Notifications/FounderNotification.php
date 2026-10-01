@@ -51,6 +51,17 @@ abstract class FounderNotification extends Notification
         return [];
     }
 
+    /**
+     * Which tab/stage of route() this notification is about (e.g.
+     * ['tab' => 'archive']). The card's button opens that exact tab, and the
+     * notification only counts as seen once that tab is opened - see
+     * App\Support\PageVisit. Empty = the page's default tab.
+     */
+    protected function routeParams(): array
+    {
+        return [];
+    }
+
     public function via(object $notifiable): array
     {
         return ['database'];
@@ -58,13 +69,18 @@ abstract class FounderNotification extends Notification
 
     public function toDatabase(object $notifiable): array
     {
+        $extra = $this->extraData();
+        $routeParams = [...$this->routeParams(), ...($extra['route_params'] ?? [])];
+        unset($extra['route_params']);
+
         return [
             'title' => $this->title(),
             'body' => $this->body(),
             'route' => $this->route(),
             'action' => $this->action(),
             'icon' => $this->icon(),
-            ...$this->extraData(),
+            ...($routeParams !== [] ? ['route_params' => $routeParams] : []),
+            ...$extra,
         ];
     }
 }

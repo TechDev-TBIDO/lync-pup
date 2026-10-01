@@ -162,7 +162,7 @@ class EditHistoryChangesTest extends TestCase
 
         $entry = $this->entry('update_mentor');
 
-        $this->assertSame('Edited Mentor — Mr. Dela Cruz', $entry->display_label);
+        $this->assertSame('Edited Mentor - Mr. Dela Cruz', $entry->display_label);
         $this->assertSame(['Expertise', 'Email'], $this->labels($entry));
         $this->assertSame(['label' => 'Expertise', 'from' => 'Finance', 'to' => 'Marketing'], $this->line($entry, 'Expertise'));
         $this->assertSame(['label' => 'Email', 'from' => null, 'to' => 'juan@email.com'], $this->line($entry, 'Email'));

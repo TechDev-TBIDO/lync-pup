@@ -22,8 +22,17 @@ class NotificationController extends Controller
 
         $route = $record->data['route'] ?? null;
 
-        return redirect()->route(
-            $route && Route::has($route) ? $route : 'dashboard'
-        );
+        if (! $route || ! Route::has($route)) {
+            return redirect()->route('dashboard');
+        }
+
+        // Land on the exact tab and pulse the item the card is about
+        // (?tab=, ?highlight= - see App\Support\PageVisit and app.js).
+        $params = [
+            ...\App\Support\PageVisit::target($record),
+            ...(array) ($record->data['route_params'] ?? []),
+        ];
+
+        return redirect()->route($route, $params);
     }
 }

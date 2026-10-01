@@ -964,7 +964,7 @@ class WordDocumentExporter
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
 
         $processor->setValue('company_name', $v(filled(data_get($data, 'startup_name')) ? data_get($data, 'startup_name') : $startup->company_name));
-        $processor->setValue('portfolio_coordinator', $v($startup->activeCoordinatorAssignment?->coordinator?->name));
+        $processor->setValue('portfolio_coordinator', $v(filled(data_get($data, 'portfolio_coordinator')) ? data_get($data, 'portfolio_coordinator') : $startup->activeCoordinatorAssignment?->coordinator?->name));
 
         $checkInRows = collect(data_get($data, 'check_ins', []))
             ->filter(fn($row) => collect($row)->filter()->isNotEmpty())

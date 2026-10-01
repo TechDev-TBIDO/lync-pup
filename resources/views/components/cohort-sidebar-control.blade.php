@@ -405,7 +405,8 @@ $reopenModal = old('_cohort_form');
                             'Mark this cohort as Archived',
                             'Remove it from the Active cohort list',
                             'Keep all startup records and history intact',
-                            'Stop new coordinator/assessment activity from being logged against it',
+                            'Lock its start and end dates',
+                            'Stop new founders from being placed in it when they sign up',
                             ] as $consequence)
                             <li class="flex items-start gap-2 text-sm text-gray-700">
                                 <svg class="h-4 w-4 text-green-600 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -454,7 +455,7 @@ $reopenModal = old('_cohort_form');
                         </div>
                         <p class="text-xs text-gray-500 mb-1">Cohort:</p>
                         <p class="text-sm font-bold text-gray-900 mb-2">{{ $selected->display_label }}</p>
-                        <p class="text-xs text-gray-600 mb-3">All data related to this cohort will be permanently deleted.</p>
+                        <p class="text-xs text-gray-600 mb-3">This cohort will be removed. Its startups will not be deleted, but they will no longer belong to any cohort.</p>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Type <span class="font-semibold">DELETE</span> to confirm</label>
                         <input type="text" x-model="deleteConfirm" class="w-full border rounded-lg px-3 py-1.5 text-sm mb-3" placeholder="DELETE">
                         <form method="POST" action="{{ route('admin.cohorts.destroy', $selected) }}" class="flex gap-2">

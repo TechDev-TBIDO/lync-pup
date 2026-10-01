@@ -36,8 +36,8 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {{-- Overall Readiness --}}
-        <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
+        {{-- Overall Readiness (pulsed by a "results released" notification) --}}
+        <div data-highlight-id="readiness-results" class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
             {{-- Same treatment as the dashboard's Overall Readiness card: the
                  #6C0E24 -> #AE0129 gradient left to right, p-5/sm:p-6, a
                  34/44px score and a text-xs pill. Kept identical so the founder

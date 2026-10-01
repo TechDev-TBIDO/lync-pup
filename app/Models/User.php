@@ -110,9 +110,12 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $this->markModuleSeen($module, $at);
 
-        $this->unreadNotifications()->get()
-            ->filter(fn ($n) => ($n->data['route'] ?? null) === $route)
-            ->each->markAsRead();
+        // Only the notifications aimed at the tab/stage currently open.
+        \App\Support\PageVisit::markNotificationsSeen(
+            $this,
+            $route,
+            \App\Support\PageVisit::location($route, request()->query()),
+        );
     }
 
     // Relationships

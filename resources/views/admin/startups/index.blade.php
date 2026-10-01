@@ -205,16 +205,16 @@
                          Coordinator at the same time (see those scopes). --}}
                     @foreach ([
                     'all' => 'All',
+                    'graduated' => 'Graduated',
+                    'completed' => 'Completed',
                     'active' => 'Active',
                     'assign-coordinator' => 'Assign Coordinator',
                     'pending' => 'Pending',
                     'onboarding' => 'Applicant',
-                    'graduated' => 'Graduated',
-                    'completed' => 'Completed',
                     ] as $key => $label)
 
                     <a
-                        href="{{ route('admin.startups.index', ['tab' => $key]) }}"
+                        href="{{ route('admin.startups.index', ['tab' => $key, 'per_page' => $perPage]) }}"
                         class="
                     px-4
                     py-3
@@ -249,9 +249,40 @@
             </div>
             @endif
 
-            <div class="mt-8">
-                {{ $startups->links() }}
+            {{-- Same pager + "Items per page" control as Founder Applications. --}}
+            @if ($startups->total() > 0)
+            <div class="mt-8 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5">
+                    <a href="{{ $startups->previousPageUrl() ?? '#' }}"
+                        @class([ 'flex h-8 w-8 items-center justify-center rounded-md border text-sm transition' , 'border-gray-200 text-gray-400 pointer-events-none opacity-50'=> $startups->onFirstPage(),
+                        'border-gray-300 text-gray-600 hover:bg-gray-50' => ! $startups->onFirstPage(),
+                        ])>&lsaquo;</a>
+
+                    @foreach (range(1, $startups->lastPage()) as $page)
+                    <a href="{{ $startups->url($page) }}"
+                        @class([ 'flex h-8 w-8 items-center justify-center rounded-md border text-sm font-medium transition' , 'border-transparent bg-[#6D0D23] text-white'=> $page === $startups->currentPage(),
+                        'border-gray-300 text-gray-600 hover:bg-gray-50' => $page !== $startups->currentPage(),
+                        ])>{{ $page }}</a>
+                    @endforeach
+
+                    <a href="{{ $startups->nextPageUrl() ?? '#' }}"
+                        @class([ 'flex h-8 w-8 items-center justify-center rounded-md border text-sm transition' , 'border-gray-200 text-gray-400 pointer-events-none opacity-50'=> ! $startups->hasMorePages(),
+                        'border-gray-300 text-gray-600 hover:bg-gray-50' => $startups->hasMorePages(),
+                        ])>&rsaquo;</a>
+                </div>
+
+                <form method="GET" class="flex items-center gap-2">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
+                    <label for="per_page" class="text-xs text-gray-500">Items per page</label>
+                    <select id="per_page" name="per_page" onchange="this.form.submit()"
+                        class="rounded-md border border-gray-300 py-1 pl-2 pr-6 text-xs text-gray-700">
+                        @foreach ($perPageOptions as $n)
+                        <option value="{{ $n }}" @selected($perPage === $n)>{{ $n }}</option>
+                        @endforeach
+                    </select>
+                </form>
             </div>
+            @endif
 
             @if (session('startup_deleted'))
             {{-- The card itself is gone after this redirect (deleted rows never

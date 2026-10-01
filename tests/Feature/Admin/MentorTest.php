@@ -6,6 +6,7 @@ use App\Models\Mentor;
 use App\Models\Roadblock;
 use App\Models\Startup;
 use App\Models\User;
+use App\Notifications\MentorshipScheduled;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -289,7 +290,18 @@ class MentorTest extends TestCase
             'meeting_link' => 'https://meet.google.com/abc',
         ]);
 
+        // The founder was told about the session when it was scheduled. A
+        // second, unrelated roadblock's card must survive the delete.
+        $founder->notify(new MentorshipScheduled($roadblock));
+        $otherRoadblock = Roadblock::factory()->create(['startup_id' => $startup->startup_id, 'status' => 'Scheduled']);
+        $founder->notify(new MentorshipScheduled($otherRoadblock));
+
         $this->actingAs($admin)->delete(route('admin.mentors.destroy', $mentor));
+
+        // The stale "Mentorship session scheduled" card for the reset
+        // roadblock is gone; the unrelated one stays.
+        $this->assertSame(0, $founder->notifications()->where('data->roadblock_id', $roadblock->roadblock_id)->count());
+        $this->assertSame(1, $founder->notifications()->where('data->roadblock_id', $otherRoadblock->roadblock_id)->count());
 
         $this->assertDatabaseHas('roadblocks', [
             'roadblock_id' => $roadblock->roadblock_id,

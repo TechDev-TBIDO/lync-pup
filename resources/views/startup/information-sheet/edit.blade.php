@@ -27,7 +27,8 @@
     @endphp
 
     @if ($isRejected)
-    <div class="mb-4 rounded-xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4">
+    {{-- Pulsed by the "Information Sheet rejected" notification. --}}
+    <div data-highlight-id="sheet-status" class="mb-4 rounded-xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4">
         <p class="text-sm font-bold text-gray-900">Information Sheet Rejected — Resubmission Required</p>
         <p class="mt-1 text-xs text-gray-600">
             Please update and resubmit this Information Sheet by <strong>{{ $rejectionDeadline?->format('F j, Y') ?? '—' }}</strong>
@@ -215,24 +216,29 @@ pendingRemoval: [],
         this.saving = true;
         this.savingIntent = intent;
 
+        let toastedCount;
+
         try {
             // The server dry-run always runs too, even when the client
             // already found something wrong - only the actual persist step
             // is skipped in that case (dryRunOnly). That way a format error
             // the browser can't check on its own still gets flagged
             // alongside the client-side ones, on this same click.
+            // Blank fields are already marked by the browser-side check, so
+            // the toast goes up NOW, together with them - not after the
+            // server check below comes back (that wait is what made it feel
+            // late). If the server then finds more problems, the same toast's
+            // number is corrected in place (see the catch block).
+            toastedCount = clientProblems > 0
+                ? window.infoSheetErrorToast(intent === 'submit' ? 'Submit Failed' : 'Save Failed', window.countInfoSheetErrors() || clientProblems)
+                : undefined;
+
             const result = await window.submitInfoSheetForms(this.$root, {
                 dryRunOnly: clientProblems > 0,
             });
 
             if (clientProblems > 0) {
                 this.saving = false;
-                Alpine.store('toast').error(
-                    'Submit Failed',
-                    clientProblems === 1
-                        ? '1 field needs fixing - see the message on the form.'
-                        : clientProblems + ' fields need fixing - see the messages on the form.'
-                );
                 return;
             }
 
@@ -271,21 +277,22 @@ pendingRemoval: [],
                 ? window.showInfoSheetFieldErrors(e.validation)
                 : false;
 
-            // Total across both the client-side pass above and this
-            // server-side one, so a mixed case (a blank field AND a badly
-            // formatted one elsewhere) reports an accurate count instead of
-            // just the server's half of it.
-            const serverProblems = e?.validation ? Object.keys(e.validation).length : (shown ? 1 : 0);
-            const totalProblems = clientProblems + serverProblems;
+            // Count what's actually marked on the page (client-side and
+            // server-side checks combined, each field once) - see
+            // countInfoSheetErrors(). Adding the two checks' counts together
+            // double-counted every field both of them caught.
+            const totalProblems = shown || clientProblems > 0
+                ? window.countInfoSheetErrors()
+                : 0;
 
-            Alpine.store('toast').error(
-                intent === 'submit' ? 'Submit Failed' : 'Save Failed',
-                totalProblems > 1
-                    ? totalProblems + ' fields need fixing - see the messages on the form.'
-                    : shown
-                        ? (e?.message || 'Please fix the highlighted fields.')
-                        : (e?.message || 'Something went wrong while saving. Please try again.')
-            );
+            if (totalProblems > 0) {
+                window.infoSheetErrorToast(intent === 'submit' ? 'Submit Failed' : 'Save Failed', totalProblems, toastedCount);
+            } else {
+                Alpine.store('toast').error(
+                    intent === 'submit' ? 'Submit Failed' : 'Save Failed',
+                    'Something went wrong while saving. Please try again.'
+                );
+            }
         }
     },
 
@@ -2073,7 +2080,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     :class="editing || isLocked ? '' : 'border-transparent bg-transparent backdrop-blur-none'">
 
                     <template x-if="isLocked">
-                        <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
+                        {{-- Pulsed by the "Information Sheet approved" notification. --}}
+                        <div @if (! $isRejected) data-highlight-id="sheet-status" @endif class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
                             {{ $lockReason }}
                         </div>
                     </template>
@@ -2181,6 +2189,48 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             });
         };
 
+        // Rendered = actually takes up space on screen (not display:none,
+        // not inside a hidden parent).
+        const infoSheetIsVisible = (el) => !! (el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+
+        // How many problems are ACTUALLY showing on the page right now - one
+        // per flagged box/slot. The toast uses this instead of adding the
+        // client-side count to the server's: a blank required field is
+        // reported by both checks (and Height/Weight by two server keys), so
+        // the old sum said e.g. "20 fields need fixing" while only 10 were
+        // marked, and the founder scrolled the page looking for errors that
+        // weren't there.
+        // Shows the "N fields need fixing" toast - or, when one is already on
+        // screen from this same click, just corrects its number in place
+        // instead of stacking a second toast. Returns the count shown.
+        window.infoSheetErrorToast = function (title, count, previous) {
+            const toast = Alpine.store('toast');
+            const text = count === 1
+                ? '1 field needs fixing - see the message on the form.'
+                : count + ' fields need fixing - see the messages on the form.';
+
+            if (previous !== undefined && previous === count) return count;
+
+            if (previous !== undefined && toast.show) {
+                toast.message = text;
+            } else {
+                toast.error(title, text);
+            }
+
+            return count;
+        };
+
+        window.countInfoSheetErrors = function () {
+            const invalid = document.querySelectorAll('[data-field-invalid]').length;
+            const packed = Array.from(document.querySelectorAll('[data-packed-error]:not(.hidden)'))
+                .filter((slot) => ! document.querySelector('[data-packed-box="' + slot.getAttribute('data-packed-error') + '"][data-field-invalid]'))
+                .length;
+            const tables = document.querySelectorAll('[data-table-error]:not(.hidden)').length;
+            const summary = document.querySelectorAll('[data-error-summary-item]').length;
+
+            return invalid + packed + tables + summary;
+        };
+
         window.showInfoSheetFieldErrors = function (errors) {
             // Every flagged element/slot goes in here instead of just remembering
             // whichever error happened to be processed first — Section I through
@@ -2191,6 +2241,9 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             // lands on the topmost error, Section I before II before III, no
             // matter which request's response came back with it.
             const candidates = [];
+            // Errors with no box on the page to attach to - listed in a
+            // summary at the top instead of being silently dropped.
+            const unplaced = [];
 
             const flag = (el) => {
                 el.style.borderColor = INFO_SHEET_ERROR_BORDER;
@@ -2263,7 +2316,23 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 if (control && control.type === 'hidden') {
                     control = control.closest('[data-field-anchor]') || control;
                 }
-                if (! control) return;
+
+                // A control that isn't rendered (display:none) can't show a
+                // message - it used to get one anyway, invisibly. Use the
+                // nearest ancestor that IS on screen.
+                if (control && ! infoSheetIsVisible(control)) {
+                    let up = control.parentElement;
+                    while (up && ! infoSheetIsVisible(up)) up = up.parentElement;
+                    control = up;
+                }
+
+                // Nothing on the page to attach it to: it used to vanish here
+                // while still being counted in the toast. Now it's listed in
+                // the summary box at the top of the sheet.
+                if (! control) {
+                    if (text && ! unplaced.includes(text)) unplaced.push(text);
+                    return;
+                }
 
                 // A blank required field was very likely already caught (and
                 // already has its own message showing) by
@@ -2296,9 +2365,43 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 candidates.push(control);
             });
 
+            if (unplaced.length) {
+                const card = document.querySelector('.info-sheet-caps');
+                if (card) {
+                    const box = document.createElement('div');
+                    box.setAttribute('data-field-error', 'summary');
+                    box.className = 'mb-4 rounded-xl p-4 text-sm';
+                    box.style.border = '1px solid #fca5a5';
+                    box.style.background = '#fef2f2';
+                    box.style.color = '#991b1b';
+
+                    const title = document.createElement('p');
+                    title.style.fontWeight = '600';
+                    title.textContent = 'Please also fix the following:';
+                    box.appendChild(title);
+
+                    const list = document.createElement('ul');
+                    list.style.listStyle = 'disc';
+                    list.style.paddingLeft = '1.25rem';
+                    list.style.marginTop = '0.25rem';
+                    unplaced.forEach((message) => {
+                        const li = document.createElement('li');
+                        li.setAttribute('data-error-summary-item', '');
+                        li.textContent = message;
+                        list.appendChild(li);
+                    });
+                    box.appendChild(list);
+
+                    card.insertAdjacentElement('beforebegin', box);
+                    candidates.push(box);
+                }
+            }
+
             // Topmost on the page wins, regardless of which section's request
-            // happened to report its error first.
-            const topmost = candidates.reduce((top, el) => {
+            // happened to report its error first. Only visible ones count - a
+            // hidden element reports top=0 and used to "win", scrolling the
+            // page to the very top instead of to the first real error.
+            const topmost = candidates.filter(infoSheetIsVisible).reduce((top, el) => {
                 if (! top) return el;
                 return el.getBoundingClientRect().top < top.getBoundingClientRect().top ? el : top;
             }, null);
@@ -2664,9 +2767,29 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 let firstHardError = null;
                 let created = 0;
 
+                // A dry run persists nothing, so every section is checked at
+                // the same time instead of one request after another - the
+                // errors and the toast used to show up only after every row's
+                // request had finished in turn, which on a sheet with many
+                // Core Team / L&D / Reference rows meant a noticeable wait.
+                // The real save (dryRun false) stays one-at-a-time.
+                const pending = dryRun
+                    ? nonDeleteForms.map((form) => submitOne(form, true).then(
+                        (value) => ({ ok: true, value }),
+                        (error) => ({ ok: false, error }),
+                    ))
+                    : [];
+
                 for (const [formIndex, form] of nonDeleteForms.entries()) {
                     try {
-                        const saved = await submitOne(form, dryRun);
+                        let saved;
+                        if (dryRun) {
+                            const result = await pending[formIndex];
+                            if (! result.ok) throw result.error;
+                            saved = result.value;
+                        } else {
+                            saved = await submitOne(form, false);
+                        }
                         if (! dryRun && saved.classList.contains('js-addform')) created++;
                     } catch (error) {
                         if (error.status === 422 && error.validation) {

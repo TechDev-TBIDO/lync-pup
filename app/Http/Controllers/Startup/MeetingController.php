@@ -12,12 +12,20 @@ use Illuminate\View\View;
 
 class MeetingController extends Controller
 {
-    /** Last time the founder opened Meetings - anything changed after it gets a red dot. */
-    private ?Carbon $seenAt = null;
+    /**
+     * Last time the founder opened each tab (Meetings / Archive) - anything
+     * changed after it gets a red dot. Tracked per tab so opening the
+     * Meetings tab doesn't silently clear an Archive dot (App\Support\PageVisit).
+     *
+     * @var array<string, Carbon>
+     */
+    private array $seenAt = [];
 
-    private function isNew($model): bool
+    private function isNew(string $tab, $model): bool
     {
-        return $this->seenAt && $model->updated_at && $model->updated_at->gt($this->seenAt);
+        $seenAt = $this->seenAt[$tab] ?? null;
+
+        return $seenAt && $model->updated_at && $model->updated_at->gt($seenAt);
     }
 
     public function index(): View
@@ -26,7 +34,13 @@ class MeetingController extends Controller
         AssessmentMeeting::promoteEndedMeetingsToPendingReview();
 
         $visitedAt = now();
-        $this->seenAt = Auth::user()->founderSeenSince('founder_meetings', 'startup.meetings.index');
+        // Per-tab stamps; before they existed, the single page-wide stamp.
+        $user = Auth::user();
+        foreach (['meetings', 'archive'] as $tab) {
+            $this->seenAt[$tab] = isset(($user->module_seen_at ?? [])["founder_meetings_{$tab}"])
+                ? $user->moduleSeenAt("founder_meetings_{$tab}")
+                : $user->founderSeenSince('founder_meetings', 'startup.meetings.index');
+        }
 
         $startup = Auth::user()->startup;
 
@@ -39,7 +53,8 @@ class MeetingController extends Controller
             ->map(function (Roadblock $roadblock) {
                 return [
                     'type' => 'mentorship',
-                    'is_new' => $this->isNew($roadblock),
+                    'highlight_id' => 'roadblock-'.$roadblock->roadblock_id,
+                    'is_new' => $this->isNew('meetings', $roadblock),
                     'sort_key' => $roadblock->meeting_date->format('Y-m-d') . ' ' . $roadblock->meeting_start_time,
                     'date_label' => $roadblock->meeting_date->format('l, F j, Y'),
                     'time_label' => Carbon::parse($roadblock->meeting_start_time)->format('g:i A')
@@ -74,7 +89,8 @@ class MeetingController extends Controller
             ->map(function (EvaluationSchedule $schedule) {
                 return [
                     'type' => 'evaluation',
-                    'is_new' => $this->isNew($schedule),
+                    'highlight_id' => 'evaluation-'.$schedule->evaluation_schedule_id,
+                    'is_new' => $this->isNew('meetings', $schedule),
                     'sort_key' => $schedule->evaluation_date->format('Y-m-d') . ' ' . $schedule->start_time,
                     'date_label' => $schedule->evaluation_date->format('l, F j, Y'),
                     'time_label' => $schedule->time_range_label,
@@ -101,7 +117,8 @@ class MeetingController extends Controller
             ->map(function (AssessmentMeeting $meeting) {
                 return [
                     'type' => 'assessment',
-                    'is_new' => $this->isNew($meeting),
+                    'highlight_id' => 'assessment-'.$meeting->assessment_meeting_id,
+                    'is_new' => $this->isNew('meetings', $meeting),
                     'sort_key' => $meeting->meeting_date->format('Y-m-d').' '.$meeting->start_time,
                     'date_label' => $meeting->meeting_date->format('l, F j, Y'),
                     'time_label' => $meeting->time_range_label,
@@ -126,7 +143,14 @@ class MeetingController extends Controller
 
         // Red dots: which items (and so which tab) changed since the last visit.
         // Shown on this visit, then cleared - along with the sidebar dot.
-        Auth::user()->markFounderModuleVisited('founder_meetings', 'startup.meetings.index', $visitedAt);
+        // Only the tab opened counts as seen; a tab switched to later is
+        // reported via the page-seen endpoint.
+        \App\Support\PageVisit::markSeen(
+            Auth::user(),
+            'startup.meetings.index',
+            \App\Support\PageVisit::location('startup.meetings.index', request()->query()),
+            $visitedAt,
+        );
 
         return view('startup.meetings.index', compact('meetings', 'archivedMeetings'));
     }
@@ -159,7 +183,8 @@ class MeetingController extends Controller
             ->map(function (Roadblock $roadblock) {
                 return [
                     'type' => 'mentorship',
-                    'is_new' => $this->isNew($roadblock),
+                    'highlight_id' => 'roadblock-'.$roadblock->roadblock_id,
+                    'is_new' => $this->isNew('archive', $roadblock),
                     'sort_key' => $roadblock->meeting_date->format('Y-m-d').' '.$roadblock->meeting_start_time,
                     'date_label' => $roadblock->meeting_date->format('l, F j, Y'),
                     'time_label' => $roadblock->meeting_time_range_label,
@@ -185,7 +210,8 @@ class MeetingController extends Controller
             ->map(function (EvaluationSchedule $schedule) {
                 return [
                     'type' => 'evaluation',
-                    'is_new' => $this->isNew($schedule),
+                    'highlight_id' => 'evaluation-'.$schedule->evaluation_schedule_id,
+                    'is_new' => $this->isNew('archive', $schedule),
                     'sort_key' => $schedule->evaluation_date->format('Y-m-d').' '.$schedule->start_time,
                     'date_label' => $schedule->evaluation_date->format('l, F j, Y'),
                     'time_label' => $schedule->time_range_label,
@@ -210,7 +236,8 @@ class MeetingController extends Controller
             ->map(function (AssessmentMeeting $meeting) {
                 return [
                     'type' => 'assessment',
-                    'is_new' => $this->isNew($meeting),
+                    'highlight_id' => 'assessment-'.$meeting->assessment_meeting_id,
+                    'is_new' => $this->isNew('archive', $meeting),
                     'sort_key' => $meeting->meeting_date->format('Y-m-d').' '.$meeting->start_time,
                     'date_label' => $meeting->meeting_date->format('l, F j, Y'),
                     'time_label' => $meeting->time_range_label,

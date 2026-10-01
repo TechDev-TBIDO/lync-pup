@@ -26,9 +26,10 @@ class RoadblockController extends Controller
         // composer): visiting this page at all counts as having seen every
         // "new roadblock submitted" notification, same "seen on visit"
         // clearing rule as Risk Monitoring's.
-        auth()->user()->unreadNotifications()
-            ->where('type', NewRoadblockSubmitted::class)
-            ->update(['read_at' => now()]);
+        // Only when the Manage tab (where new Pending roadblocks live) is the
+        // one opened - landing on Archive doesn't count (App\Support\PageVisit).
+        $location = \App\Support\PageVisit::location('admin.roadblocks.index', request()->query());
+        \App\Support\PageVisit::markNotificationsSeen(auth()->user(), 'admin.roadblocks.index', $location, NewRoadblockSubmitted::class);
 
         // Per-card red dots: which Pending cards arrived since this admin last
         // opened the page. Deliberately NOT read off the notification above —
@@ -44,7 +45,9 @@ class RoadblockController extends Controller
             ->pluck('roadblock_id')
             ->map(fn ($id) => (int) $id) // driver may hand ids back as strings; the view compares strictly
             ->all();
-        $admin->markModuleSeen('roadblocks', $visitedAt);
+        if ($location['tab'] === 'manage') {
+            $admin->markModuleSeen('roadblocks', $visitedAt);
+        }
 
         // The app-wide selected cohort (see ResolveSelectedCohort) — every
         // stage table below narrows to just this cohort's roadblocks when

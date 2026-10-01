@@ -35,11 +35,16 @@ class MarksVisitedNotificationsRead
         $user = $request->user();
         $routeName = $request->route()?->getName();
 
-        if ($user && $routeName) {
-            $user->unreadNotifications()
-                ->where('data->route', $routeName)
-                ->get()
-                ->each->markAsRead();
+        // Only notifications aimed at the tab/stage actually opened are
+        // cleared - landing on Submission's Roadblock tab no longer clears an
+        // Archive notification (see App\Support\PageVisit). Tabs opened
+        // later without a reload are reported via the page-seen endpoint.
+        if ($user && $routeName && $request->isMethod('GET')) {
+            \App\Support\PageVisit::markNotificationsSeen(
+                $user,
+                $routeName,
+                \App\Support\PageVisit::location($routeName, $request->query()),
+            );
         }
 
         return $response;

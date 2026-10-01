@@ -75,4 +75,10 @@ class EvaluationScheduled extends FounderNotification
     {
         return ['evaluation_schedule_id' => $this->schedule->evaluation_schedule_id];
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['highlight' => 'evaluation-'.$this->schedule->evaluation_schedule_id];
+    }
 }

@@ -121,6 +121,24 @@ class Roadblock extends Model
     }
 
     /**
+     * Puts this roadblock back to a clean Pending state (see
+     * pendingResetAttributes()) AND takes down the founder's "Mentorship
+     * session scheduled" card(s) for it. Used when the assigned mentor or
+     * coordinator is deleted: the session no longer exists, so the card
+     * shouldn't keep advertising it on the founder's dashboard. Read cards
+     * are removed too -- they'd still point at a meeting that's gone.
+     */
+    public function resetToPendingAndRetractNotice(): void
+    {
+        $this->update(self::pendingResetAttributes());
+
+        $this->startup?->user?->notifications()
+            ->where('type', \App\Notifications\MentorshipScheduled::class)
+            ->where('data->roadblock_id', $this->roadblock_id)
+            ->delete();
+    }
+
+    /**
      * Statuses where a roadblock is still actively assigned — not yet
      * closed out with a final Resolved/Failed outcome. Used to decide
      * which of a deleted mentor/coordinator's roadblocks should be sent

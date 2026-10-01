@@ -34,4 +34,10 @@ class ReadinessResultsReleased extends FounderNotification
     {
         return 'scale.svg';
     }
+
+    /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
+    protected function routeParams(): array
+    {
+        return ['stage' => $this->stage === 'Post-Assessment' ? 'Post-Assessment' : 'Pre-Assessment', 'highlight' => 'readiness-results'];
+    }
 }

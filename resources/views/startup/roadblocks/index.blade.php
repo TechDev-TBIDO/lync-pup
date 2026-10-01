@@ -42,6 +42,9 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
 <x-layouts.founder>
     <div x-data="{
         tab: @js($activeTab),
+                // Tabs the user has looked at and then left - their red "new" dots
+                // are hidden from then on (no reload needed).
+                leftTabs: [],
 
         headings: @js($tabHeadings),
 
@@ -286,7 +289,17 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         },
     }"
         x-init="
-        $watch('tab', value => setQueryParam('tab', value));
+        $watch('tab', (value, previous) => {
+            if (previous && ! leftTabs.includes(previous)) leftTabs.push(previous);
+            setQueryParam('tab', value);
+            // Tell the server this tab has now been opened, so its
+            // notifications / red dots clear (App\\Support\\PageVisit).
+            fetch(@js(route('page-seen')), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
+                body: JSON.stringify({ route: 'startup.submissions.index', tab: value }),
+            }).catch(() => {});
+        });
         $watch('archiveStatusFilter', value => setQueryParam('status', value));
 
         // Leave-confirmation guard for an unsaved Roadblock draft — this
@@ -332,8 +345,8 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             <nav class="flex gap-5 overflow-x-auto sm:gap-8">
                 <button type="button" @click="switchTab('roadblock')" :class="tab === 'roadblock' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Roadblock</button>
                 {{-- Red dot = something in that tab is new/updated since the last visit. --}}
-                <button type="button" @click="switchTab('update')" :class="tab === 'update' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Update @if (! empty($newUpdateKeys)) <x-new-dot /> @endif</button>
-                <button type="button" @click="switchTab('archive')" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive @if (! empty($newRoadblockIds)) <x-new-dot /> @endif</button>
+                <button type="button" @click="switchTab('update')" :class="tab === 'update' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Update @if (! empty($newUpdateKeys)) <x-new-dot x-show="! leftTabs.includes('update')" /> @endif</button>
+                <button type="button" @click="switchTab('archive')" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive @if (! empty($newRoadblockIds)) <x-new-dot x-show="! leftTabs.includes('archive')" /> @endif</button>
             </nav>
         </div>
 
@@ -706,7 +719,8 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             </div>
 
             @forelse ($weeklyUpdates as $update)
-            <div class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
+            {{-- Newest row (list is newest-first) is what a "New weekly check-in" notification pulses. --}}
+            <div @if ($loop->first) data-highlight-id="weekly-latest" @endif class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
 
                 {{-- Rail --}}
                 <div class="flex w-10 shrink-0 items-center justify-center bg-[#FFF1F2] sm:w-12">
@@ -721,7 +735,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                         <div class="min-w-0">
                             <p class="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">
                                 Area Discussed
-                                @if (in_array($weeklyFingerprint($update), $newUpdateKeys ?? [], true)) <x-new-dot /> @endif
+                                @if (in_array($weeklyFingerprint($update), $newUpdateKeys ?? [], true)) <x-new-dot x-show="! leftTabs.includes('update')" /> @endif
                             </p>
 
                             <p class="text-sm font-semibold text-gray-900">
@@ -812,7 +826,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             'Deleted by Admin' => 'text-gray-600',
             ];
             @endphp
-            <div x-show="archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $roadblock->status }}'"
+            <div data-highlight-id="roadblock-{{ $roadblock->roadblock_id }}" x-show="archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $roadblock->status }}'"
                 class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
 
                 {{-- Warning rail --}}
@@ -829,7 +843,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                         <div class="min-w-0">
                             <p class="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">
                                 Roadblock
-                                @if (in_array($roadblock->roadblock_id, $newRoadblockIds ?? [])) <x-new-dot /> @endif
+                                @if (in_array($roadblock->roadblock_id, $newRoadblockIds ?? [])) <x-new-dot x-show="! leftTabs.includes('archive')" /> @endif
                             </p>
 
                             <p class="text-sm text-gray-700">
