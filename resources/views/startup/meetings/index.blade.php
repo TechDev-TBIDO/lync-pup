@@ -103,7 +103,7 @@
             <div x-data="{
                 viewingNote: null,
                 tab: @js($initialTab),
-                // Tabs the user has looked at and then left - their red "new" dots
+                // Tabs the user has looked at and then left - their red 'new' dots
                 // are hidden from then on (no reload needed).
                 leftTabs: [],
                 archiveStatusFilter: @js($initialArchiveStatusFilter),
