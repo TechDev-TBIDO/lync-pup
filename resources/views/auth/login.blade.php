@@ -107,6 +107,14 @@
         <div class="w-full lg:w-1/2 flex items-center justify-center bg-white p-6 h-full overflow-y-auto">
             <div class="w-full max-w-sm py-6 lg:py-0">
 
+                {{-- Back to the landing page on phones/tablets - the left panel (which has its
+                     own back arrow) is hidden below lg. Same look as the register page's arrow. --}}
+                <a href="{{ url('/') }}" class="mb-6 inline-flex text-gray-500 hover:text-gray-800 lg:hidden" aria-label="Back to home">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+
                 <div class="flex justify-center mb-4">
                     <div class="w-14 h-14 xl:w-16 xl:h-16 rounded-full bg-rose-50 flex items-center justify-center">
                         <img src="/images/login-signup/lync-logo.png" alt="LYNC PUP" class="w-8 h-8 xl:w-9 xl:h-9 object-contain">
