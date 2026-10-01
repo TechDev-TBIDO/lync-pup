@@ -1,4 +1,5 @@
-<x-mail::message>
+{{-- The logo is attached to the email itself (header gets it via :logo) so it shows even when the site URL is not reachable. --}}
+<x-mail::message :logo="isset($message) && is_file(public_path('images/logo/email-logo.png')) ? $message->embed(public_path('images/logo/email-logo.png')) : null">
 # Pitch Deck Requested
 
 Hi {{ $startup->company_name }},
