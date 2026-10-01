@@ -49,7 +49,7 @@
         .lp-nav { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: clamp(1rem, 2.4vw, 2.4rem); }
         .lp-brand { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; color: #fff; }
         .lp-brand-mark { display: flex; align-items: center; justify-content: center; width: clamp(32px, 2.4vw, 40px); height: clamp(32px, 2.4vw, 40px); border-radius: 8px; background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
-        .lp-brand-mark img { width: 62%; height: 62%; object-fit: contain; }
+        .lp-brand-mark img { width: 84%; height: 84%; object-fit: contain; }
         .lp-brand-name { font-size: clamp(1.1rem, 1.25vw, 1.35rem); font-weight: 700; letter-spacing: 0.04em; }
         /* Partner logos beside LYNC: a thin divider, then the PUP seal and the PUP TBIDO mark. */
         .lp-brand-group { display: flex; align-items: center; gap: clamp(0.6rem, 1.1vw, 1.1rem); flex-shrink: 0; }
@@ -94,6 +94,13 @@
         .hero-stats > div + div { border-left: 1px solid #d1d5db; }
         .hero-stats .num { font-size: clamp(1.35rem, 1.75vw, 1.9rem); font-weight: 700; line-height: 1.1; }
         .hero-stats .lbl { margin-top: 0.15rem; font-size: clamp(0.7rem, 0.75vw, 0.85rem); font-weight: 500; color: var(--lp-ink); white-space: nowrap; }
+
+        /* Phones: hero heading, paragraph and stats card centred. */
+        @media (max-width: 767px) {
+            .hero-body { padding-left: 0; text-align: center; }
+            .hero-para { margin-left: auto; margin-right: auto; }
+            .hero-stats { margin-left: auto; margin-right: auto; }
+        }
 
         /* ==================== MEET THE INNOVATORS ==================== */
         .hero-arch {
