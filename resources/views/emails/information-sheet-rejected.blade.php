@@ -15,7 +15,7 @@
                             <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 16px auto;">
                                 <tr>
                                     <td style="width:48px; height:48px; background-color:#fdf2f4; border-radius:12px; text-align:center; vertical-align:middle;">
-                                        <img src="{{ isset($message) ? $message->embed(public_path('images/logo/email-logo.png')) : asset('images/logo/email-logo.png') }}" width="34" height="34" alt="LYNC" style="display:block; margin:0 auto; border:0; width:34px; height:34px;">
+                                        <img src="{{ isset($message) && is_file(public_path('images/logo/email-logo.png')) ? $message->embed(public_path('images/logo/email-logo.png')) : asset('images/logo/email-logo.png') }}" width="34" height="34" alt="LYNC" style="display:block; margin:0 auto; border:0; width:34px; height:34px;">
                                     </td>
                                 </tr>
                             </table>

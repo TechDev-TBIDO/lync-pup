@@ -218,7 +218,13 @@ class StartupProfileController extends Controller
         // Sent before the delete, not after — once $startup/$user are gone
         // there's nothing left to read the founder's name/email off of.
         if ($user?->email) {
-            Mail::to($user->email)->send(new StartupAccountDeleted($founderName, $companyName, $data['reason']));
+            // A mail problem (SMTP down, missing logo file...) must never block
+            // the delete itself - log it and carry on.
+            try {
+                Mail::to($user->email)->send(new StartupAccountDeleted($founderName, $companyName, $data['reason']));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Startup deletion email failed', ['startup_id' => $startup->startup_id, 'error' => $e->getMessage()]);
+            }
         }
 
         // Recorded before the delete too, same reason — but the row itself
