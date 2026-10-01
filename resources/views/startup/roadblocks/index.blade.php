@@ -42,7 +42,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
 <x-layouts.founder>
     <div x-data="{
         tab: @js($activeTab),
-                // Tabs the user has looked at and then left - their red "new" dots
+                // Tabs the user has looked at and then left - their red 'new' dots
                 // are hidden from then on (no reload needed).
                 leftTabs: [],
 
