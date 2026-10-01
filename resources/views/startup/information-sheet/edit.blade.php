@@ -224,14 +224,11 @@ pendingRemoval: [],
             // is skipped in that case (dryRunOnly). That way a format error
             // the browser can't check on its own still gets flagged
             // alongside the client-side ones, on this same click.
-            // Blank fields are already marked by the browser-side check, so
-            // the toast goes up NOW, together with them - not after the
-            // server check below comes back (that wait is what made it feel
-            // late). If the server then finds more problems, the same toast's
-            // number is corrected in place (see the catch block).
-            toastedCount = clientProblems > 0
-                ? window.infoSheetErrorToast(intent === 'submit' ? 'Submit Failed' : 'Save Failed', window.countInfoSheetErrors() || clientProblems)
-                : undefined;
+            // No toast yet: the server check below can still find format
+            // errors the browser cannot (e.g. Blood Type O, Mobile 09).
+            // Showing the browser-side count first made the number jump
+            // (9 -> 11) on every click. One toast, once both checks are in.
+            toastedCount = undefined;
 
             const result = await window.submitInfoSheetForms(this.$root, {
                 dryRunOnly: clientProblems > 0,
@@ -239,6 +236,7 @@ pendingRemoval: [],
 
             if (clientProblems > 0) {
                 this.saving = false;
+                window.infoSheetErrorToast(intent === 'submit' ? 'Submit Failed' : 'Save Failed', window.countInfoSheetErrors() || clientProblems);
                 return;
             }
 
