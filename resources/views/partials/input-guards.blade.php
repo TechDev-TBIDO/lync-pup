@@ -4,6 +4,9 @@
 
       data-person-name   letters, spaces and / - ' . ,  (names AND positions)
       data-ph-mobile     09XXXXXXXXX or +639XXXXXXXXX (digits, optional leading +)
+      data-no-digits     anything except numbers (e.g. Blood Type)
+      data-letters-only  letters and spaces only - no numbers, no symbols (e.g. Citizenship by Birth)
+      data-no-letters    anything except letters, but N/A is allowed (e.g. GSIS / Pag-IBIG / PhilHealth / SSS / TIN)
 
     The listener runs in the CAPTURE phase so it cleans the value before
     Alpine's x-model (or any other handler) reads it. The server enforces the
@@ -155,6 +158,16 @@
                 after = before.replace(NAME_BAD, '');
             } else if (el.hasAttribute('data-ph-mobile')) {
                 after = cleanMobile(before);
+            } else if (el.hasAttribute('data-letters-only')) {
+                after = before.replace(/[^\p{L}\p{M}\s]/gu, '');
+            } else if (el.hasAttribute('data-no-digits')) {
+                after = before.replace(/[0-9]/g, '');
+            } else if (el.hasAttribute('data-no-letters')) {
+                // N/A (any case) is the one exception - and its partial
+                // forms N and N/ while it is being typed.
+                after = /^\s*n(\/(a)?)?\s*$/i.test(before)
+                    ? before
+                    : before.replace(/[\p{L}\p{M}]/gu, '');
             } else {
                 return;
             }
