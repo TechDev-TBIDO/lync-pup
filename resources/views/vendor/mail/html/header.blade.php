@@ -1,4 +1,4 @@
-@props(['url', 'logo' => null])
+@props(['url'])
 <tr>
     <td class="header">
         <a href="{{ $url }}" style="display: inline-block; text-decoration: none;">
@@ -8,7 +8,7 @@
                         <table role="presentation" width="56" height="56" cellpadding="0" cellspacing="0" style="width: 56px; height: 56px; background-color: #FBE7EC; border-radius: 14px; border-collapse: collapse;">
                             <tr>
                                 <td align="center" valign="middle" style="width: 56px; height: 56px;">
-                                    <img src="{{ $logo ?: asset('images/logo/email-logo.png') }}" width="38" height="38" alt="PUP TBIDO" style="display: block; margin: 0 auto; border: 0; width: 38px; height: 38px;">
+                                    <div style="width: 0; height: 0; margin: 0 auto; border-left: 13px solid transparent; border-right: 13px solid transparent; border-bottom: 22px solid #6C0E24;"></div>
                                 </td>
                             </tr>
                         </table>
