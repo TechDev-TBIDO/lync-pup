@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mime\MimeTypes;
 
 class StorageController extends Controller
 {
@@ -35,25 +37,37 @@ class StorageController extends Controller
             abort(404);
         }
 
-        if (! Storage::disk('public')->exists($path)) {
+        // Performance: on Azure the "public" disk is Cloudflare R2, so every
+        // call below is a network round trip. The old exists() + response()
+        // pair made four of them per file (exists, mimeType, size, read)
+        // and sent "no-cache", so every tab switch re-downloaded every
+        // image through PHP. Now: one read, MIME type from the extension,
+        // and a browser cache header so repeat visits cost nothing.
+        // Uploaded files get random names (img_xxxx / hashed store()
+        // names), so a path never points at different bytes later.
+        $stream = Storage::disk('public')->readStream($path);
+
+        if (! is_resource($stream)) {
             abort(404);
         }
 
-        // Optional ?name= override for the saved/displayed filename. Every
-        // upload here is stored under a generated path (e.g. a Startup
-        // Information Sheet's supporting document ends up something like
-        // "2dae97ec-e2a4-....docx" on disk — see InformationSheetFile),
-        // with the human-readable name kept only in the owning row's
-        // original_filename column, which this generic path-only route has
-        // no way to look up on its own. Without this, "response($path)"
-        // falls back to the stored path's own basename for the
-        // Content-Disposition filename — harmless for something previewed
-        // inline (an image, a PDF), but for a type the browser can't render
-        // at all (Word, Excel) the click always ends in a save, so that
-        // raw, meaningless name is the ONLY name the user ever sees. Model
-        // accessors that know the friendly name (e.g.
-        // InformationSheetFile::getUrlAttribute()) append it here; a URL
-        // built without it just keeps today's behavior.
-        return Storage::disk('public')->response($path, $request->query('name'));
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimeType = MimeTypes::getDefault()->getMimeTypes($extension)[0] ?? 'application/octet-stream';
+
+        $filename = $request->query('name') ?: basename($path);
+        $fallback = preg_replace('/[^\x20-\x7E]|[\/\\\\%"]/', '_', $filename) ?: 'file';
+
+        return response()->stream(function () use ($stream) {
+            fpassthru($stream);
+
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }, 200, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => HeaderUtils::makeDisposition('inline', $filename, $fallback),
+            'Cache-Control' => 'private, max-age=604800',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 }

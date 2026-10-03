@@ -156,76 +156,99 @@ class AppServiceProvider extends ServiceProvider
             $badges = [];
 
             if ($user && $user->isAdmin()) {
-                // Founder Registrations: any sign-up that arrived since this
-                // admin last opened that page (same "new since your last
-                // visit" rule as the per-row dots there — see
-                // Admin\FounderApplicationController::index()).
-                $badges['admin.founder-applications.index'] = Startup::query()
-                    ->whereHas('user', fn ($q) => $q->where('role', 'Startup'))
-                    ->where('created_at', '>', $user->moduleSeenAt('founder_registrations'))
-                    ->exists();
+                // Performance: these badges cost ~8-10 database round trips to
+                // Supabase on EVERY admin page, so they're cached per admin for
+                // 60s. The key includes the admin's "seen" markers, so opening a
+                // module (which updates them) clears its badge right away.
+                $badgeCacheKey = 'admin-sidebar-badges:'.$user->getKey().':'.md5(json_encode([
+                    $user->module_seen_at,
+                    $user->risk_monitoring_seen_signature,
+                ]));
 
-                // Assessment Hub — stays lit while there's something to act on:
-                //  (a) a submitted (completed) Information Sheet that's ready
-                //      for "Set Evaluation" but has no evaluation booked yet
-                //      (same rules as the hub's Awaiting Schedule list), or
-                //  (b) an evaluation that became MISSED since this admin last
-                //      opened the Assessment Hub — today's slots included, the
-                //      moment their booked time runs out unapproved (same rule
-                //      as the Today list's red MISSED badge, isMissed()).
-                //      Opening the hub clears this part of the dot (see
-                //      AssessmentHubController::index()).
-                $readyForEvaluation = Startup::query()
-                    ->pending()
-                    ->whereHas('informationSheet', fn ($q) => $q->whereNotNull('submission_date'))
-                    ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
-                    ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
-                    ->exists();
+                $badges = Cache::remember($badgeCacheKey, 60, function () use ($user) {
+                    $badges = [];
 
-                $hubSeenAt = $user->moduleSeenAt('assessment_hub_missed');
+                    // Founder Registrations: any sign-up that arrived since this
+                    // admin last opened that page (same "new since your last
+                    // visit" rule as the per-row dots there — see
+                    // Admin\FounderApplicationController::index()).
+                    $badges['admin.founder-applications.index'] = Startup::query()
+                        ->whereHas('user', fn ($q) => $q->where('role', 'Startup'))
+                        ->where('created_at', '>', $user->moduleSeenAt('founder_registrations'))
+                        ->exists();
 
-                $hasMissedEvaluation = ! $readyForEvaluation && EvaluationSchedule::with('startup.informationSheet')
-                    ->where('status', 'Scheduled')
-                    ->whereDate('evaluation_date', '>=', $hubSeenAt->toDateString())
-                    ->whereDate('evaluation_date', '<=', now()->toDateString())
-                    ->whereHas('startup')
-                    ->whereDoesntHave('startup.informationSheet', fn ($q) => $q->whereIn('approval_status', ['Approved', 'Rejected']))
-                    ->get()
-                    ->contains(fn (EvaluationSchedule $row) => $row->isMissed()
-                        && ($row->ends_at ?? $row->evaluation_date->copy()->endOfDay())->gt($hubSeenAt));
+                    // Assessment Hub — stays lit while there's something to act on:
+                    //  (a) a submitted (completed) Information Sheet that's ready
+                    //      for "Set Evaluation" but has no evaluation booked yet
+                    //      (same rules as the hub's Awaiting Schedule list), or
+                    //  (b) an evaluation that became MISSED since this admin last
+                    //      opened the Assessment Hub — today's slots included, the
+                    //      moment their booked time runs out unapproved (same rule
+                    //      as the Today list's red MISSED badge, isMissed()).
+                    //      Opening the hub clears this part of the dot (see
+                    //      AssessmentHubController::index()).
+                    $readyForEvaluation = Startup::query()
+                        ->pending()
+                        ->whereHas('informationSheet', fn ($q) => $q->whereNotNull('submission_date'))
+                        ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
+                        ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
+                        ->exists();
 
-                $badges['admin.assessment-hub.index'] = $readyForEvaluation || $hasMissedEvaluation;
+                    $hubSeenAt = $user->moduleSeenAt('assessment_hub_missed');
 
-                // Roadblock Management — a newly submitted roadblock this admin
-                // hasn't opened yet, or any roadblock awaiting review (status
-                // Pending Review, or still Scheduled but its meeting already
-                // ended and the lazy sweep hasn't promoted it yet).
-                $hasNewRoadblock = $user->unreadNotifications()
-                    ->where('type', NewRoadblockSubmitted::class)
-                    ->exists();
+                    $hasMissedEvaluation = ! $readyForEvaluation && EvaluationSchedule::with('startup.informationSheet')
+                        ->where('status', 'Scheduled')
+                        ->whereDate('evaluation_date', '>=', $hubSeenAt->toDateString())
+                        ->whereDate('evaluation_date', '<=', now()->toDateString())
+                        ->whereHas('startup')
+                        ->whereDoesntHave('startup.informationSheet', fn ($q) => $q->whereIn('approval_status', ['Approved', 'Rejected']))
+                        ->get()
+                        ->contains(fn (EvaluationSchedule $row) => $row->isMissed()
+                            && ($row->ends_at ?? $row->evaluation_date->copy()->endOfDay())->gt($hubSeenAt));
 
-                $hasPendingReview = ! $hasNewRoadblock && (
-                    Roadblock::where('status', 'Pending Review')->exists()
-                    || Roadblock::where('status', 'Scheduled')
-                        ->whereNotNull('meeting_date')
-                        ->whereNotNull('meeting_end_time')
-                        ->whereDate('meeting_date', '<=', now()->toDateString())
-                        ->get(['roadblock_id', 'meeting_date', 'meeting_end_time'])
-                        ->contains(fn (Roadblock $r) => $r->meeting_ends_at?->isPast())
-                );
+                    $badges['admin.assessment-hub.index'] = $readyForEvaluation || $hasMissedEvaluation;
 
-                $badges['admin.roadblocks.index'] = $hasNewRoadblock || $hasPendingReview;
+                    // Roadblock Management — a newly submitted roadblock this admin
+                    // hasn't opened yet, or any roadblock awaiting review (status
+                    // Pending Review, or still Scheduled but its meeting already
+                    // ended and the lazy sweep hasn't promoted it yet).
+                    $hasNewRoadblock = $user->unreadNotifications()
+                        ->where('type', NewRoadblockSubmitted::class)
+                        ->exists();
 
-                // Risk Monitoring — a startup is at Moderate risk or higher and
-                // that picture has changed since this admin last opened the
-                // page (see RiskEngine::elevatedRiskSignature()).
-                try {
-                    $riskSignature = RiskEngine::elevatedRiskSignature();
-                    $badges['admin.risk-monitoring.index'] = $riskSignature !== ''
-                        && $riskSignature !== $user->risk_monitoring_seen_signature;
-                } catch (\Throwable $e) {
-                    // Badge-only; never break every admin page over it.
-                    report($e);
+                    $hasPendingReview = ! $hasNewRoadblock && (
+                        Roadblock::where('status', 'Pending Review')->exists()
+                        || Roadblock::where('status', 'Scheduled')
+                            ->whereNotNull('meeting_date')
+                            ->whereNotNull('meeting_end_time')
+                            ->whereDate('meeting_date', '<=', now()->toDateString())
+                            ->get(['roadblock_id', 'meeting_date', 'meeting_end_time'])
+                            ->contains(fn (Roadblock $r) => $r->meeting_ends_at?->isPast())
+                    );
+
+                    $badges['admin.roadblocks.index'] = $hasNewRoadblock || $hasPendingReview;
+
+                    // Risk Monitoring — a startup is at Moderate risk or higher and
+                    // that picture has changed since this admin last opened the
+                    // page (see RiskEngine::elevatedRiskSignature()).
+                    try {
+                        $riskSignature = RiskEngine::elevatedRiskSignature();
+                        $badges['admin.risk-monitoring.index'] = $riskSignature !== ''
+                            && $riskSignature !== $user->risk_monitoring_seen_signature;
+                    } catch (\Throwable $e) {
+                        // Badge-only; never break every admin page over it.
+                        report($e);
+                    }
+
+                    return $badges;
+                });
+
+                // The page being viewed never shows its own badge (it may still
+                // be in the 60s cache from before this visit).
+                foreach (array_keys($badges) as $route) {
+                    if (request()->routeIs($route)) {
+                        $badges[$route] = false;
+                    }
                 }
             }
 
