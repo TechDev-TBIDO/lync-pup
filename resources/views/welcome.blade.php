@@ -143,7 +143,7 @@
         .lp-carousel { position: relative; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); overflow-x: auto; overflow-y: hidden;
             scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 1.5rem 0 2.25rem; }
         .lp-carousel::-webkit-scrollbar { display: none; }
-        .lp-track { display: flex; width: max-content; align-items: center; gap: clamp(0.5rem, 1vw, 1rem);
+        .lp-track { display: flex; width: max-content; align-items: center; gap: clamp(0.5rem, 0.8vw, 0.85rem);
             padding-left: calc(50vw - var(--slide-w) / 2); padding-right: calc(50vw - var(--slide-w) / 2); }
         .lp-carousel { --slide-w: clamp(13.5rem, 62vw, 19rem); }
         @media (min-width: 768px) { .lp-carousel { --slide-w: clamp(16rem, 24vw, 21rem); } }
@@ -941,22 +941,22 @@
                         slides.forEach(function (s) { s.style.transform = ''; s.style.opacity = ''; s.style.zIndex = ''; });
                         return;
                     }
-                    // 3D "cover flow" depth: the centre card is in front; the others turn to face
-                    // it and sit further back the further out they are. Uses layout positions (not
-                    // the transformed boxes) so the effect never feeds back into itself.
+                    // Centre card full size; the others shrink, drop and fade with distance. Each
+                    // side card is also pulled toward the centre by the space the shrinking frees up,
+                    // so the visible gap between cards stays as small as the CSS gap. Uses layout
+                    // positions (not the transformed boxes) so it never feeds back into itself.
+                    const SHRINK = 0.16;
                     const mid = el.clientWidth / 2;
                     slides.forEach(function (s) {
                         const w = s.offsetWidth;
-                        const sd = Math.max(-2.2, Math.min(2.2, (s.offsetLeft - el.scrollLeft + w / 2 - mid) / (w * 1.1)));
+                        const sd = (s.offsetLeft - el.scrollLeft + w / 2 - mid) / (w * 1.05);
                         const a = Math.abs(sd), d = Math.min(a, 1);
-                        s.style.transform = 'perspective(1100px)'
-                            + ' translateX(' + (-sd * w * 0.1).toFixed(1) + 'px)'
-                            + ' translateY(' + (d * 18).toFixed(1) + 'px)'
-                            + ' translateZ(' + (-a * 90).toFixed(1) + 'px)'
-                            + ' rotateY(' + (sd * 22).toFixed(2) + 'deg)'
-                            + ' scale(' + (1 - d * 0.06).toFixed(3) + ')';
-                        s.style.opacity = (1 - Math.min(a, 2) * 0.25).toFixed(3);
-                        s.style.zIndex = String(100 - Math.round(a * 20));
+                        const pull = (a <= 1 ? a : 2 * a - 1) * w * SHRINK / 2;
+                        s.style.transform = 'translateX(' + (-Math.sign(sd) * pull).toFixed(1) + 'px)'
+                            + ' translateY(' + (d * 26).toFixed(1) + 'px)'
+                            + ' scale(' + (1 - d * SHRINK).toFixed(3) + ')';
+                        s.style.opacity = (1 - d * 0.5).toFixed(3);
+                        s.style.zIndex = String(100 - Math.round(d * 50));
                     });
                 }
 
