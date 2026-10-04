@@ -1,0 +1,234 @@
+/* ==========================================================================
+   Lync PUP — Landing hero
+   Every layer is positioned on a 1728 x 1150 design canvas. One design pixel
+   is `--u`, so the whole hero scales with its width and stays sharp (text,
+   icons and lines are vector; only the photo layers are images).
+   Move anything by changing its --x / --y (design pixels) on the component.
+   ========================================================================== */
+
+@font-face { font-family: 'LP Poppins'; font-weight: 400; font-display: swap; src: url('../fonts/poppins/poppins-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'LP Poppins'; font-weight: 500; font-display: swap; src: url('../fonts/poppins/poppins-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'LP Poppins'; font-weight: 600; font-display: swap; src: url('../fonts/poppins/poppins-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'LP Poppins'; font-weight: 700; font-display: swap; src: url('../fonts/poppins/poppins-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'LP Poppins'; font-weight: 800; font-display: swap; src: url('../fonts/poppins/poppins-latin-800-normal.woff2') format('woff2'); }
+
+.lph-hero {
+    --lph-maroon: #6d0d23;
+    --lph-gold: #e3a93a;
+    --lph-ink: #111827;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1728 / 1150;
+    overflow: hidden;
+    background: #5a0611;
+    container-type: inline-size;
+    font-family: 'LP Poppins', 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    color: #fff;
+    isolation: isolate;
+}
+.lph-hero * { box-sizing: border-box; }
+
+/* 1 design pixel */
+.lph-hero { --u: calc(100cqw / 1728); }
+
+/* Anything placed on the canvas */
+.lph-abs {
+    position: absolute;
+    left: calc(var(--x, 0) * var(--u));
+    top: calc(var(--y, 0) * var(--u));
+}
+
+/* ---------- Layer order (bottom -> top) ---------- */
+.lph-layer-bg      { z-index: 1; }
+.lph-layer-rays    { z-index: 2; }
+.lph-layer-orbit   { z-index: 3; }
+.lph-layer-content { z-index: 4; position: absolute; inset: 0; pointer-events: none; }
+.lph-layer-content > * { pointer-events: auto; }
+.lph-layer-curve   { z-index: 5; }
+.lph-layer-nav     { z-index: 6; }
+.lph-layer-people  { z-index: 10; }   /* always the top-most layer */
+
+.lph-fill { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* The picture part (background, rays, orbit, curve, people). It has no
+   z-index of its own, so its layers stack together with the text above. */
+.lph-stage { position: absolute; inset: 0; }
+
+/* ---------- Background photo ---------- */
+.lph-bg img { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; pointer-events: none; }
+
+/* ---------- People (top layer, untouched pixels) ---------- */
+.lph-people {
+    width: calc(var(--w) * var(--u));
+    height: calc(var(--h) * var(--u));
+    pointer-events: none;
+}
+.lph-people { isolation: isolate; }
+.lph-people img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+.lph-people > * { position: absolute; inset: 0; }
+.lph-people > img:first-child { position: relative; }
+
+/* The people photo already carries the red scene light (red rim around their edges). */
+
+/* ---------- Light rays ---------- */
+.lph-rays { pointer-events: none; overflow: hidden; }
+.lph-ray {
+    position: absolute;
+    left: calc(var(--x) * var(--u));
+    top: calc(var(--y) * var(--u));
+    width: calc(var(--len) * var(--u));
+    height: calc(var(--thick) * var(--u));
+    transform: translate(-50%, -50%) rotate(var(--angle, -45deg));
+    transform-origin: center;
+    mix-blend-mode: screen;
+    opacity: 0;
+    border-radius: calc(var(--thick) * var(--u));
+    background: linear-gradient(90deg, transparent 0%, var(--color, rgba(255, 96, 90, .55)) 40%, var(--color-core, rgba(255, 185, 165, .75)) 50%, var(--color, rgba(255, 96, 90, .55)) 60%, transparent 100%);
+    -webkit-mask-image: linear-gradient(0deg, transparent, #000 35%, #000 65%, transparent);
+            mask-image: linear-gradient(0deg, transparent, #000 35%, #000 65%, transparent);
+    animation: lph-ray-breathe var(--dur, 10s) ease-in-out var(--delay, 0s) infinite;
+}
+/* the "sweep" kind: a beam of light travelling along the band */
+.lph-ray--sweep {
+    background-image: linear-gradient(90deg, transparent 0%, transparent 35%, var(--color-core, rgba(255, 210, 160, .9)) 50%, transparent 65%, transparent 100%);
+    background-size: 300% 100%;
+    animation: lph-ray-sweep var(--dur, 6s) ease-in-out var(--delay, 0s) infinite;
+}
+@keyframes lph-ray-breathe {
+    0%, 100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle, -45deg)) translateY(calc(var(--drift, 30) * var(--u))); }
+    50%      { opacity: var(--peak, .55); transform: translate(-50%, -50%) rotate(var(--angle, -45deg)) translateY(calc(var(--drift, 30) * var(--u) * -1)); }
+}
+@keyframes lph-ray-sweep {
+    0%   { opacity: 0; background-position: 100% 0; }
+    15%  { opacity: var(--peak, .9); }
+    70%  { opacity: var(--peak, .9); }
+    100% { opacity: 0; background-position: 0% 0; }
+}
+
+/* ---------- Orbit lines, icons, dots ---------- */
+.lph-orbit { pointer-events: none; overflow: visible; }
+.lph-orbit .lph-line-glow { filter: blur(3px); opacity: .45; }
+.lph-orbit .lph-line-comet { animation: lph-comet var(--dur, 7s) linear var(--delay, 0s) infinite; }
+@keyframes lph-comet { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+.lph-orbit .lph-line-base { animation: lph-line-breathe 6s ease-in-out infinite; }
+@keyframes lph-line-breathe { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+
+.lph-icon-halo { transform-box: fill-box; transform-origin: center; animation: lph-halo 4.5s ease-in-out var(--delay, 0s) infinite; }
+/* glow that appears when the cursor is near (--hover is set by lph-hero.js, 0..1) */
+.lph-icon-hover { opacity: calc(var(--hover, 0) * .55); filter: blur(10px); }
+
+@keyframes lph-halo { 0%, 100% { transform: scale(1); opacity: .35; } 50% { transform: scale(1.18); opacity: .1; } }
+
+.lph-dot { animation: lph-twinkle 3.2s ease-in-out infinite; }
+@keyframes lph-twinkle { 0%, 100% { opacity: .95; } 50% { opacity: .25; } }
+
+/* ---------- Navbar ---------- */
+.lph-nav { width: calc(1728 * var(--u)); height: calc(128 * var(--u)); }
+.lph-brand { display: flex; align-items: center; text-decoration: none; color: #fff; }
+.lph-brand-box {
+    width: calc(40 * var(--u)); height: calc(40 * var(--u));
+    border-radius: calc(8 * var(--u));
+    background: #fff;
+    display: grid; place-items: center;
+}
+.lph-brand-box img { height: calc(28 * var(--u)); width: auto; }
+.lph-brand-word { margin-left: calc(9 * var(--u)); font-weight: 700; font-size: calc(22 * var(--u)); letter-spacing: calc(1 * var(--u)); line-height: 1; }
+.lph-divider { width: calc(1.5 * var(--u)); height: calc(58 * var(--u)); background: linear-gradient(180deg, transparent, rgba(227, 169, 58, .55), transparent); }
+.lph-logo { width: calc(var(--size, 64) * var(--u)); height: calc(var(--size, 64) * var(--u)); }
+.lph-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+.lph-links { position: absolute; inset: 0; }
+.lph-link { position: absolute; left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u)); color: rgba(255, 255, 255, .92); font-weight: 500; font-size: calc(15 * var(--u)); text-decoration: none; line-height: 1; padding-bottom: calc(10 * var(--u)); transition: color .2s; }
+.lph-link:hover { color: #fff; }
+.lph-link.is-active::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+    height: calc(2.5 * var(--u)); border-radius: 99px;
+    background: var(--lph-gold);
+}
+.lph-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: calc(42 * var(--u));
+    border-radius: 999px;
+    font-weight: 500; font-size: calc(15 * var(--u));
+    text-decoration: none; line-height: 1;
+    transition: transform .2s, box-shadow .2s, background .2s;
+}
+.lph-btn:hover { transform: translateY(calc(-1.5 * var(--u))); }
+.lph-btn--ghost { width: calc(110 * var(--u)); color: #fff; border: calc(1.5 * var(--u)) solid rgba(255, 255, 255, .85); }
+.lph-btn--ghost:hover { background: rgba(255, 255, 255, .1); }
+.lph-btn--solid { width: calc(160 * var(--u)); color: var(--lph-maroon); background: #fff; font-weight: 600; box-shadow: 0 calc(6 * var(--u)) calc(24 * var(--u)) rgba(255, 255, 255, .28); }
+
+/* ---------- Headline ---------- */
+.lph-headline { margin: 0; font-weight: 700; font-size: calc(80 * var(--u)); line-height: calc(79 * var(--u)); letter-spacing: calc(-0.4 * var(--u)); white-space: nowrap; }
+.lph-headline .lph-gold { color: var(--lph-gold); }
+.lph-sub { margin: 0; white-space: nowrap; font-weight: 400; font-size: calc(24.4 * var(--u)); line-height: calc(23.6 * var(--u)); color: #fff; }
+
+/* ---------- Stats card ---------- */
+.lph-stats {
+    width: calc(618 * var(--u)); height: calc(101 * var(--u));
+    border-radius: calc(22 * var(--u));
+    background: #fff;
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    box-shadow: 0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(40, 0, 8, .25);
+}
+.lph-stat { position: relative; text-align: center; padding-bottom: calc(10 * var(--u)); }
+.lph-stat + .lph-stat::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(calc(-50% - 5 * var(--u))); width: 1px; height: calc(62 * var(--u)); background: #d4d4d8; }
+.lph-stat-value { display: block; color: var(--lph-maroon); font-weight: 700; font-size: calc(38 * var(--u)); line-height: 1; }
+.lph-stat-label { display: block; margin-top: calc(8 * var(--u)); color: var(--lph-ink); font-weight: 500; font-size: calc(16 * var(--u)); line-height: 1; }
+
+/* ---------- Phones and small tablets ----------
+   The canvas would get too small to read, so the text stacks on top and the
+   picture is cropped to the people. */
+@media (max-width: 900px) {
+    .lph-hero {
+        aspect-ratio: auto;
+        background: #3d040d;
+        padding-top: 16px;
+    }
+    .lph-hero .lph-abs { position: static; }
+
+    .lph-nav { position: relative; width: auto; height: auto; display: flex; align-items: center; gap: 10px; padding: 0 16px; }
+    .lph-brand-box { width: 38px; height: 38px; border-radius: 9px; }
+    .lph-brand-box img { height: 26px; }
+    .lph-brand-word { margin-left: 8px; font-size: 20px; letter-spacing: 1px; }
+    .lph-divider, .lph-logo, .lph-links { display: none; }
+    .lph-actions { margin-left: auto; display: flex; gap: 8px; }
+    .lph-btn { height: 36px; font-size: 13px; padding: 0 14px; width: auto; }
+    .lph-btn--ghost { width: auto; border-width: 1px; }
+    .lph-btn--solid { width: auto; box-shadow: 0 4px 14px rgba(255, 255, 255, .2); }
+
+    .lph-layer-content { position: relative; inset: auto; padding: 36px 16px 0; }
+    .lph-headline { font-size: clamp(32px, 9.4vw, 54px); line-height: 1.04; letter-spacing: -0.5px; white-space: normal; }
+    .lph-sub { margin-top: 14px; font-size: clamp(14px, 3.9vw, 18px); line-height: 1.45; white-space: normal; max-width: 520px; }
+    .lph-sub br { display: none; }
+    .lph-stats { margin-top: 22px; width: 100%; max-width: 520px; height: auto; padding: 14px 0; border-radius: 18px; }
+    .lph-stat { padding-bottom: 0; }
+    .lph-stat + .lph-stat::before { height: 44px; transform: translateY(-50%); }
+    .lph-stat-value { font-size: clamp(22px, 6.4vw, 30px); }
+    .lph-stat-label { margin-top: 4px; font-size: clamp(11px, 3vw, 14px); }
+
+    /* picture: zoom the canvas so the four people fill the width */
+    .lph-stage {
+        --u: calc(100cqw * 1728 / 1050 / 1728);
+        position: relative;
+        inset: auto;
+        width: calc(100% * 1728 / 1050);
+        aspect-ratio: 1728 / 1150;
+        margin-left: calc(-100% * 678 / 1050);
+        margin-top: calc(-430 * var(--u));
+    }
+    .lph-stage .lph-abs { position: absolute; }
+    .lph-stage::before {
+        content: ''; position: absolute; inset: 0 0 auto 0; height: 50%; z-index: 2;
+        background: linear-gradient(180deg, #3d040d 0%, rgba(61, 4, 13, .85) 45%, transparent 100%);
+        pointer-events: none;
+    }
+    .lph-orbit { display: none; }
+}
+
+/* ---------- Respect reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .lph-hero *, .lph-hero *::before, .lph-hero *::after { animation: none !important; }
+    .lph-ray { opacity: .35; }
+}
