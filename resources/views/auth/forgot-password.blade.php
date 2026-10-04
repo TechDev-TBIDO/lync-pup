@@ -39,7 +39,19 @@
             // this email's password_reset_tokens row on success, so once
             // that row is gone, send this tab to login too.
             pollResetStatus() {
-                setInterval(async () => {
+                // Performance: polled every 10s (was 4s), skipped while this
+                // tab is in the background, checked right away when the user
+                // comes back to it, and stopped after 20 minutes — a tab left
+                // open overnight used to hit the server 900 times an hour.
+                const startedAt = Date.now();
+                let timer = null;
+                const check = async () => {
+                    if (document.hidden) return;
+                    if (Date.now() - startedAt > 20 * 60 * 1000) {
+                        clearInterval(timer);
+                        document.removeEventListener('visibilitychange', check);
+                        return;
+                    }
                     try {
                         const res = await fetch('{{ route('password.request.status') }}?email={{ urlencode(old('email', '')) }}', {
                             headers: { 'Accept': 'application/json' },
@@ -51,7 +63,10 @@
                     } catch (e) {
                         // Offline or a transient error — just try again next tick.
                     }
-                }, 4000);
+                };
+
+                timer = setInterval(check, 10000);
+                document.addEventListener('visibilitychange', check);
             },
         }">
         <div class="w-full max-w-md">
