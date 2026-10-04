@@ -132,19 +132,27 @@ class DashboardController extends Controller
         // CACHE_SECONDS. The key includes the exact startup pool (so a new
         // verified/approved startup gets a fresh build immediately) and the
         // host (the cards contain absolute links).
-        $cardsCacheKey = 'admin-dashboard-cards:v1:'.md5(json_encode([
+        $cardsCacheKey = 'admin-dashboard-cards:v2:'.md5(json_encode([
             $request->getHost(),
             $selectedCohort?->cohort_id,
             $startupIds->values()->all(),
             $approvedStartupIds->values()->all(),
         ]));
 
-        $cards = Cache::remember($cardsCacheKey, self::CACHE_SECONDS, fn () => [
+        // Stored as plain arrays (json round-trip): Laravel 13 won't
+        // unserialize objects such as Collections from cache by default
+        // (config/cache.php 'serializable_classes'), so the collections the
+        // view calls methods on are rebuilt right after reading.
+        $cards = Cache::remember($cardsCacheKey, self::CACHE_SECONDS, fn () => json_decode(json_encode([
             'stats' => $this->buildStatCards($startupIds, $totalStartups, $approvedStartupIds),
             'incubationProgress' => $this->buildIncubationProgress($startupIds),
             'riskClassification' => $this->buildRiskClassification($approvedStartupIds),
             'milestones' => $this->buildMilestoneCompletion($startupIds, $totalStartups, $approvedStartupIds),
-        ]);
+        ]), true));
+
+        $cards['incubationProgress']['breakdown'] = collect($cards['incubationProgress']['breakdown']);
+        $cards['riskClassification']['breakdown'] = collect($cards['riskClassification']['breakdown']);
+        $cards['milestones']['milestones'] = collect($cards['milestones']['milestones']);
 
         return view('dashboard', [
             // 'cohorts'/'selectedCohort' no longer passed to the view — the
