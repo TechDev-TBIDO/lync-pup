@@ -1075,6 +1075,7 @@
             }
         })();
     </script>
+    @include('partials.page-loader')
 </body>
 
 </html>

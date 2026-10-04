@@ -180,5 +180,6 @@
             </form>
         </div>
     </div>
+    @include('partials.page-loader')
 </body>
 </html>

@@ -114,7 +114,7 @@
                         <td class="px-4 py-3 text-center text-gray-600">{{ $report->created_at->format('M d, Y g:i A') }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-3">
-                                <a href="{{ route('admin.exports.download', $report) }}"
+                                <a href="{{ route('admin.exports.download', $report) }}" data-no-loader
                                     class="text-xs font-semibold text-rose-900 hover:underline">Download File</a>
 
                                 <button type="button" @click="confirmingId = {{ $report->saved_report_id }}"
