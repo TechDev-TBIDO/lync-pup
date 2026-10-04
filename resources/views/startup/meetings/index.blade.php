@@ -44,6 +44,7 @@
             $archiveStatuses = [
                 'all' => 'All Statuses',
                 'Approved' => 'Approved',
+                'Approved after missed' => 'Approved after missed',
                 'Rejected' => 'Rejected',
                 'Missed' => 'Missed',
                 'Pending Review' => 'Pending Review',
@@ -53,6 +54,7 @@
             ];
             $archiveStatusColors = [
                 'Approved' => 'text-green-600',
+                'Approved after missed' => 'text-green-600',
                 'Rejected' => 'text-rose-700',
                 'Missed' => 'text-gray-500',
                 'Pending Review' => 'text-amber-600',
@@ -62,6 +64,7 @@
             ];
             $archiveStatusDots = [
                 'Approved' => 'bg-green-500',
+                'Approved after missed' => 'bg-amber-500',
                 'Rejected' => 'bg-rose-600',
                 'Missed' => 'bg-gray-400',
                 'Pending Review' => 'bg-amber-500',

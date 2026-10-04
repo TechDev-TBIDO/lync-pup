@@ -146,6 +146,9 @@ class InformationSheetController extends Controller
         $startup->update(['application_decided_at' => now()]);
         $startup->placeInCohort($cohort);
 
+        // Decided - the founder's "Evaluation missed" card no longer applies.
+        \App\Notifications\EvaluationMissed::retractFor($startup);
+
         if (! $wasApproved) {
             // This is the moment Meeting / Submission / Readiness Result unlock
             // for the founder, so it gets a dashboard card of its own.
@@ -212,6 +215,9 @@ class InformationSheetController extends Controller
             'rejected_at' => now(),
             'evaluator_remarks' => $data['evaluator_remarks'] ?? null,
         ]);
+
+        // Decided - the founder's "Evaluation missed" card no longer applies.
+        \App\Notifications\EvaluationMissed::retractFor($startup);
 
         $deadline = $startup->refresh()->rejectionDeadline();
 

@@ -190,8 +190,11 @@
                 @endforeach
             </div>
 
-            <div class="border-b border-gray-300 mb-8">
-                <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap">
+            {{-- The grey base line is drawn inside the scrolling <nav> (inset shadow), not on a
+                 wrapper below it: overflow-x-auto clips anything outside the nav, so the old
+                 -mb-px trick cut the active tab's maroon underline off. --}}
+            <div class="mb-8">
+                <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap" style="box-shadow: inset 0 -1px 0 #d1d5db;">
                     {{-- Order follows the summary cards above (Total, Active, Assign
                          Coordinator, Pending, Applicant, Graduated, Completed).
                          Query param key stays 'onboarding' (matches
@@ -221,7 +224,6 @@
                     text-sm
                     font-medium
                     border-b-2
-                    -mb-px
                     transition-colors duration-200
                     {{ $activeTab === $key
                         ? 'border-[#6D0D23] text-[#6D0D23]'

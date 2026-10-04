@@ -44,6 +44,8 @@ class MeetingController extends Controller
 
         $startup = Auth::user()->startup;
 
+        \App\Notifications\EvaluationMissed::sendDueFor($startup);
+
         $mentorships = Roadblock::with(['mentor', 'coordinator'])
             ->where('startup_id', $startup->startup_id)
             ->where('status', 'Scheduled')

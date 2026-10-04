@@ -227,7 +227,6 @@ class StartupProfileController extends Controller
      */
     private function abortIfInformationSheetLocked(Startup $startup): void
     {
-        abort_if($startup->hasApprovedInformationSheet(), 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
-        abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked for today - your evaluation is scheduled today. It reopens tomorrow if the evaluation does not push through.');
+        abort_if($startup->isInformationSheetLocked(), 403, $startup->informationSheetLockMessage() ?? 'This Information Sheet is locked.');
     }
 }

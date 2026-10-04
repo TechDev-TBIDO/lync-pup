@@ -102,6 +102,10 @@ class AppServiceProvider extends ServiceProvider
 
             if ($user && $user->isStartup()) {
                 try {
+                    // Any page: announce a newly Missed evaluation so the
+                    // sidebar dot appears right away (see EvaluationMissed).
+                    \App\Notifications\EvaluationMissed::sendDueFor($user->startup);
+
                     $unreadRoutes = $user->unreadNotifications()
                         ->get(['data'])
                         ->map(fn ($n) => $n->data['route'] ?? null)

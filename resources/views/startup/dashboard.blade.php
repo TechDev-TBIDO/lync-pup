@@ -76,15 +76,30 @@
     $scheduledEvaluation = $startup->evaluationSchedules()
     ->where('status', '!=', 'Cancelled')
     ->orderByDesc('evaluation_date')
+    ->orderByDesc('start_time')
     ->first();
+    // Its time has passed with no decision -> show it as missed instead of
+    // still "scheduled" (same rule as Meeting > Archive and the admin side).
+    $evaluationMissed = $scheduledEvaluation?->isMissed() ?? false;
     @endphp
-    <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <div @class([
+        'mb-5 flex flex-col gap-4 rounded-2xl border p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5',
+        'border-[#11386A]/40 bg-[#11386A]/10' => ! $evaluationMissed,
+        'border-amber-300 bg-amber-50' => $evaluationMissed,
+    ])>
         <div class="flex items-center gap-3 sm:gap-4">
-            <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
+            <span @class([
+                'flex shrink-0 items-center justify-center rounded-md text-white',
+                'bg-[#11386A]' => ! $evaluationMissed,
+                'bg-amber-500' => $evaluationMissed,
+            ]) style="width: 44px; height: 44px;">
                 <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/clock.svg') }}')"></span>
             </span>
             <div class="min-w-0">
-                @if ($scheduledEvaluation)
+                @if ($evaluationMissed)
+                <p class="text-sm font-bold text-gray-900">Evaluation Missed &middot; Awaiting New Schedule</p>
+                <p class="text-xs text-gray-600">Your evaluation on {{ $scheduledEvaluation->evaluation_date->format('F j, Y') }} ({{ $scheduledEvaluation->time_range_label }}) was missed. Your Information Sheet stays locked until TBIDO sets a new evaluation schedule - check your Meeting tab.</p>
+                @elseif ($scheduledEvaluation)
                 <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Evaluation Scheduled</p>
                 <p class="text-xs text-gray-600">Your evaluation is set for {{ $scheduledEvaluation->evaluation_date->format('F j, Y') }}. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
                 @else

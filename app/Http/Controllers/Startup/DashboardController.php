@@ -22,6 +22,10 @@ class DashboardController extends Controller
 
         $startup->loadMissing(['informationSheet', 'activeCoordinatorAssignment']);
 
+        // Announce any evaluation that has just become Missed, before the
+        // updates list below is read (no scheduler - created lazily).
+        \App\Notifications\EvaluationMissed::sendDueFor($startup);
+
         // "Cohort 3 - 001": no per-cohort sequence exists anywhere in the
         // app yet, so it's derived here — this startup's rank by startup_id
         // among every startup sharing the same cohort_number.

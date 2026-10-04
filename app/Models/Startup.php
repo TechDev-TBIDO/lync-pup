@@ -504,9 +504,50 @@ class Startup extends Model
      * respect this exact same window, or it becomes a back door around the
      * lock.
      */
+    /**
+     * Keeps the founder's Information Sheet locked after a MISSED evaluation
+     * (its day has passed with no decision) until the admin reschedules it -
+     * a new date in the future frees the sheet again until that day. Ends
+     * on its own once the sheet is approved or rejected (a Rejected sheet
+     * must stay editable so the founder can revise and resubmit).
+     */
+    public function missedEvaluationLockActive(): bool
+    {
+        if ($this->informationSheet?->approval_status !== 'Pending') {
+            return false;
+        }
+
+        $latest = $this->evaluationSchedules()
+            ->where('status', '!=', 'Cancelled')
+            ->orderByDesc('evaluation_date')
+            ->orderByDesc('start_time')
+            ->first();
+
+        return $latest !== null
+            && $latest->status === 'Scheduled'
+            && $latest->evaluation_date->lt(now()->startOfDay())
+            && $latest->isMissed();
+    }
+
+    /**
+     * Why the founder can't edit the Information Sheet right now (null when
+     * they can) - one wording for the page banner and every server check.
+     */
+    public function informationSheetLockMessage(): ?string
+    {
+        return match (true) {
+            $this->hasApprovedInformationSheet() => 'This Information Sheet is approved and locked. Contact your Coordinator for changes.',
+            $this->evaluationDayLockActive() => 'This Information Sheet is locked for today - your evaluation is scheduled today.',
+            $this->missedEvaluationLockActive() => 'This Information Sheet is locked - your evaluation was missed. It unlocks once TBIDO sets a new evaluation schedule.',
+            default => null,
+        };
+    }
+
     public function isInformationSheetLocked(): bool
     {
-        return $this->hasApprovedInformationSheet() || $this->evaluationDayLockActive();
+        return $this->hasApprovedInformationSheet()
+            || $this->evaluationDayLockActive()
+            || $this->missedEvaluationLockActive();
     }
 
     /**
