@@ -236,7 +236,7 @@ class InformationSheetController extends Controller
                     ));
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::error('Information sheet rejection email failed', ['startup_id' => $startup->startup_id, 'error' => $e->getMessage()]);
-                    $mailFailed = true;
+                    $mailFailed = \App\Support\MailFailure::reason($e);
                 }
             }
         }
@@ -252,7 +252,7 @@ class InformationSheetController extends Controller
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'rejected'])
             ->with('status', 'Information sheet rejected. The founder has 10 days to revise and resubmit it.'
-                .(! empty($mailFailed) ? ' (The email to the founder could not be sent - they will still see it on their dashboard.)' : ''));
+                .(! empty($mailFailed) ? " However, the email to the founder wasn't sent because {$mailFailed}. They will still see the rejection on their dashboard." : ''));
     }
 
     public function update(UpdateInformationSheetRequest $request, Startup $startup): RedirectResponse|Response

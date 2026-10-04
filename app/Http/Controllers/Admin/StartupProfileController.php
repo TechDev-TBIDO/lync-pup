@@ -190,7 +190,7 @@ class StartupProfileController extends Controller
 
             return redirect()
                 ->route('admin.startups.show', $startup)
-                ->with('status', 'The pitch deck request email could not be sent right now. Please try again later.');
+                ->with('status', "The pitch deck request wasn't sent because ".\App\Support\MailFailure::reason($e).'.');
         }
 
         $startup->update(['pitch_deck_requested_at' => now()]);
