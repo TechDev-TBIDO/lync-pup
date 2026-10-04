@@ -11,10 +11,10 @@ use App\Services\Exports\WordDocumentExporter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\Response;
 use ZipArchive;
 
 class ExportController extends Controller
@@ -122,14 +122,20 @@ class ExportController extends Controller
     }
 
     /**
-     * Generates the actual PDF/ZIP file(s) for the selected startup +
-     * documents + format, and stores them to the public disk. Nothing is
-     * written to `saved_reports` yet — that only happens if the admin
-     * explicitly clicks "Save to Reports" (see save() below). Downloading
-     * straight from the "Export Completed" screen works regardless, since
-     * the file already physically exists on disk at this point.
+     * Builds the requested export and sends it straight back to the admin's
+     * browser as a file download. Nothing is written to storage or to the
+     * database: per the client, exported documents should only end up on
+     * the user's own device, not be kept in the system (they used to be
+     * uploaded to R2 on every export - even ones nobody saved - and never
+     * cleaned up).
+     *
+     * One file per request:
+     *  - "ZIP Archive" / "PDF Bundle": one file covering every selected document
+     *  - "Individual PDFs": exactly one document per request (the export
+     *    modal requests each selected document in turn), so the server only
+     *    ever holds one rendered file in memory at a time.
      */
-    public function generate(Request $request): JsonResponse
+    public function generate(Request $request): Response
     {
         $validated = $request->validate([
             'startup_id' => ['required', 'integer', 'exists:startups,startup_id'],
@@ -150,8 +156,25 @@ class ExportController extends Controller
 
         $format = $validated['format'];
         $baseName = $this->sanitizeFileName($validated['file_name']);
-        $batch = (string) Str::uuid();
-        $dir = "exports/{$startup->startup_id}/{$batch}";
+
+        if ($format === 'Individual PDFs' && count($documentNumbers) !== 1) {
+            throw ValidationException::withMessages([
+                'document_numbers' => ['Individual files are generated one document per request.'],
+            ]);
+        }
+
+        return $this->fileDownloadResponse($this->buildFile($startup, $format, $documentNumbers, $baseName));
+    }
+
+    /**
+     * Renders one export file in memory (never stored). Shared by generate()
+     * and by download(), which rebuilds a saved report from its recipe.
+     *
+     * @param  array<int, int>  $documentNumbers
+     * @return array{file_name: string, extension: string, binary: string}
+     */
+    protected function buildFile(Startup $startup, string $format, array $documentNumbers, string $baseName): array
+    {
 
         // "PDF Bundle" merges every selected document into ONE PDF by
         // concatenating their HTML before a single DomPDF pass. A
@@ -183,93 +206,108 @@ class ExportController extends Controller
             ]);
         }
 
-        $files = match ($format) {
-            'PDF Bundle' => [$this->makeBundleFile($dir, $baseName, $documentNumbers, $startup)],
-            'Individual PDFs' => $this->makeIndividualFiles($dir, $baseName, $documentNumbers, $startup),
-            'ZIP Archive' => [$this->makeZipFile($dir, $baseName, $documentNumbers, $startup)],
+        return match ($format) {
+            'PDF Bundle' => $this->makeBundleFile($baseName, $documentNumbers, $startup),
+            'Individual PDFs' => $this->makeIndividualFile($documentNumbers[0], $startup),
+            'ZIP Archive' => $this->makeZipFile($baseName, $documentNumbers, $startup),
         };
-
-        return response()->json([
-            'export_batch' => $batch,
-            'startup_id' => $startup->startup_id,
-            'format' => $format,
-            'documents_included' => count($documentNumbers),
-            'documents_total' => count(self::DOCUMENTS),
-            'generated_at' => now()->toIso8601String(),
-            'files' => $files,
-        ]);
     }
 
     /**
-     * Catalogs already-generated file(s) into `saved_reports` so they show
-     * up under the Reports tab. The client echoes back exactly the file
-     * list it received from generate() — each entry is re-validated here
-     * (path must sit inside this startup's own batch folder, and the file
-     * must actually exist) before a row is written.
+     * "Save to Reports": stores only the RECIPE of each exported file -
+     * which startup, which documents, which format, and the file name the
+     * admin chose - never the file itself. Opening it from the Reports tab
+     * rebuilds the file on the spot (see download()), so nothing is kept
+     * in storage.
      */
     public function save(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'startup_id' => ['required', 'integer', 'exists:startups,startup_id'],
-            'export_batch' => ['required', 'uuid'],
-            'files' => ['required', 'array', 'min:1'],
-            'files.*.file_name' => ['required', 'string'],
-            'files.*.file_path' => ['required', 'string'],
+            'files' => ['required', 'array', 'min:1', 'max:13'],
+            'files.*.file_name' => ['required', 'string', 'max:200'],
             'files.*.format' => ['required', Rule::in(['PDF Bundle', 'ZIP Archive', 'Individual PDFs'])],
-            'files.*.document_numbers' => ['required', 'array'],
-            'files.*.document_numbers.*' => ['integer'],
-            'files.*.page_count' => ['nullable', 'integer'],
-            'files.*.file_size_bytes' => ['required', 'integer'],
+            'files.*.document_numbers' => ['required', 'array', 'min:1'],
+            'files.*.document_numbers.*' => ['integer', Rule::in(array_keys(self::DOCUMENTS))],
+            'files.*.file_size_bytes' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $startup = Startup::findOrFail($validated['startup_id']);
-        $expectedPrefix = "exports/{$startup->startup_id}/{$validated['export_batch']}/";
+        $batch = (string) \Illuminate\Support\Str::uuid();
 
-        $saved = [];
         foreach ($validated['files'] as $file) {
-            if (
-                ! str_starts_with($file['file_path'], $expectedPrefix)
-                || ! Storage::disk('public')->exists($file['file_path'])
-            ) {
-                continue;
-            }
-
-            $saved[] = SavedReport::create([
-                'startup_id' => $startup->startup_id,
-                'file_name' => $file['file_name'],
-                'file_path' => $file['file_path'],
-                'export_batch' => $validated['export_batch'],
+            SavedReport::create([
+                'startup_id' => $validated['startup_id'],
+                'file_name' => $this->sanitizeFileName($file['file_name']),
+                // No stored file any more - empty path marks a recipe-only
+                // report (rows from before this change still hold the old
+                // R2 path until `php artisan exports:purge-stored` clears it).
+                'file_path' => '',
+                'export_batch' => $batch,
                 'format' => $file['format'],
-                'document_numbers' => $file['document_numbers'],
-                'page_count' => $file['page_count'] ?? 0,
-                'file_size_bytes' => $file['file_size_bytes'],
+                'document_numbers' => array_values(array_unique(array_map('intval', $file['document_numbers']))),
+                'page_count' => 0,
+                // Size of the file when it was saved, shown in the Reports
+                // list; a regenerated copy may differ if the data changed.
+                'file_size_bytes' => $file['file_size_bytes'] ?? 0,
                 'generated_by' => $request->user()?->name,
             ]);
         }
 
-        return response()->json([
-            'saved_reports' => collect($saved)->map(fn(SavedReport $r) => [
-                'saved_report_id' => $r->saved_report_id,
-                'file_name' => $r->file_name,
-                'file_size_label' => $r->file_size_label,
-                'download_url' => route('admin.exports.download', $r),
-            ])->values(),
-        ]);
+        return response()->json(['saved' => count($validated['files'])]);
     }
 
-    public function download(SavedReport $savedReport)
+    /**
+     * Reports tab "Download File": rebuilds the saved report from its recipe
+     * with the startup's CURRENT data and sends it to the admin's device.
+     * Works for older saved reports too (their format + document list were
+     * always recorded), so their stored files can be purged safely.
+     */
+    public function download(SavedReport $savedReport): Response
     {
-        abort_unless(Storage::disk('public')->exists($savedReport->file_path), 404);
+        $startup = Startup::findOrFail($savedReport->startup_id);
+        $documentNumbers = collect($savedReport->document_numbers ?? [])
+            ->map(fn ($n) => (int) $n)
+            ->filter(fn ($n) => isset(self::DOCUMENTS[$n]))
+            ->unique()->sort()->values()->all();
 
-        return Storage::disk('public')->download($savedReport->file_path, $savedReport->file_name);
+        abort_if($documentNumbers === [], 404, 'This saved report has no documents to rebuild.');
+
+        $format = $savedReport->format;
+
+        // Individual reports are one file per document; a legacy row with
+        // several documents under "Individual" can only come back as a ZIP.
+        if ($format === 'Individual PDFs' && count($documentNumbers) > 1) {
+            $format = 'ZIP Archive';
+        }
+
+        // A bundle can no longer hold Word-backed documents (see generate()).
+        if ($format === 'PDF Bundle' && collect($documentNumbers)->contains(fn ($n) => $this->wordExporter->hasTemplate($n))) {
+            $format = 'ZIP Archive';
+        }
+
+        $savedBase = pathinfo($savedReport->file_name, PATHINFO_FILENAME) ?: 'Export';
+        $file = $this->buildFile($startup, $format, $documentNumbers, $this->sanitizeFileName($savedBase));
+
+        // Keep the name the admin chose, with whatever extension the
+        // rebuilt file actually has.
+        $file['file_name'] = $this->sanitizeFileName($savedBase).'.'.$file['extension'];
+
+        return $this->fileDownloadResponse($file);
     }
 
+    /**
+     * Removes a report from the Reports list. Recipe-only rows have no file;
+     * an older row's leftover stored file is deleted along with it.
+     */
     public function destroy(SavedReport $savedReport)
     {
-        Storage::disk('public')->delete($savedReport->file_path);
+        if ($savedReport->file_path !== '') {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($savedReport->file_path);
+        }
+
         $savedReport->delete();
 
-        return back()->with('status', 'Report file deleted.');
+        return back()->with('status', 'Report removed.');
     }
 
     /**
@@ -410,7 +448,7 @@ class ExportController extends Controller
     /**
      * @param  array<int, int>  $documentNumbers
      */
-    protected function makeBundleFile(string $dir, string $baseName, array $documentNumbers, Startup $startup): array
+    protected function makeBundleFile(string $baseName, array $documentNumbers, Startup $startup): array
     {
         // generate() already blocks "PDF Bundle" outright whenever any
         // selected document is Word-backed (it's a .docx now, not a PDF -
@@ -430,64 +468,39 @@ class ExportController extends Controller
         $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => $sections])->setPaper('legal');
         $binary = $pdf->output();
 
-        $fileName = "{$baseName}.pdf";
-        $path = "{$dir}/{$fileName}";
-        Storage::disk('public')->put($path, $binary);
+        return [
+            'file_name' => "{$baseName}.pdf",
+            'extension' => 'pdf',
+            'binary' => $binary,
+        ];
+    }
+
+    /**
+     * One selected document as its own file (.pdf, or .docx for documents
+     * rendered from a real Word master).
+     */
+    protected function makeIndividualFile(int $documentNumber, Startup $startup): array
+    {
+        $binary = $this->renderDocumentPdf($documentNumber, $startup);
+        $extension = $this->extensionFor($documentNumber);
+        $label = self::DOCUMENTS[$documentNumber]['label'];
 
         return [
-            'file_name' => $fileName,
-            'file_path' => $path,
-            'format' => 'PDF Bundle',
-            'document_numbers' => $documentNumbers,
-            'page_count' => $this->pageCount($binary),
-            'file_size_bytes' => strlen($binary),
-            'file_size_label' => $this->sizeLabel(strlen($binary)),
-            'download_url' => Storage::disk('public')->url($path),
+            'file_name' => $this->sanitizeFileName("{$startup->company_name} - {$label}") . ".{$extension}",
+            'extension' => $extension,
+            'binary' => $binary,
         ];
     }
 
     /**
      * @param  array<int, int>  $documentNumbers
      */
-    protected function makeIndividualFiles(string $dir, string $baseName, array $documentNumbers, Startup $startup): array
+    protected function makeZipFile(string $baseName, array $documentNumbers, Startup $startup): array
     {
-        $files = [];
-
-        foreach ($documentNumbers as $num) {
-            $binary = $this->renderDocumentPdf($num, $startup);
-            $extension = $this->extensionFor($num);
-
-            $label = self::DOCUMENTS[$num]['label'];
-            $fileName = $this->sanitizeFileName("{$startup->company_name} - {$label}") . ".{$extension}";
-            $path = "{$dir}/{$fileName}";
-            Storage::disk('public')->put($path, $binary);
-
-            $files[] = [
-                'file_name' => $fileName,
-                'file_path' => $path,
-                'format' => 'Individual PDFs',
-                'document_numbers' => [$num],
-                // pageCount() looks for PDF page objects in the bytes - not
-                // meaningful for a .docx, so it's skipped there rather than
-                // reporting a wrong number.
-                'page_count' => $extension === 'pdf' ? $this->pageCount($binary) : null,
-                'file_size_bytes' => strlen($binary),
-                'file_size_label' => $this->sizeLabel(strlen($binary)),
-                'download_url' => Storage::disk('public')->url($path),
-            ];
-        }
-
-        return $files;
-    }
-
-    /**
-     * @param  array<int, int>  $documentNumbers
-     */
-    protected function makeZipFile(string $dir, string $baseName, array $documentNumbers, Startup $startup): array
-    {
-        $fileName = "{$baseName}.zip";
-        $path = "{$dir}/{$fileName}";
-
+        // The archive is built on PHP's own local temp path and its bytes are
+        // read back and sent to the browser - nothing is kept on the server.
+        //
+        // (Historical note on why it's not built in public storage:)
         // ZipArchive::close() doesn't just write the file in place once
         // anything's been added — it stages the new archive contents in a
         // temp file right next to the target path and renames it over the
@@ -501,10 +514,7 @@ class ExportController extends Controller
         // share (Storage::put(), or WordDocumentExporter's own temp
         // .docx files, written and read back directly) works fine. Only
         // libzip's internal close-time rename trips on it. Building the
-        // archive on PHP's own local temp path sidesteps that entirely;
-        // the finished bytes are then handed to the Storage facade like
-        // every other export file already is, instead of trusting
-        // ZipArchive to have written straight into public storage itself.
+        // archive on PHP's own local temp path sidesteps that entirely.
         $localPath = sys_get_temp_dir() . '/' . uniqid('export-zip-', true) . '.zip';
 
         $zip = new ZipArchive();
@@ -514,11 +524,9 @@ class ExportController extends Controller
             throw new \RuntimeException("Could not create the ZIP archive (error code {$opened}).");
         }
 
-        $totalPages = 0;
         foreach ($documentNumbers as $num) {
             $binary = $this->renderDocumentPdf($num, $startup);
             $extension = $this->extensionFor($num);
-            $totalPages += $extension === 'pdf' ? ($this->pageCount($binary) ?? 0) : 0;
 
             $label = self::DOCUMENTS[$num]['label'];
             $individualFileName = $this->sanitizeFileName("{$startup->company_name} - {$label}") . ".{$extension}";
@@ -531,22 +539,41 @@ class ExportController extends Controller
         $binary = file_get_contents($localPath);
         @unlink($localPath);
 
-        Storage::disk('public')->put($path, $binary);
-        $size = strlen($binary);
-
         return [
-            'file_name' => $fileName,
-            'file_path' => $path,
-            'format' => 'ZIP Archive',
-            'document_numbers' => $documentNumbers,
-            'page_count' => $totalPages ?: null,
-            'file_size_bytes' => $size,
-            'file_size_label' => $this->sizeLabel($size),
-            'download_url' => Storage::disk('public')->url($path),
+            'file_name' => "{$baseName}.zip",
+            'extension' => 'zip',
+            'binary' => $binary,
         ];
     }
 
     // ============ helpers ============
+
+    /**
+     * The generated file as an attachment download. X-Export-File-Name
+     * (URL-encoded) lets the export modal read the suggested name without
+     * parsing Content-Disposition; no-store keeps browsers/proxies from
+     * caching what may be a founder's private documents.
+     *
+     * @param  array{file_name: string, extension: string, binary: string}  $file
+     */
+    protected function fileDownloadResponse(array $file): Response
+    {
+        $mimeTypes = [
+            'pdf' => 'application/pdf',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'zip' => 'application/zip',
+        ];
+
+        $asciiFallback = preg_replace('/[^\x20-\x7E]|[\/\\\\%"]/', '_', $file['file_name']) ?: 'export';
+
+        return response($file['binary'], 200, [
+            'Content-Type' => $mimeTypes[$file['extension']] ?? 'application/octet-stream',
+            'Content-Length' => (string) strlen($file['binary']),
+            'Content-Disposition' => HeaderUtils::makeDisposition('attachment', $file['file_name'], $asciiFallback),
+            'X-Export-File-Name' => rawurlencode($file['file_name']),
+            'Cache-Control' => 'no-store, private',
+        ]);
+    }
 
     /**
      * Counts pages by counting "/Type /Page" object dictionaries in the

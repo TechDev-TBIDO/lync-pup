@@ -9,8 +9,43 @@
     of every startup that has ever saved an export, one row each, with a
     pill per document type showing whether it's included in that startup's
     saved reports — mirrors the Overview tab's pill styling.
+
+    No files are stored: each row is the RECIPE of an export (documents,
+    format, name). "Download File" asks the server to rebuild it right now
+    from the startup's current data (ExportController::download()) and
+    saves it to the admin's device.
 --}}
-<div x-data="{ confirmingId: null }">
+<div x-data="{
+    confirmingId: null,
+    preparingId: null,
+    downloadError: null,
+    async rebuild(id, url) {
+        if (this.preparingId) return;
+        this.preparingId = id;
+        this.downloadError = null;
+        try {
+            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (! response.ok) {
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.message || 'Could not rebuild this report. Please try again.');
+            }
+            const blob = await response.blob();
+            const encodedName = response.headers.get('X-Export-File-Name');
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = encodedName ? decodeURIComponent(encodedName) : 'report';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+        } catch (e) {
+            this.downloadError = e.message;
+        } finally {
+            this.preparingId = null;
+        }
+    },
+}">
+    <p x-show="downloadError" x-text="downloadError" x-cloak class="mb-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700"></p>
     @unless ($selectedStartup)
     {{-- ============ All Startup: saved-reports summary ============ --}}
     <div class="mb-4 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-3">
@@ -94,7 +129,7 @@
                     <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-left text-white">
                         <th class="px-4 py-3 font-semibold">File Name</th>
                         <th class="px-4 py-3 text-center font-semibold">Format</th>
-                        <th class="px-4 py-3 text-center font-semibold">Size</th>
+                        <th class="px-4 py-3 text-center font-semibold" title="Size when it was saved; a rebuilt copy reflects the latest data">Size</th>
                         <th class="px-4 py-3 text-center font-semibold">Generated</th>
                         <th class="px-4 py-3 text-center font-semibold">Actions</th>
                     </tr>
@@ -114,8 +149,14 @@
                         <td class="px-4 py-3 text-center text-gray-600">{{ $report->created_at->format('M d, Y g:i A') }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-3">
-                                <a href="{{ route('admin.exports.download', $report) }}" data-no-loader
-                                    class="text-xs font-semibold text-rose-900 hover:underline">Download File</a>
+                                <button type="button"
+                                    @click="rebuild({{ $report->saved_report_id }}, @js(route('admin.exports.download', $report)))"
+                                    :disabled="preparingId !== null"
+                                    title="Rebuilt with the startup's latest data"
+                                    class="text-xs font-semibold text-rose-900 hover:underline disabled:cursor-wait disabled:opacity-60">
+                                    <span x-show="preparingId !== {{ $report->saved_report_id }}">Download File</span>
+                                    <span x-show="preparingId === {{ $report->saved_report_id }}" x-cloak>Preparing&hellip;</span>
+                                </button>
 
                                 <button type="button" @click="confirmingId = {{ $report->saved_report_id }}"
                                     class="text-gray-400 transition hover:text-red-600" aria-label="Delete report">
@@ -139,12 +180,12 @@
                                             </button>
 
                                             <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-xl font-bold text-transparent">
-                                                Delete Report File
+                                                Remove Report
                                             </h3>
 
                                             <p class="mt-2 text-sm text-gray-600">
-                                                Are you sure you want to delete this file? This action is permanent
-                                                and cannot be undone.
+                                                Remove this report from the list? This can't be undone, but you
+                                                can always export the documents again.
                                             </p>
 
                                             <div class="mt-6 grid grid-cols-2 gap-4">
