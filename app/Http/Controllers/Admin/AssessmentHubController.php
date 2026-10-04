@@ -334,7 +334,15 @@ class AssessmentHubController extends Controller
         // in the app stays in agreement.
         $pillDefinitions = ReadinessRubric::PILL_DEFINITIONS;
 
-        $assessmentsByStartup = ReadinessLevelAssessment::whereIn('startup_id', $assessableStartups->pluck('startup_id'))
+        // Performance: with a startup selected, the Overview table and the
+        // pill summary below only ever read that one startup's rows, so
+        // only its rows are fetched (the documents carry large JSON blobs)
+        // instead of every assessable startup's.
+        $overviewStartupIds = $selectedStartup
+            ? [$selectedStartup->startup_id]
+            : $assessableStartups->pluck('startup_id');
+
+        $assessmentsByStartup = ReadinessLevelAssessment::whereIn('startup_id', $overviewStartupIds)
             ->get()
             ->groupBy('startup_id');
 
@@ -342,7 +350,7 @@ class AssessmentHubController extends Controller
         // created under Active-Assessment and document 13 (the Startup
         // Exit Form) only under Venture Exit, so document numbers never
         // collide across stages.
-        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $assessableStartups->pluck('startup_id'))
+        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $overviewStartupIds)
             ->get()
             ->groupBy('startup_id');
 
