@@ -4,7 +4,8 @@
 
     Shown automatically on any normal navigation: a same-site link click or a
     form submit. It waits 150ms before appearing so fast pages don't flash it.
-    Skipped for: links opening a new tab, download links, in-page "#" links,
+    It stays visible until the next page has actually loaded, however slow
+    the server is. Skipped for: links opening a new tab, download links, in-page "#" links,
     clicks already handled by Alpine (e.g. the unsaved-changes guard calls
     preventDefault), and anything marked data-no-loader.
 
@@ -113,12 +114,12 @@
             showTimer = setTimeout(function () {
                 loader.classList.add('is-visible');
                 loader.setAttribute('aria-hidden', 'false');
-                // Safety net: if the navigation never happens (e.g. the
-                // browser's own "Leave site?" prompt was cancelled, or the
-                // response turned out to be a file download), don't leave
-                // the screen covered forever.
+                // Stays up until the next page actually replaces this one —
+                // however long the server takes. Only a very long last-resort
+                // timeout remains (the server itself gives up long before
+                // this), so the screen can never be covered forever.
                 clearTimeout(safetyTimer);
-                safetyTimer = setTimeout(hide, 20000);
+                safetyTimer = setTimeout(hide, 180000);
             }, 150);
         }
 
@@ -166,8 +167,18 @@
             show();
         });
 
-        // Coming back via Back/Forward (bfcache), or the tab regaining the
-        // page after a cancelled navigation: make sure it's not left showing.
+        // If the browser is about to ask "Leave site? Changes you made may
+        // not be saved", the user might choose to stay — so don't cover the
+        // page. (Same flag the admin/founder layouts' own guard checks.)
+        window.addEventListener('beforeunload', function () {
+            try {
+                if (window.Alpine && window.Alpine.store('navigation') && window.Alpine.store('navigation').hasUnsavedChanges) {
+                    hide();
+                }
+            } catch (e) {}
+        });
+
+        // Coming back via Back/Forward (bfcache): make sure it's not left showing.
         window.addEventListener('pageshow', hide);
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') hide();

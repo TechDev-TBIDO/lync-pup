@@ -15,6 +15,8 @@ use App\Support\ReadinessRubric;
 use App\Support\RiskEngine;
 use App\Support\VentureExitForm;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -60,6 +62,24 @@ class DashboardController extends Controller
         'Not Ready' => '#FF2525',
         'Critically Unready' => '#9CA3AF', // same gray as RiskEngine::LEVEL_COLORS['None'] so both dashboard donuts share one gray
     ];
+
+    /**
+     * Per-request memo for the RiskEngine pass — both the "At Risk" stat
+     * card and the Risk Classification donut need it, and it's the single
+     * heaviest thing on this page (every approved startup + its roadblocks,
+     * assessments and documents), so it's computed once, not twice.
+     *
+     * @var array{key: string, startups: Collection, assessments: Collection}|null
+     */
+    protected ?array $riskMemo = null;
+
+    /**
+     * How long the dashboard's computed cards are reused (seconds). Each
+     * card costs a dozen-plus Supabase round trips to build; within this
+     * window every admin's reload/tab switch reuses the same numbers, so a
+     * change made elsewhere in the app can take up to this long to show here.
+     */
+    protected const CACHE_SECONDS = 60;
 
     public function index(Request $request): View
     {
@@ -107,6 +127,25 @@ class DashboardController extends Controller
             ->where('approval_status', 'Approved')
             ->pluck('startup_id');
 
+        // Performance: the four heavy cards are identical for every admin
+        // looking at the same cohort, so they're built once and reused for
+        // CACHE_SECONDS. The key includes the exact startup pool (so a new
+        // verified/approved startup gets a fresh build immediately) and the
+        // host (the cards contain absolute links).
+        $cardsCacheKey = 'admin-dashboard-cards:v1:'.md5(json_encode([
+            $request->getHost(),
+            $selectedCohort?->cohort_id,
+            $startupIds->values()->all(),
+            $approvedStartupIds->values()->all(),
+        ]));
+
+        $cards = Cache::remember($cardsCacheKey, self::CACHE_SECONDS, fn () => [
+            'stats' => $this->buildStatCards($startupIds, $totalStartups, $approvedStartupIds),
+            'incubationProgress' => $this->buildIncubationProgress($startupIds),
+            'riskClassification' => $this->buildRiskClassification($approvedStartupIds),
+            'milestones' => $this->buildMilestoneCompletion($startupIds, $totalStartups, $approvedStartupIds),
+        ]);
+
         return view('dashboard', [
             // 'cohorts'/'selectedCohort' no longer passed to the view — the
             // cohort selector + manage menu now lives in the sidebar (see
@@ -125,11 +164,8 @@ class DashboardController extends Controller
                 ->newestFirst()
                 ->get(),
             'totalStartups' => $totalStartups,
-            'stats' => $this->buildStatCards($startupIds, $totalStartups, $approvedStartupIds),
-            'incubationProgress' => $this->buildIncubationProgress($startupIds),
-            'riskClassification' => $this->buildRiskClassification($approvedStartupIds),
+            ...$cards,
             'averageReadiness' => $this->buildAverageReadiness($approvedStartupIds, $readinessStage),
-            'milestones' => $this->buildMilestoneCompletion($startupIds, $totalStartups, $approvedStartupIds),
             'updates' => $this->updates(),
         ]);
     }
@@ -207,14 +243,9 @@ class DashboardController extends Controller
         // same population RiskMonitoringController now uses.
         $approvedCount = count($approvedStartupIds);
 
-        $startupsForRisk = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
-            ->whereIn('startup_id', $approvedStartupIds)
-            ->get();
-        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $approvedStartupIds)
-            ->get()->groupBy('startup_id');
-        $atRiskCount = $startupsForRisk->filter(
-            fn (Startup $s) => RiskEngine::assess($s, $documentsByStartup->get($s->startup_id))['score'] > 0
-        )->count();
+        $atRiskCount = $this->riskAssessments($approvedStartupIds)['assessments']
+            ->filter(fn (array $assessment) => $assessment['score'] > 0)
+            ->count();
         // Percentage is against the approved startup pool, not the assessed
         // pool — RiskEngine flags risk independently of assessment stage
         // (via info sheet, coordinator assignment, roadblocks, etc.), so an
@@ -276,14 +307,54 @@ class DashboardController extends Controller
      */
     protected function weeklyCounts($query, string $dateColumn, int $weeks = 6): array
     {
-        $counts = [];
+        // One query for the whole window instead of one per week: fetch the
+        // dates once, then bucket them into weeks here. Same week boundaries
+        // as before (startOfWeek..endOfWeek), so the numbers don't change.
+        $ranges = [];
         for ($i = $weeks - 1; $i >= 0; $i--) {
-            $weekStart = now()->subWeeks($i)->startOfWeek();
-            $weekEnd = now()->subWeeks($i)->endOfWeek();
-            $counts[] = (clone $query)->whereBetween($dateColumn, [$weekStart, $weekEnd])->count();
+            $ranges[] = [now()->subWeeks($i)->startOfWeek(), now()->subWeeks($i)->endOfWeek()];
         }
 
-        return $counts;
+        $dates = (clone $query)
+            ->whereBetween($dateColumn, [$ranges[0][0], $ranges[count($ranges) - 1][1]])
+            ->pluck($dateColumn)
+            ->filter()
+            ->map(fn ($value) => \Illuminate\Support\Carbon::parse($value));
+
+        return array_map(
+            fn (array $range) => $dates->filter(fn ($date) => $date->between($range[0], $range[1]))->count(),
+            $ranges
+        );
+    }
+
+    /**
+     * RiskEngine assessment for every approved startup, computed once per
+     * request (see $riskMemo).
+     *
+     * @return array{startups: Collection, assessments: Collection}
+     */
+    protected function riskAssessments($approvedStartupIds): array
+    {
+        $key = md5(json_encode(collect($approvedStartupIds)->values()->all()));
+
+        if ($this->riskMemo === null || $this->riskMemo['key'] !== $key) {
+            $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
+                ->whereIn('startup_id', $approvedStartupIds)
+                ->get();
+
+            $documentsByStartup = AssessmentDocument::whereIn('startup_id', $approvedStartupIds)
+                ->get()->groupBy('startup_id');
+
+            $this->riskMemo = [
+                'key' => $key,
+                'startups' => $startups,
+                'assessments' => $startups->mapWithKeys(fn (Startup $s) => [
+                    $s->startup_id => RiskEngine::assess($s, $documentsByStartup->get($s->startup_id)),
+                ]),
+            ];
+        }
+
+        return ['startups' => $this->riskMemo['startups'], 'assessments' => $this->riskMemo['assessments']];
     }
 
     /**
@@ -526,16 +597,7 @@ class DashboardController extends Controller
      */
     protected function buildRiskClassification($approvedStartupIds): array
     {
-        $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
-            ->whereIn('startup_id', $approvedStartupIds)
-            ->get();
-
-        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $approvedStartupIds)
-            ->get()->groupBy('startup_id');
-
-        $assessments = $startups->mapWithKeys(fn (Startup $s) => [
-            $s->startup_id => RiskEngine::assess($s, $documentsByStartup->get($s->startup_id)),
-        ]);
+        ['startups' => $startups, 'assessments' => $assessments] = $this->riskAssessments($approvedStartupIds);
 
         $total = $startups->count();
         // Ascending severity order (None first, Critical last) and "X Risk"

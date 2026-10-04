@@ -97,6 +97,15 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Performance: keep each PHP worker's connection to Supabase open
+            // between requests instead of paying a fresh TCP + TLS + auth
+            // handshake (often 100ms+) on every page load. Works with the
+            // Supabase session pooler (port 5432). If Supabase ever reports
+            // "max clients reached", set DB_PERSISTENT=false in Azure to turn
+            // this off without a code change.
+            'options' => extension_loaded('pdo_pgsql') ? [
+                PDO::ATTR_PERSISTENT => (bool) env('DB_PERSISTENT', true),
+            ] : [],
         ],
 
         'sqlsrv' => [

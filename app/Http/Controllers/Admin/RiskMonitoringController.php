@@ -33,22 +33,29 @@ class RiskMonitoringController extends Controller
         // in Risk Monitoring at all -- not just scored 0, excluded outright,
         // the same population RiskEngine::assess() itself now assumes (see
         // its $isApproved guard on the assessment-overdue indicators).
-        $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
+        // Performance: every approved startup is loaded and assessed exactly
+        // ONCE. The cohort view below is just a filter over that, and the
+        // sidebar-badge signature further down reuses the same full pass —
+        // previously a selected cohort meant loading and assessing
+        // everything a second time.
+        $allStartups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
             ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
-            ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
             ->get();
 
-        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $startups->pluck('startup_id'))
+        $allDocuments = AssessmentDocument::whereIn('startup_id', $allStartups->pluck('startup_id'))
             ->get()
             ->groupBy('startup_id');
 
-        // Assess every startup once; the result is reused for the donut
-        // chart, the category breakdown table, and the risk indicator table.
-        $assessments = $startups->mapWithKeys(fn (Startup $startup) => [
-            $startup->startup_id => RiskEngine::assess($startup, $documentsByStartup->get($startup->startup_id)),
+        $allAssessments = $allStartups->mapWithKeys(fn (Startup $startup) => [
+            $startup->startup_id => RiskEngine::assess($startup, $allDocuments->get($startup->startup_id)),
         ]);
 
-        // Risk Register: how many startups fall into each overall risk level.
+        $startups = $cohortNumber
+            ? $allStartups->filter(fn (Startup $startup) => (string) $startup->cohort_number === (string) $cohortNumber)->values()
+            : $allStartups;
+
+        $assessments = $allAssessments->only($startups->pluck('startup_id')->all());
+
         $levelCounts = collect(['Critical', 'High', 'Moderate', 'Low', 'None'])
             ->mapWithKeys(fn ($level) => [
                 $level => $assessments->filter(fn ($a) => $a['level'] === $level)->count(),
@@ -95,18 +102,6 @@ class RiskMonitoringController extends Controller
         // active. Reuses the assessments already computed above when no
         // filter is applied (the common case); only re-assesses the full
         // startup set when $cohortId narrowed $startups.
-        $allAssessments = $cohortId
-            ? (function () {
-                $allStartups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
-                    ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
-                    ->get();
-                $allDocuments = AssessmentDocument::whereIn('startup_id', $allStartups->pluck('startup_id'))->get()->groupBy('startup_id');
-
-                return $allStartups->mapWithKeys(fn (Startup $s) => [
-                    $s->startup_id => RiskEngine::assess($s, $allDocuments->get($s->startup_id)),
-                ]);
-            })()
-            : $assessments;
 
         // Which startups are at Moderate risk or higher right now — the
         // sidebar dot lights whenever that set changes (a startup newly hits
