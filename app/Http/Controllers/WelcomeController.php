@@ -8,6 +8,7 @@ use App\Models\Startup;
 use App\Support\ReadinessRubric;
 use App\Support\VentureExitForm;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class WelcomeController extends Controller
@@ -19,6 +20,24 @@ class WelcomeController extends Controller
      * logged-in founder/admin away from it.
      */
     public function index(): View
+    {
+        // Performance: this is the PUBLIC landing page — anyone (and any
+        // search-engine bot) can hit it, and building it loads every
+        // accepted startup with its cohort, team, assessments and documents.
+        // On a shared server that was one of the heaviest requests in the
+        // app, so the finished data is built once and reused for 5 minutes.
+        // A newly approved startup / score change shows up within 5 minutes.
+        $data = Cache::remember('welcome-page:v1:'.request()->getHost(), 300, fn () => $this->buildPageData());
+
+        return view('welcome', $data);
+    }
+
+    /**
+     * Everything the landing page shows (see index() for caching).
+     *
+     * @return array{stats: array, cohortShowcase: Collection}
+     */
+    protected function buildPageData(): array
     {
         // Only startups the program has actually accepted are shown
         // publicly — Onboarding/Pending/Rejected applicants stay internal.
@@ -86,10 +105,10 @@ class WelcomeController extends Controller
                 ->values(),
         ])->filter(fn ($group) => $group['startups']->isNotEmpty())->values();
 
-        return view('welcome', [
+        return [
             'stats' => $stats,
             'cohortShowcase' => $cohortShowcase,
-        ]);
+        ];
     }
 
     /**
