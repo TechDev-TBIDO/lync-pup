@@ -53,7 +53,7 @@ $exportDocuments = [
         error: null,
         savingToReports: false,
         savedToReports: false,
-        // Which file (by file_path) is currently in its 'actively renaming'
+        // Which file (by key) is currently in its 'actively renaming'
         // state — null means every file shows its plain name + pencil
         // button. Only one file can be mid-rename at a time.
         editingFile: null,
@@ -124,7 +124,7 @@ $exportDocuments = [
             this.availableDocs = [];
             this.format = 'Individual PDFs';
             this.fileName = '';
-            this.result = null;
+            this.revokeFiles();
             this.error = null;
             this.savingToReports = false;
             this.savedToReports = false;
@@ -134,6 +134,8 @@ $exportDocuments = [
 
         closeModal() {
             this.open = false;
+            // Free the in-browser copies once any download has had time to start.
+            setTimeout(() => { if (! this.open) this.revokeFiles(); }, 1500);
         },
 
         // Fetches which of the 13 documents actually have data yet for this
@@ -210,40 +212,40 @@ $exportDocuments = [
             file.file_name = (trimmed || 'Untitled') + this.fileExtension(file);
         },
 
+        // Exports are never stored on the server (per the client): each
+        // request returns the finished file itself, which is kept only in
+        // this browser tab (as a blob URL) until the admin downloads it to
+        // their device. ZIP = one request for every selected document;
+        // Individual = one request per document, so the server only ever
+        // builds one file at a time.
         async generate() {
             this.step = 'generating';
             this.progress = 0;
             this.error = null;
+            this.savingToReports = false;
+            this.savedToReports = false;
+            this.revokeFiles();
 
             const timer = setInterval(() => {
                 if (this.progress < 90) this.progress += Math.ceil(Math.random() * 12);
             }, 200);
 
-            try {
-                const response = await fetch('{{ route('admin.exports.generate') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': this.csrfToken(),
-                    },
-                    body: JSON.stringify({
-                        startup_id: this.startupId,
-                        document_numbers: this.selectedDocs,
-                        format: this.format,
-                        file_name: this.fileName,
-                    }),
-                });
+            const files = [];
 
-                if (!response.ok) {
-                    const body = await response.json().catch(() => ({}));
-                    throw new Error(body.message || 'Export failed. Please try again.');
+            try {
+                const batches = this.format === 'ZIP Archive'
+                    ? [[...this.selectedDocs]]
+                    : [...this.selectedDocs].sort((a, b) => a - b).map(n => [n]);
+
+                for (let i = 0; i < batches.length; i++) {
+                    files.push(await this.requestFile(batches[i], i));
                 }
 
-                this.result = await response.json();
+                this.result = { files };
                 this.progress = 100;
                 setTimeout(() => { this.step = 'completed'; }, 250);
             } catch (e) {
+                files.forEach(f => URL.revokeObjectURL(f.url));
                 this.error = e.message || 'Something went wrong generating the export.';
                 this.step = 'select';
             } finally {
@@ -251,8 +253,49 @@ $exportDocuments = [
             }
         },
 
+        async requestFile(documentNumbers, index) {
+            const response = await fetch('{{ route('admin.exports.generate') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // JSON only matters for errors (validation messages);
+                    // a successful response is the file itself.
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': this.csrfToken(),
+                },
+                body: JSON.stringify({
+                    startup_id: this.startupId,
+                    document_numbers: documentNumbers,
+                    format: this.format,
+                    file_name: this.fileName,
+                }),
+            });
+
+            if (! response.ok) {
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.message || 'Export failed. Please try again.');
+            }
+
+            const blob = await response.blob();
+            const encodedName = response.headers.get('X-Export-File-Name');
+            const fileName = encodedName ? decodeURIComponent(encodedName) : `Export ${index + 1}`;
+
+            return {
+                key: `${index}-${fileName}`,
+                file_name: fileName,
+                file_size_label: this.sizeLabel(blob.size),
+                file_size_bytes: blob.size,
+                format: this.format,
+                document_numbers: documentNumbers,
+                url: URL.createObjectURL(blob),
+            };
+        },
+
+        // Saves only each file's recipe (startup, documents, format, name) -
+        // the Reports tab rebuilds the file from it on demand, so no file is
+        // ever stored on the server.
         async saveToReports() {
-            if (!this.result || this.savingToReports || this.savedToReports) return;
+            if (! this.result || this.savingToReports || this.savedToReports) return;
             this.savingToReports = true;
             this.error = null;
 
@@ -266,12 +309,16 @@ $exportDocuments = [
                     },
                     body: JSON.stringify({
                         startup_id: this.startupId,
-                        export_batch: this.result.export_batch,
-                        files: this.result.files,
+                        files: this.result.files.map(f => ({
+                            file_name: f.file_name,
+                            format: f.format,
+                            document_numbers: f.document_numbers,
+                            file_size_bytes: f.file_size_bytes,
+                        })),
                     }),
                 });
 
-                if (!response.ok) throw new Error('Could not save to Reports.');
+                if (! response.ok) throw new Error('Could not save to Reports.');
 
                 this.savedToReports = true;
             } catch (e) {
@@ -281,16 +328,23 @@ $exportDocuments = [
             }
         },
 
-        // A plain window.open() just displays a PDF inline in a new tab
-        // (browsers preview PDFs rather than saving them), and calling it
-        // repeatedly in a loop gets every call after the first blocked as a
-        // popup since only the very first one is still tied to the click
-        // that triggered downloadAll(). A programmatic <a download> click
-        // avoids both problems: it forces an actual file save instead of a
-        // preview, and isn't treated as a popup at all.
+        sizeLabel(bytes) {
+            return bytes >= 1024 * 1024
+                ? (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+                : (Math.max(bytes, 1) / 1024).toFixed(1) + ' KB';
+        },
+
+        revokeFiles() {
+            (this.result?.files ?? []).forEach(f => URL.revokeObjectURL(f.url));
+            this.result = null;
+        },
+
+        // A programmatic <a download> click saves the in-browser copy to the
+        // admin's device under its (possibly renamed) name - no second trip
+        // to the server. Not treated as a popup, so Download All works too.
         downloadOne(file) {
             const link = document.createElement('a');
-            link.href = file.download_url;
+            link.href = file.url;
             link.download = file.file_name;
             document.body.appendChild(link);
             link.click();
@@ -510,16 +564,16 @@ $exportDocuments = [
                         </div>
 
                         <div class="mb-4 max-h-56 space-y-2 overflow-y-auto">
-                            <template x-for="file in result.files" :key="file.file_path">
+                            <template x-for="file in result.files" :key="file.key">
                                 <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 text-sm">
                                     <div class="min-w-0 flex-1">
                                         {{-- View state: plain name + a pencil button that switches this
                                              one file into its editing state below. --}}
-                                        <template x-if="editingFile !== file.file_path">
+                                        <template x-if="editingFile !== file.key">
                                             <div class="flex items-center gap-1.5">
                                                 <span class="truncate font-semibold text-gray-800" x-text="fileBaseName(file)"></span>
                                                 <span class="shrink-0 text-gray-500" x-text="fileExtension(file)"></span>
-                                                <button type="button" @click="editingFile = file.file_path"
+                                                <button type="button" @click="editingFile = file.key"
                                                     aria-label="Rename file"
                                                     class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-gray-100 hover:text-gray-600">
                                                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -532,7 +586,7 @@ $exportDocuments = [
                                         {{-- Editing state: a focused, bordered input plus a checkmark
                                              button that just steps back to the view state above — the
                                              name is already live-saved via @input as it's typed. --}}
-                                        <template x-if="editingFile === file.file_path">
+                                        <template x-if="editingFile === file.key">
                                             {{-- One bordered box holds all three pieces (name input,
                                                  extension, checkmark) so the red outline wraps the whole
                                                  group, not just the text input. --}}
@@ -586,6 +640,7 @@ $exportDocuments = [
                                 <span x-show="savingToReports">Saving&hellip;</span>
                                 <span x-show="savedToReports">&check; Saved to Reports</span>
                             </button>
+
                         </div>
                     </section>
                 </div>

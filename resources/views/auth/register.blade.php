@@ -46,7 +46,7 @@
 
             <div class="flex justify-center mb-4">
                 <div class="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center">
-                    <img src="/images/login-signup/lync-logo.png" alt="LYNC PUP" class="w-9 h-9 object-contain">
+                    <img src="/images/login-signup/lync-logo-sm.webp" alt="LYNC PUP" class="w-9 h-9 object-contain">
                 </div>
             </div>
 

@@ -5,7 +5,7 @@
 
 <nav class="lph-nav lph-abs lph-layer-nav" style="--x:0;--y:0" aria-label="Main">
     <a class="lph-brand lph-abs" style="--x:118;--y:44" href="{{ route('welcome') }}">
-        <span class="lph-brand-box"><img src="{{ asset('images/login-signup/lync-logo.png') }}" alt=""></span>
+        <span class="lph-brand-box"><img src="{{ asset('images/login-signup/lync-logo-sm.webp') }}" alt=""></span>
         <span class="lph-brand-word">LYNC</span>
     </a>
 

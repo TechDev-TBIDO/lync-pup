@@ -37,7 +37,7 @@ class StoreTeamMemberRequest extends FormRequest
             'designation' => $this->rowDesignation(100),
             'phone' => $this->rowPhone(),
             'address' => $this->rowAddress(255),
-            'date_of_birth' => ['required', 'date', 'after:1900-01-01'],
+            'date_of_birth' => ['required', 'date', 'after:1900-01-01', 'before_or_equal:9999-12-31'],
             // Laravel's own 'email' rule is deliberately permissive about
             // RFC-legal-but-unusual addresses (no TLD, quoted local parts,
             // IP-literal domains...). The regex on top pins it down to the
@@ -65,6 +65,7 @@ class StoreTeamMemberRequest extends FormRequest
             'address.regex' => 'Please enter a valid address.',
             'address.min' => 'Please enter the complete address.',
             'date_of_birth.required' => 'Select a date of birth.',
+            'date_of_birth.before_or_equal' => 'The year must be 4 digits.',
             'email.required' => 'Please enter an email address.',
             'email.email' => 'Please enter a valid email, e.g. name@email.com.',
             'email.regex' => 'Please enter a valid email, e.g. name@email.com.',

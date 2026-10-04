@@ -55,7 +55,7 @@
         {{-- Left panel --}}
         <div class="hidden lg:flex lg:w-1/2 relative bg-[#5c0f1e] text-white flex-col justify-between
             p-6 xl:p-10 2xl:p-12 overflow-hidden bg-cover bg-center h-full"
-            style="background-image: linear-gradient(rgba(60,10,20,0.20), rgba(60,10,20,0.45)), url('/images/login-signup/login-signup-bg.png'); background-position: center bottom;">
+            style="background-image: linear-gradient(rgba(60,10,20,0.20), rgba(60,10,20,0.45)), url('/images/login-signup/login-signup-bg.webp'); background-position: center bottom;">
 
             <a href="{{ url('/') }}" class="text-white/80 hover:text-white w-fit -mt-3 xl:-mt-5 2xl:-mt-6">
                 <svg class="w-5 h-5 xl:w-6 xl:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +66,7 @@
             <div class="overflow-y-auto">
                 <div class="flex items-center gap-3 mb-6 xl:mb-8 2xl:mb-10">
                     <div class="w-11 h-11 xl:w-12 xl:h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                        <img src="/images/login-signup/lync-logo.png" alt="LYNC PUP" class="w-7 h-7 xl:w-8 xl:h-8 object-contain">
+                        <img src="/images/login-signup/lync-logo-sm.webp" alt="LYNC PUP" class="w-7 h-7 xl:w-8 xl:h-8 object-contain">
                     </div>
                     <div>
                         <p class="font-bold tracking-wide leading-tight text-sm xl:text-base">LYNC PUP</p>
@@ -120,7 +120,7 @@
 
                 <div class="flex justify-center mb-4">
                     <div class="w-14 h-14 xl:w-16 xl:h-16 rounded-full bg-rose-50 flex items-center justify-center">
-                        <img src="/images/login-signup/lync-logo.png" alt="LYNC PUP" class="w-8 h-8 xl:w-9 xl:h-9 object-contain">
+                        <img src="/images/login-signup/lync-logo-sm.webp" alt="LYNC PUP" class="w-8 h-8 xl:w-9 xl:h-9 object-contain">
                     </div>
                 </div>
 
