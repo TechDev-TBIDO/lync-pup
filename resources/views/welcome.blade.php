@@ -143,7 +143,7 @@
         .lp-carousel { position: relative; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); overflow-x: auto; overflow-y: hidden;
             scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 1.5rem 0 2.25rem; }
         .lp-carousel::-webkit-scrollbar { display: none; }
-        .lp-track { display: flex; width: max-content; align-items: center; gap: clamp(1rem, 2.4vw, 2.5rem);
+        .lp-track { display: flex; width: max-content; align-items: center; gap: clamp(0.5rem, 1vw, 1rem);
             padding-left: calc(50vw - var(--slide-w) / 2); padding-right: calc(50vw - var(--slide-w) / 2); }
         .lp-carousel { --slide-w: clamp(13.5rem, 62vw, 19rem); }
         @media (min-width: 768px) { .lp-carousel { --slide-w: clamp(16rem, 24vw, 21rem); } }
@@ -941,13 +941,22 @@
                         slides.forEach(function (s) { s.style.transform = ''; s.style.opacity = ''; s.style.zIndex = ''; });
                         return;
                     }
-                    const mid = el.getBoundingClientRect().left + el.clientWidth / 2;
+                    // 3D "cover flow" depth: the centre card is in front; the others turn to face
+                    // it and sit further back the further out they are. Uses layout positions (not
+                    // the transformed boxes) so the effect never feeds back into itself.
+                    const mid = el.clientWidth / 2;
                     slides.forEach(function (s) {
-                        const b = s.getBoundingClientRect();
-                        const d = Math.min(Math.abs(b.left + b.width / 2 - mid) / (b.width * 1.15), 1); // 0 centre -> 1 neighbour+
-                        s.style.transform = 'translateY(' + (d * 26).toFixed(1) + 'px) scale(' + (1 - d * 0.3).toFixed(3) + ')';
-                        s.style.opacity = (1 - d * 0.5).toFixed(3);
-                        s.style.zIndex = String(100 - Math.round(d * 50));
+                        const w = s.offsetWidth;
+                        const sd = Math.max(-2.2, Math.min(2.2, (s.offsetLeft - el.scrollLeft + w / 2 - mid) / (w * 1.1)));
+                        const a = Math.abs(sd), d = Math.min(a, 1);
+                        s.style.transform = 'perspective(1100px)'
+                            + ' translateX(' + (-sd * w * 0.1).toFixed(1) + 'px)'
+                            + ' translateY(' + (d * 18).toFixed(1) + 'px)'
+                            + ' translateZ(' + (-a * 90).toFixed(1) + 'px)'
+                            + ' rotateY(' + (sd * 22).toFixed(2) + 'deg)'
+                            + ' scale(' + (1 - d * 0.06).toFixed(3) + ')';
+                        s.style.opacity = (1 - Math.min(a, 2) * 0.25).toFixed(3);
+                        s.style.zIndex = String(100 - Math.round(a * 20));
                     });
                 }
 
