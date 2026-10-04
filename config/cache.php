@@ -131,6 +131,18 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    // Only the classes our own caches actually store are allowed back in:
+    // the Admin Dashboard cards (Collections) and the public landing page
+    // (Collections + Cohort models, see WelcomeController). With `false`,
+    // these came back as __PHP_Incomplete_Class on the second (cached) load
+    // and broke the page ("Cannot access offset of type string on string").
+    'serializable_classes' => [
+        \Illuminate\Support\Collection::class,
+        \Illuminate\Database\Eloquent\Collection::class,
+        \Illuminate\Support\Carbon::class,
+        \Carbon\Carbon::class,
+        \Carbon\CarbonImmutable::class,
+        \App\Models\Cohort::class,
+    ],
 
 ];

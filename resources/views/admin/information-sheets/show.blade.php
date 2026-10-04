@@ -165,6 +165,12 @@
     // per direct testing feedback — unlocks that section for editing right
     // here instead of making the admin cancel out, find the Edit button,
     // and come back to Accept & Lock a second time.
+    // The Cohort No. currently in the Endorsement and Approval field.
+    currentCohortNo() {
+        const el = document.querySelector(`[name='cohort_no'][form='info-sheet-form']`) || document.querySelector(`[name='cohort_no']`);
+        return el ? el.value.trim() : '';
+    },
+
     tryApprove(event) {
         const missing = this.requiredEndorsementFields.filter(([name]) => {
             const el = document.querySelector(`[name='${name}']`);
@@ -2041,14 +2047,15 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                  accepting places the startup in exactly that cohort. --}}
                             <p class="text-sm text-gray-700 mb-3">
                                 Cohort:
-                                <span class="font-semibold text-gray-900">{{ $sheet?->cohort_no ?: 'Not saved yet' }}</span>
-                                <span class="block text-xs text-gray-500 mt-0.5">
-                                    @if (filled($sheet?->cohort_no))
-                                        Taken from Cohort No. under Endorsement and Approval. The founder will be placed in this cohort. You can still change it later by editing the sheet.
-                                    @else
-                                        Pick a cohort in Cohort No. under Endorsement and Approval and save the sheet first.
-                                    @endif
-                                </span>
+                                {{-- Read live from the Cohort No. field: saving the sheet doesn't
+                                     reload the page, so the value printed at page load could be
+                                     stale (e.g. still "Cohort 1" after changing it to Cohort 2). --}}
+                                <span class="font-semibold text-gray-900"
+                                    x-text="confirmingApprove ? (currentCohortNo() || 'Not saved yet') : ''">{{ $sheet?->cohort_no ?: 'Not saved yet' }}</span>
+                                <span class="block text-xs text-gray-500 mt-0.5"
+                                    x-text="confirmingApprove && currentCohortNo()
+                                        ? 'Taken from Cohort No. under Endorsement and Approval. The founder will be placed in this cohort. You can still change it later by editing the sheet.'
+                                        : 'Pick a cohort in Cohort No. under Endorsement and Approval and save the sheet first.'"></span>
                             </p>
 
                             <div class="flex gap-3">

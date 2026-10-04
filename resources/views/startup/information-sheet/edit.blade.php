@@ -17,7 +17,9 @@
             ? 'Approved & Locked — contact your Coordinator for changes'
             : ($startup->evaluationDayLockActive()
                 ? 'Locked for today — your evaluation is scheduled today. Contact your Coordinator for changes'
-                : null);
+                : ($startup->missedEvaluationLockActive()
+                    ? 'Locked — your evaluation was missed. It unlocks once TBIDO sets a new evaluation schedule'
+                    : null));
 
         // Purely informational — deliberately kept outside the isLocked/dirty
         // Alpine state below, since a Rejected sheet must stay fully editable.
@@ -409,7 +411,7 @@ pendingRemoval: [],
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Save keeps your progress without submitting anything.</span> Come back anytime before your evaluation day to fill in more - a saved-but-incomplete sheet is never sent to TBIDO.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Submit for Review sends it to TBIDO.</span> Every required field needs an answer first - nothing is final until they approve it, and you can keep editing and resubmitting until then.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Your name, mobile and email start from your Startup Profile.</span> Edit them here freely - your Profile will not change.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet locks on your evaluation day, then reopens the next day if the evaluation does not push through.</span> Once approved it stays locked - message your Coordinator for changes.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet locks on your evaluation day. If the evaluation is missed, it stays locked until TBIDO sets a new schedule.</span> Once approved it stays locked - message your Coordinator for changes.</li>
                 </ul>
                 </div>
 

@@ -30,8 +30,8 @@ class UpdateInformationSheetRequest extends FormRequest
         $sheet = $startup?->informationSheet;
 
         abort_unless($startup?->isProfileComplete(), 403, 'Please complete your Startup Profile first before filling out the Information Sheet.');
-        abort_if($sheet && $sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
-        abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked for today - your evaluation is scheduled today. It reopens tomorrow if the evaluation does not push through.');
+        // Approved, evaluation day, or a missed evaluation not yet rescheduled.
+        abort_if($startup->isInformationSheetLocked(), 403, $startup->informationSheetLockMessage() ?? 'This Information Sheet is locked.');
 
         return true;
     }

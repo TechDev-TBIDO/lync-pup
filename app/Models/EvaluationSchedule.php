@@ -206,6 +206,13 @@ class EvaluationSchedule extends Model
 
         $sheet = $this->startup?->informationSheet;
 
+        // Approved, but only on a later day: the meeting itself was still
+        // missed, so say both instead of a bare "Missed" next to an
+        // approved sheet.
+        if ($sheet?->approval_status === 'Approved') {
+            return 'Approved after missed';
+        }
+
         if ($sheet?->approval_status === 'Rejected' && $sheet->rejected_at && $this->updated_at->gte($sheet->rejected_at)) {
             return 'Rejected';
         }

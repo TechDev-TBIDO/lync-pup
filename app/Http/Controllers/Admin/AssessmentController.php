@@ -126,8 +126,16 @@ class AssessmentController extends Controller
             }
         }
 
+        // Each RL form (TRL / MRL / TMRL / SRL) has its own signatories, so only
+        // the form being saved (the tab the admin is on) is checked - an
+        // unfinished signatory on another form must not block this one.
+        $activeType = $request->input('active_type');
+        $signatoriesToCheck = array_key_exists($activeType, $signatoryPrefixes)
+            ? [$activeType => $signatoryPrefixes[$activeType]]
+            : $signatoryPrefixes;
+
         $signatoryErrors = [];
-        foreach ($signatoryPrefixes as $type => $prefixes) {
+        foreach ($signatoriesToCheck as $type => $prefixes) {
             foreach ($prefixes as $prefix) {
                 $signatoryErrors = [...$signatoryErrors, ...$this->signatoryErrors(
                     $type,

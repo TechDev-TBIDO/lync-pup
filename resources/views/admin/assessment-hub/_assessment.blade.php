@@ -390,8 +390,11 @@ for ($i = 0; $i < $count; $i++) {
             // posted on each save) plus the TRL overview contact number: a bad
             // one blocks the whole save instead of being stored.
             // A filled-in signatory label makes that signatory's name and
-            // position required (see LyncFormat.signatoryCheck). Checked for
-            // all four types, since one Save stores them all.
+            // position required (see LyncFormat.signatoryCheck). Each RL form
+            // has its own signatories, so only the form being saved (the
+            // active tab) is checked - an unfinished signatory on another
+            // form never blocks this one or jumps to its tab. The server
+            // checks the same way (AssessmentController::update()).
             sigTried: false,
             sigRules() {
                 const rules = [
@@ -399,7 +402,9 @@ for ($i = 0; $i < $count; $i++) {
                 ];
                 ['MRL', 'TMRL', 'SRL'].forEach(type => ['Evaluated', 'Reviewed', 'Noted'].forEach(role => rules.push([type, type.toLowerCase() + role + 'By'])));
 
-                return rules.map(([type, base]) => ({ label: base + 'Label', name: base, position: base + 'Position', where: type, tab: type }));
+                return rules
+                    .filter(([type]) => type === this.activeType)
+                    .map(([type, base]) => ({ label: base + 'Label', name: base, position: base + 'Position', where: type, tab: type }));
             },
             // No label = no signatory: its name and position boxes are locked
             // (and emptied when the label is cleared).
