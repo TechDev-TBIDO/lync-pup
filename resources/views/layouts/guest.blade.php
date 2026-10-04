@@ -30,5 +30,6 @@
             </div>
         </div>
         @include('partials.input-guards')
+    @include('partials.page-loader')
 </body>
 </html>

@@ -242,5 +242,6 @@
             });
         </script>
     @endif
+    @include('partials.page-loader')
 </body>
 </html>
