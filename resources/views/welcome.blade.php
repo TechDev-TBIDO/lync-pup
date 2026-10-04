@@ -255,92 +255,18 @@
             .startup-card, .startup-banner > img, .startup-banner > .initial, .lp-btn { transition: none; }
             .startup-card:hover, .lp-btn--solid:hover { transform: none; }
         }
+    
+        /* The new hero (x-hero.section) ends in its own white curve, so <main> no longer
+           tucks up under it with the arch. */
+        main.hero-arch { margin-top: 0; clip-path: none; }
     </style>
 </head>
 
 <body x-data="landingPage()" class="lp overflow-x-hidden antialiased bg-white">
 
     {{-- ==================== HERO ==================== --}}
-    <header id="hero">
-        {{-- Sized and positioned by fitHeroArt() at the bottom of the page so the people land right
-             on the white arc's cut at every width; object-cover above is only the no-JS fallback. --}}
-        <img id="hero-art" src="{{ asset('images/landing/landing-hero.jpg') }}" alt="" aria-hidden="true">
-
-        <div id="hero-content">
-            <div class="lp-wrap">
-                {{-- ==================== NAVBAR ==================== --}}
-                <nav x-data="{ mobileNavOpen: false }" @click.outside="mobileNavOpen = false" class="lp-nav">
-                    <div class="lp-brand-group">
-                        <a href="{{ route('welcome') }}" class="lp-brand">
-                            <span class="lp-brand-mark">
-                                <img src="{{ asset('images/login-signup/lync-logo.png') }}" alt="">
-                            </span>
-                            <span class="lp-brand-name">LYNC</span>
-                        </a>
-                        <span class="lp-brand-sep" aria-hidden="true"></span>
-                        <span class="lp-partners">
-                            <img src="{{ asset('images/logo/pup-seal.png') }}" alt="Polytechnic University of the Philippines">
-                            <img src="{{ asset('images/logo/pup-tbido.png') }}" alt="PUP TBIDO">
-                        </span>
-                    </div>
-
-                    <div class="lp-links">
-                        <a href="{{ route('welcome') }}" class="is-active">Home</a>
-                        <a href="#cohorts" @click.prevent="scrollToCohorts()">Our Innovators</a>
-                        <a href="#contact" @click.prevent="scrollToContact()">Contact Us</a>
-                    </div>
-
-                    <div class="lp-actions">
-                        <a href="{{ route('login') }}" class="lp-btn lp-btn--ghost">Log in</a>
-                        <a href="{{ route('register', ['from' => 'landing']) }}" class="lp-btn lp-btn--solid">Apply Now</a>
-                        <button type="button" @click="mobileNavOpen = !mobileNavOpen" class="lp-burger"
-                            aria-label="Toggle navigation menu" :aria-expanded="mobileNavOpen">
-                            <svg x-show="!mobileNavOpen" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
-                            </svg>
-                            <svg x-show="mobileNavOpen" x-cloak class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div x-show="mobileNavOpen" x-cloak x-transition class="lp-mobile-menu">
-                        <a href="{{ route('welcome') }}">Home</a>
-                        <a href="#cohorts" @click.prevent="scrollToCohorts(); mobileNavOpen = false">Our Innovators</a>
-                        <a href="#contact" @click.prevent="scrollToContact(); mobileNavOpen = false">Contact Us</a>
-                        <a href="{{ route('login') }}">Log in</a>
-                    </div>
-                </nav>
-
-                <div class="hero-body">
-                    <h1 class="hero-title">
-                        Where <span>Innovation</span><br>
-                        Meets <span>Opportunity.</span>
-                    </h1>
-
-                    <p class="hero-para">
-                        PUP TBIDO empowers startups to transform ideas into impactful ventures
-                        with the support of experts, networks, and real-world resources.
-                    </p>
-
-                    <div class="hero-stats">
-                        <div>
-                            <p class="num">{{ $stats['active_ventures'] }}</p>
-                            <p class="lbl">Active Ventures</p>
-                        </div>
-                        <div>
-                            <p class="num">{{ $stats['sectors'] }}</p>
-                            <p class="lbl">Sectors</p>
-                        </div>
-                        <div>
-                            <p class="num">{{ $stats['graduated'] }}</p>
-                            <p class="lbl">Graduated</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    {{-- New hero: resources/views/components/hero/ (styles public/css/lp-hero.css, script public/js/lp-hero.js). --}}
+    <x-hero.section :stats="$stats" />
 
     {{-- ==================== MEET THE INNOVATORS ==================== --}}
     {{-- `isolate` gives <main> its own stacking context so the -z-10 watermark sits behind the
