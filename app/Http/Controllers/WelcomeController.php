@@ -27,9 +27,34 @@ class WelcomeController extends Controller
         // On a shared server that was one of the heaviest requests in the
         // app, so the finished data is built once and reused for 5 minutes.
         // A newly approved startup / score change shows up within 5 minutes.
-        $data = Cache::remember('welcome-page:v1:'.request()->getHost(), 300, fn () => $this->buildPageData());
+        //
+        // Only plain arrays go into the cache: Laravel 13 refuses to
+        // unserialize PHP objects from cache by default (config/cache.php
+        // 'serializable_classes' => false, a security setting), so cached
+        // Collections/models would come back as broken "incomplete" objects.
+        // They're turned back into collections/objects after reading.
+        $cached = Cache::remember('welcome-page:v2:'.request()->getHost(), 300, function () {
+            $data = $this->buildPageData();
 
-        return view('welcome', $data);
+            return [
+                'stats' => $data['stats'],
+                'cohortShowcase' => $data['cohortShowcase']->map(fn (array $group) => [
+                    'cohort' => [
+                        'cohort_id' => $group['cohort']->cohort_id,
+                        'display_label' => $group['cohort']->display_label,
+                    ],
+                    'startups' => json_decode(json_encode($group['startups']), true),
+                ])->values()->all(),
+            ];
+        });
+
+        return view('welcome', [
+            'stats' => $cached['stats'],
+            'cohortShowcase' => collect($cached['cohortShowcase'])->map(fn (array $group) => [
+                'cohort' => (object) $group['cohort'],
+                'startups' => collect($group['startups']),
+            ]),
+        ]);
     }
 
     /**
