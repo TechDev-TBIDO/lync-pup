@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+
+        // Performance diagnostics header (see App\Http\Middleware\ServerTiming).
+        $middleware->prepend(\App\Http\Middleware\ServerTiming::class);
         
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,

@@ -11,12 +11,12 @@
 
     <span class="lph-divider lph-abs" style="--x:252;--y:35"></span>
 
-    <span class="lph-logo lph-abs" style="--x:270;--y:40;--size:48">
+    <a class="lph-logo lph-abs" style="--x:270;--y:40;--size:48" href="https://www.pup.edu.ph/" target="_blank" rel="noopener" title="Polytechnic University of the Philippines">
         <img src="{{ asset('images/exports/pup-seal.png') }}" alt="Polytechnic University of the Philippines">
-    </span>
-    <span class="lph-logo lph-abs" style="--x:332;--y:36;--size:56">
+    </a>
+    <a class="lph-logo lph-abs" style="--x:332;--y:36;--size:56" href="https://www.puptbi.site/" target="_blank" rel="noopener" title="PUP TBIDO">
         <img src="{{ asset('images/logo/logo-sidebar.png') }}" alt="PUP TBIDO">
-    </span>
+    </a>
 
     <div class="lph-links">
         <a @class(['lph-link', 'is-active' => $active === 'home']) style="--x:680;--y:57" href="{{ route('welcome') }}">Home</a>
