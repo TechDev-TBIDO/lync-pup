@@ -255,7 +255,14 @@ class User extends Authenticatable implements MustVerifyEmail
 
         $this->forceFill(['email_verification_token' => Str::random(40)])->save();
 
-        $this->notify(new VerifyEmailNotification);
+        // Don't crash registration if mail is down (e.g. Gmail's daily limit);
+        // drop the throttle so the founder can hit "resend" once it's back.
+        try {
+            $this->notify(new VerifyEmailNotification);
+        } catch (\Throwable $e) {
+            Cache::forget($throttleKey);
+            \Illuminate\Support\Facades\Log::error('Verification email failed', ['user_id' => $this->id, 'error' => $e->getMessage()]);
+        }
     }
 
     /**

@@ -230,13 +230,20 @@ class InformationSheetController extends Controller
             // The notification above only ever produced an in-app dashboard
             // card — founders had no way to find out about a rejection
             // unless they happened to log back in. This is the actual email.
+            // A mail problem (e.g. Gmail's daily sending limit) must never
+            // undo or crash the rejection itself - log it and tell the admin.
             if ($startup->user?->email) {
-                Mail::to($startup->user->email)->send(new InformationSheetRejectedMail(
-                    $startup->user->name ?? 'Founder',
-                    $startup->company_name,
-                    $data['evaluator_remarks'] ?? null,
-                    $deadline,
-                ));
+                try {
+                    Mail::to($startup->user->email)->send(new InformationSheetRejectedMail(
+                        $startup->user->name ?? 'Founder',
+                        $startup->company_name,
+                        $data['evaluator_remarks'] ?? null,
+                        $deadline,
+                    ));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Information sheet rejection email failed', ['startup_id' => $startup->startup_id, 'error' => $e->getMessage()]);
+                    $mailFailed = \App\Support\MailFailure::reason($e);
+                }
             }
         }
 
@@ -250,7 +257,8 @@ class InformationSheetController extends Controller
 
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'rejected'])
-            ->with('status', 'Information sheet rejected. The founder has 10 days to revise and resubmit it.');
+            ->with('status', 'Information sheet rejected. The founder has 10 days to revise and resubmit it.'
+                .(! empty($mailFailed) ? " However, the email to the founder wasn't sent because {$mailFailed}. They will still see the rejection on their dashboard." : ''));
     }
 
     public function update(UpdateInformationSheetRequest $request, Startup $startup): RedirectResponse|Response

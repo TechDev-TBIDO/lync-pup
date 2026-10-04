@@ -66,12 +66,16 @@ class PurgeExpiredRejections extends Command
             $rejectedAt = $startup->informationSheet->rejected_at;
 
             if ($user?->email) {
-                Mail::to($user->email)->send(new RejectedFounderAutoDeleted(
-                    $founderName,
-                    $companyName,
-                    $rejectedAt->format('F j, Y'),
-                    $rejectedAt->copy()->addDays(10)->format('F j, Y'),
-                ));
+                try {
+                    Mail::to($user->email)->send(new RejectedFounderAutoDeleted(
+                        $founderName,
+                        $companyName,
+                        $rejectedAt->format('F j, Y'),
+                        $rejectedAt->copy()->addDays(10)->format('F j, Y'),
+                    ));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Auto-delete email failed', ['startup_id' => $startup->startup_id, 'error' => $e->getMessage()]);
+                }
             }
 
             if ($startup->startup_photo_path) {

@@ -183,7 +183,15 @@ class StartupProfileController extends Controller
                 ->with('status', 'Pitch deck was already requested a few minutes ago — please wait before requesting again.');
         }
 
-        Mail::to($startup->user->email)->send(new PitchDeckRequested($startup));
+        try {
+            Mail::to($startup->user->email)->send(new PitchDeckRequested($startup));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Pitch deck request email failed', ['startup_id' => $startup->startup_id, 'error' => $e->getMessage()]);
+
+            return redirect()
+                ->route('admin.startups.show', $startup)
+                ->with('status', "The pitch deck request wasn't sent because ".\App\Support\MailFailure::reason($e).'.');
+        }
 
         $startup->update(['pitch_deck_requested_at' => now()]);
 
