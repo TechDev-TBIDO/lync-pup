@@ -14,6 +14,17 @@ class StoreEvaluationScheduleRequest extends FormRequest
         return $this->user()?->isAdmin() ?? false;
     }
 
+    /**
+     * Keep only the meeting URL when a whole calendar invite was pasted
+     * (see MeetingPlatform::normalizeLink()).
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('link')) {
+            $this->merge(['link' => MeetingPlatform::normalizeLink($this->input('modality'), $this->input('link'))]);
+        }
+    }
+
     public function rules(): array
     {
         return [

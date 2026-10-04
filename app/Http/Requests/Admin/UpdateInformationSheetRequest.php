@@ -584,7 +584,7 @@ class UpdateInformationSheetRequest extends FormRequest
             'place_of_birth' => $place(150),
             // The picker is capped at the same bounds on the founder side.
             // Repeated here because a request can arrive without it.
-            'date_of_birth' => ['required', 'date', 'after:1900-01-01'],
+            'date_of_birth' => ['required', 'date', 'after:1900-01-01', 'before_or_equal:9999-12-31'],
             'mobile_no' => ['required', 'string', 'max:13', new PhMobile],
             'founder_email' => ['required', 'email', 'max:150'],
 
@@ -746,6 +746,7 @@ class UpdateInformationSheetRequest extends FormRequest
             'date_of_birth.required' => 'Select the date of birth.',
             'date_of_birth.date' => 'Please enter a valid date of birth.',
             'date_of_birth.after' => 'Please enter a valid date of birth.',
+            'date_of_birth.before_or_equal' => 'The year must be 4 digits.',
 
             'mobile_no.required' => 'Please enter a mobile number.',
             'founder_email.required' => 'Please enter an email address.',

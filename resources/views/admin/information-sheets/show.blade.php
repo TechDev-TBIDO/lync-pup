@@ -65,7 +65,7 @@
     // values the founder view uses, so both sides refuse a future date or a
     // 2010-or-later birth year at the picker itself.
     $dobMin = '1900-01-01';
-    $dobMax = ''; // No upper limit on date of birth.
+    $dobMax = '9999-12-31'; // No real upper limit, but keeps the year to 4 digits (an empty max lets browsers accept 6-digit years).
 
     // Returns the URL, or null if that route isn't registered yet.
     $url = function (string $name, ...$params) {

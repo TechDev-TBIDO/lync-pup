@@ -27,6 +27,15 @@
         .cropper-face {
             border-radius: 50%;
         }
+
+        /* Edit Profile button pulse (field clicked before editing) */
+        @keyframes edit-nudge {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(109, 13, 35, 0.45); }
+            30% { transform: scale(1.06); box-shadow: 0 0 0 6px rgba(109, 13, 35, 0.18); }
+            60% { transform: scale(1); box-shadow: 0 0 0 10px rgba(109, 13, 35, 0); }
+        }
+        .edit-nudge { animation: edit-nudge 0.9s ease-in-out 2; }
+        @media (prefers-reduced-motion: reduce) { .edit-nudge { animation: none; outline: 2px solid #6D0D23; outline-offset: 2px; } }
     </style>
 
     <div
@@ -38,6 +47,38 @@
         // value old() already preserved for the user to correct.
         editing: {{ $errors->any() ? 'true' : 'false' }},
         dirty: false,
+
+        // Same guidance as the Information Sheet: clicking a field while not editing
+        // remembers it, brings the Edit Profile button into view and makes it pulse
+        // with a hint; pressing Edit then jumps straight back to that field.
+        lastClickedInput: null,
+        editNudge: false,
+        editNudgeTimer: null,
+        nudgeEdit(field) {
+            this.lastClickedInput = field.name || null;
+            field.blur();
+            this.$refs.editButton?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            this.editNudge = false;
+            clearTimeout(this.editNudgeTimer);
+            this.$nextTick(() => {
+                this.editNudge = true;
+                this.editNudgeTimer = setTimeout(() => { this.editNudge = false; }, 2600);
+            });
+        },
+        startEdit() {
+            this.editing = true;
+            this.editNudge = false;
+            this.$nextTick(() => {
+                if (! this.lastClickedInput) return;
+                const el = this.$root.querySelector(`[name='${this.lastClickedInput}']`)
+                    || document.querySelector(`[name='${this.lastClickedInput}']`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.focus({ preventScroll: true });
+                }
+                this.lastClickedInput = null;
+            });
+        },
 
         showLeaveModal: false,
         nextUrl: null,
@@ -145,6 +186,13 @@
             return (hasPlus ? '+' : '') + digits.slice(0, hasPlus ? 12 : 11);
         },
     }"
+        @click.capture="
+        if (! editing
+            && $event.target.matches('input, textarea, select')
+            && ! $event.target.matches('[type=file], [type=hidden], [disabled]')) {
+            nudgeEdit($event.target);
+        }
+    "
         x-init="
         $watch('dirty', value => {
             $store.navigation.hasUnsavedChanges = value;
@@ -174,16 +222,34 @@
                 </p>
             </div>
 
+            <div class="relative">
             <button
                 type="button"
-                @click="editing ? cancelEdit() : editing = true"
+                x-ref="editButton"
+                @click="editing ? cancelEdit() : startEdit()"
                 class="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition"
-                :class="editing
+                :class="[editing
         ? 'border border-gray-300 text-gray-700 hover:bg-gray-100'
-        : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-90'">
+        : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-90',
+        editNudge ? 'edit-nudge' : '']">
 
                 <span x-text="editing ? 'Cancel' : 'Edit Profile'"></span>
             </button>
+
+            {{-- Hint shown when a field is clicked before pressing Edit Profile. --}}
+            <div x-show="editNudge" x-cloak
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 translate-y-1"
+                x-transition:enter-end="opacity-100 translate-y-0"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100"
+                x-transition:leave-end="opacity-0"
+                class="absolute right-0 top-full mt-2 z-20 whitespace-nowrap rounded-lg bg-[#11386A] px-3 py-2 text-xs font-medium text-white shadow-lg"
+                role="status">
+                <span class="absolute -top-1 right-6 h-2 w-2 rotate-45 bg-[#11386A]"></span>
+                Click <span class="font-semibold">Edit Profile</span> first to make changes
+            </div>
+            </div>
 
         </div>
 
@@ -343,14 +409,16 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
+                        {{-- truncate + min-w-0 keep a long email from pushing past its column
+                             (it overlapped the phone field at 150% zoom); stacks on narrow widths. --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div class="min-w-0">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                <div class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                                <div class="w-full min-w-0 truncate border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500" title="{{ auth()->user()->email }}">
                                     {{ auth()->user()->email }}
                                 </div>
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number <span class="text-red-500">*</span></label>
                                 <input
                                     type="text"

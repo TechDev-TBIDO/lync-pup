@@ -25,8 +25,8 @@ class MeetingPlatform
     /**
      * Per-platform validation for the link/address field, matching each
      * platform's expected shape:
-     *   - Google Meet: must be a google.com (sub)domain link.
-     *   - Zoom: must contain a zoom.us "/j/" or "/my/" meeting path.
+     *   - Google Meet: must be a meet.google.com link.
+     *   - Zoom: must be a zoom.us "/j/" or "/my/" meeting link.
      *   - Microsoft Teams: loose check for a microsoft.com or live.com link
      *     (Teams links are served from either domain depending on account
      *     type).
@@ -38,16 +38,64 @@ class MeetingPlatform
      */
     public static function isValidLink(?string $platform, string $value): bool
     {
-        $normalized = strtolower(trim($value));
+        $value = trim($value);
 
+        // Links must be the URL alone (no spaces) - normalizeLink() already pulled
+        // the URL out of a pasted invite, so anything left with spaces is not a link.
         return match ($platform) {
-            'Google Meet' => (bool) preg_match('/:\/\/([a-z0-9-]+\.)*google\.com(\/|$)/i', $value),
-            'Zoom' => str_contains($normalized, 'zoom.us/j/') || str_contains($normalized, 'zoom.us/my/'),
-            'Microsoft Teams' => str_contains($normalized, 'microsoft.com') || str_contains($normalized, 'live.com'),
-            'Location' => mb_strlen(trim($value)) >= 8,
-            'Custom Link' => (bool) preg_match('/^https?:\/\//i', trim($value)),
+            'Google Meet' => (bool) preg_match('~^https?://meet\.google\.com/\S+$~i', $value),
+            'Zoom' => (bool) preg_match('~^https?://([a-z0-9-]+\.)*zoom\.us/(j|my)/\S+$~i', $value),
+            'Microsoft Teams' => (bool) preg_match('~^https?://([a-z0-9-]+\.)*(microsoft\.com|live\.com)(/\S*)?$~i', $value),
+            'Location' => mb_strlen($value) >= 8,
+            'Custom Link' => (bool) preg_match('~^https?://\S+$~i', $value),
             default => true,
         };
+    }
+
+    /**
+     * People often paste a whole calendar invite instead of just the link, e.g.
+     *   "(No title) Tuesday, October 6 · 12:30 – 1:30pm Time zone: Asia/Manila
+     *    Google Meet joining info Video call link: https://meet.google.com/abc-defg-hij"
+     * For every platform except Location this pulls the meeting URL out of the
+     * text (preferring one on the platform's own domain), so only the link is
+     * saved and the Join button works. Text with no URL is returned trimmed and
+     * left for isValidLink() to reject.
+     */
+    public static function normalizeLink(?string $platform, ?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        if ($platform === 'Location' || $value === '') {
+            return $value;
+        }
+
+        if (! preg_match_all('~https?://[^\s<>"\']+~i', $value, $matches)) {
+            return $value;
+        }
+
+        // Drop punctuation that sticks to a URL at the end of a sentence.
+        $urls = array_map(fn ($u) => rtrim($u, '.,;:!?)]}'), $matches[0]);
+
+        $preferred = match ($platform) {
+            'Google Meet' => '~^https?://meet\.google\.com/~i',
+            'Zoom' => '~^https?://([a-z0-9-]+\.)*zoom\.us/(j|my)/~i',
+            'Microsoft Teams' => '~^https?://([a-z0-9-]+\.)*(microsoft\.com|live\.com)~i',
+            default => null,
+        };
+
+        if ($preferred) {
+            foreach ($urls as $url) {
+                if (preg_match($preferred, $url)) {
+                    return $url;
+                }
+            }
+        }
+
+        return $urls[0];
     }
 
     public static function linkErrorMessage(?string $platform): string

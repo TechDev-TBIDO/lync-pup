@@ -12,7 +12,7 @@
         // future date or a 2010-or-later birth year can never be chosen; the
         // request classes repeat both rules for anything that skips the UI.
         $dobMin = '1900-01-01';
-        $dobMax = ''; // No upper limit on date of birth.
+        $dobMax = '9999-12-31'; // No real upper limit, but keeps the year to 4 digits (an empty max lets browsers accept 6-digit years).
         $lockReason = $sheet?->approval_status === 'Approved'
             ? 'Approved & Locked — contact your Coordinator for changes'
             : ($startup->evaluationDayLockActive()

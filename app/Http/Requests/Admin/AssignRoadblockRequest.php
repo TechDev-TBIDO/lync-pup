@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Roadblock;
+use App\Support\MeetingPlatform;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -36,6 +37,12 @@ class AssignRoadblockRequest extends FormRequest
                 'mentor_id' => $type === 'mentor' ? $id : null,
                 'coordinator_id' => $type === 'coordinator' ? $id : null,
             ]);
+        }
+
+        // Keep only the meeting URL when a whole calendar invite was pasted
+        // (see MeetingPlatform::normalizeLink()).
+        if ($this->has('meeting_link')) {
+            $this->merge(['meeting_link' => MeetingPlatform::normalizeLink($this->input('meeting_platform'), $this->input('meeting_link'))]);
         }
 
         // A whitespace-only note is "nothing typed", not a real answer — store
@@ -196,16 +203,7 @@ class AssignRoadblockRequest extends FormRequest
             }
 
             $platform = $this->input('meeting_platform');
-            $normalized = strtolower(trim($value));
-
-            $isValid = match ($platform) {
-                'Google Meet' => (bool) preg_match('/:\/\/([a-z0-9-]+\.)*google\.com(\/|$)/i', $value),
-                'Zoom' => str_contains($normalized, 'zoom.us/j/') || str_contains($normalized, 'zoom.us/my/'),
-                'Microsoft Teams' => str_contains($normalized, 'microsoft.com') || str_contains($normalized, 'live.com'),
-                'Location' => mb_strlen(trim($value)) >= 8,
-                'Custom Link' => (bool) preg_match('/^https?:\/\//i', trim($value)),
-                default => true,
-            };
+            $isValid = MeetingPlatform::isValidLink($platform, (string) $value);
 
             if ($isValid) {
                 return;
