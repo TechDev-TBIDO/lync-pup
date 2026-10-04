@@ -135,16 +135,26 @@
 .lph-brand-word { margin-left: calc(9 * var(--u)); font-weight: 700; font-size: calc(22 * var(--u)); letter-spacing: calc(1 * var(--u)); line-height: 1; }
 .lph-divider { width: calc(1.5 * var(--u)); height: calc(58 * var(--u)); background: linear-gradient(180deg, transparent, rgba(227, 169, 58, .55), transparent); }
 .lph-logo { width: calc(var(--size, 64) * var(--u)); height: calc(var(--size, 64) * var(--u)); }
+.lph-logo { display: block; transition: transform .2s; }
+a.lph-logo:hover { transform: translateY(calc(-1.5 * var(--u))); }
 .lph-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
-.lph-links { position: absolute; inset: 0; }
+/* covers the whole bar so the links can be placed by --x/--y; it lets clicks through
+   (otherwise it sits on top of the logos and they can't be clicked) */
+.lph-links { position: absolute; inset: 0; pointer-events: none; }
+.lph-links .lph-link { pointer-events: auto; }
 .lph-link { position: absolute; left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u)); color: rgba(255, 255, 255, .92); font-weight: 500; font-size: calc(15 * var(--u)); text-decoration: none; line-height: 1; padding-bottom: calc(10 * var(--u)); transition: color .2s; }
-.lph-link:hover { color: #fff; }
-.lph-link.is-active::after {
+.lph-link:hover, .lph-link:focus-visible { color: #fff; text-shadow: 0 0 calc(12 * var(--u)) rgba(255, 255, 255, .45); }
+/* gold underline: grows out from the middle on hover, always full on the active link */
+.lph-link::after {
     content: ''; position: absolute; left: 0; right: 0; bottom: 0;
     height: calc(2.5 * var(--u)); border-radius: 99px;
     background: var(--lph-gold);
+    transform: scaleX(0); opacity: .75;
+    transition: transform .25s ease, opacity .25s ease;
 }
+.lph-link:hover::after, .lph-link:focus-visible::after { transform: scaleX(1); }
+.lph-link.is-active::after { transform: scaleX(1); opacity: 1; }
 .lph-btn {
     display: inline-flex; align-items: center; justify-content: center;
     height: calc(42 * var(--u));
@@ -172,10 +182,25 @@
     align-items: center;
     box-shadow: 0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(40, 0, 8, .25);
 }
-.lph-stat { position: relative; text-align: center; padding-bottom: calc(10 * var(--u)); }
-.lph-stat + .lph-stat::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(calc(-50% - 5 * var(--u))); width: 1px; height: calc(62 * var(--u)); background: #d4d4d8; }
+.lph-stat { position: relative; text-align: center; }
+.lph-stat + .lph-stat::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 1px; height: calc(62 * var(--u)); background: #d4d4d8; }
 .lph-stat-value { display: block; color: var(--lph-maroon); font-weight: 700; font-size: calc(38 * var(--u)); line-height: 1; }
 .lph-stat-label { display: block; margin-top: calc(8 * var(--u)); color: var(--lph-ink); font-weight: 500; font-size: calc(16 * var(--u)); line-height: 1; }
+
+/* ---------- Opening view (laptops / desktops) ----------
+   The top --lph-crop design pixels of the picture and text are cut off, so the
+   headline sits right under the navbar instead of below a big empty band. The
+   navbar itself stays at the top. Raise/lower --lph-crop to move everything
+   under the navbar up/down (and keep the 1060 below = 1150 - crop). */
+@media (min-width: 901px) {
+    .lph-hero { --lph-crop: 90; aspect-ratio: 1728 / 1060;   /* 1060 = 1150 - crop */ }
+    .lph-hero > .lph-layer-content,
+    .lph-hero > .lph-stage {
+        inset: auto 0 auto 0;
+        top: calc(var(--lph-crop) * var(--u) * -1);
+        height: calc(1150 * var(--u));
+    }
+}
 
 /* ---------- Phones and small tablets ----------
    The canvas would get too small to read, so the text stacks on top and the
