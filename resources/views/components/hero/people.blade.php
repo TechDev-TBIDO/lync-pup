@@ -3,7 +3,7 @@
     The photo already has the red scene light (red rim around their edges) baked in.
 --}}
 @props([
-    'src' => asset('images/hero/hero-people.png'),
+    'src' => asset('images/hero/hero-people.webp'),
     'x' => 683.02,
     'y' => 441.09,
 ])

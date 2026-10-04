@@ -121,7 +121,7 @@
             }
         </style>
             <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFE8EE] bg-[#FFF7F7] p-5 shadow-sm" style="min-height: 152px;">
-                <img src="{{ asset('images/icons/dashboard-admin.svg') }}" alt="" aria-hidden="true"
+                <img src="{{ asset('images/icons/dashboard-admin.webp') }}" alt="" aria-hidden="true"
                     class="stat-watermark pointer-events-none absolute right-0" style="width: 105px; height: auto; top: 76px; transform: translateY(-50%);">
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
@@ -138,7 +138,7 @@
             </div>
 
             <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D2E5FF] bg-[#F8FBFF] p-5 shadow-sm" style="min-height: 152px;">
-                <img src="{{ asset('images/icons/blue-line.svg') }}" alt="" aria-hidden="true"
+                <img src="{{ asset('images/icons/blue-line.webp') }}" alt="" aria-hidden="true"
                     class="stat-watermark pointer-events-none absolute right-0" style="width: 105px; height: auto; top: 76px; transform: translateY(-50%);">
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
@@ -164,7 +164,7 @@
             </div>
 
             <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFEAC1] bg-[#FFFBF2] p-5 shadow-sm" style="min-height: 152px;">
-                <img src="{{ asset('images/icons/yellow-line.svg') }}" alt="" aria-hidden="true"
+                <img src="{{ asset('images/icons/yellow-line.webp') }}" alt="" aria-hidden="true"
                     class="stat-watermark pointer-events-none absolute right-0" style="width: 105px; height: auto; top: 76px; transform: translateY(-50%);">
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
@@ -181,7 +181,7 @@
             </div>
 
             <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D8C7FF] bg-[#FAF6FF] p-5 shadow-sm" style="min-height: 152px;">
-                <img src="{{ asset('images/icons/purple-line.svg') }}" alt="" aria-hidden="true"
+                <img src="{{ asset('images/icons/purple-line.webp') }}" alt="" aria-hidden="true"
                     class="stat-watermark pointer-events-none absolute right-0" style="width: 105px; height: auto; top: 76px; transform: translateY(-50%);">
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">

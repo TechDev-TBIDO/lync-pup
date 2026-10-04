@@ -395,7 +395,7 @@
         </div>
 
         {{-- Faint Lync logo watermark bleeding off the left edge (decorative). --}}
-        <img src="{{ asset('images/login-signup/lync-logo.png') }}" alt=""
+        <img src="{{ asset('images/login-signup/lync-logo.webp') }}" alt=""
             class="lync-watermark pointer-events-none absolute -z-10 max-w-none opacity-10">
     </main>
 
