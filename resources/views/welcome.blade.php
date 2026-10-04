@@ -160,6 +160,7 @@
             .lp-track { display: grid; width: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; padding: 0; }
             .lp-slide { width: auto; transform: none !important; opacity: 1 !important; }
             .lp-slide.lp-extra:not(.is-shown) { display: none; }
+            .lp-slide.lp-clone { display: none; }
             .lp-carousel-hint { display: none; }
             .lp-viewall { display: flex; }
             .lp-viewall[style*="display: none"] { display: none; }
@@ -384,7 +385,7 @@
                         <p class="lp-carousel-hint reveal">
                             {{ $group['startups']->count() }} {{ \Illuminate\Support\Str::plural('startup', $group['startups']->count()) }}
                             <span aria-hidden="true">/</span>
-                            <span class="hint-desk">Move left or right to browse</span><span class="hint-touch">Swipe to browse</span>
+                            <span class="hint-desk">Point left or right to browse &middot; hover the centre to stop</span><span class="hint-touch">Swipe to browse</span>
                         </p>
 
                     </div>
@@ -889,12 +890,51 @@
         })();
 
         (function startupCarousels() {
+            // Desktop (>= 1024px) carousel:
+            //  - drifts on its own, one card always heading for the centre;
+            //  - mouse over the centre card -> it stops and settles that card in the middle,
+            //    so its View button can be clicked;
+            //  - mouse to the left/right of the centre -> it moves that way, faster the
+            //    further out the mouse is (steady, never jumpy);
+            //  - it loops forever (copies of the cards are added before and after).
             const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             const desk = window.matchMedia('(min-width: 1024px)');
+            const AUTO_SPEED = 45;   // px per second while drifting on its own
+            const MIN_SPEED = 160;   // px per second just outside the centre card
+            const MAX_SPEED = 520;   // px per second at the far edge
 
             document.querySelectorAll('[data-carousel]').forEach(function (el) {
+                const track = el.querySelector('.lp-track');
+                const originals = Array.prototype.slice.call(el.querySelectorAll('[data-card]'));
+                const n = originals.length;
+                if (!n) return;
+                const loop = n > 1;
+
+                function copyOf(s) {
+                    const c = s.cloneNode(true);
+                    c.classList.add('lp-clone');
+                    c.setAttribute('aria-hidden', 'true');
+                    c.querySelectorAll('button, a').forEach(function (b) { b.setAttribute('tabindex', '-1'); });
+                    return c;
+                }
+                if (loop) {
+                    const copies = Math.max(1, Math.ceil(12 / n));
+                    for (let k = 0; k < copies; k++) {
+                        const before = document.createDocumentFragment();
+                        originals.forEach(function (s) { before.appendChild(copyOf(s)); track.appendChild(copyOf(s)); });
+                        track.insertBefore(before, track.firstChild);
+                    }
+                }
                 const slides = Array.prototype.slice.call(el.querySelectorAll('[data-card]'));
-                let target = el.scrollLeft, raf = 0;
+                const panel = el.closest('.cohort-panel');
+
+                function centreOf(s) { return s.offsetLeft + s.offsetWidth / 2 - el.clientWidth / 2; }
+                function period() { return loop ? (slides[1].offsetLeft - slides[0].offsetLeft) * n : 0; }
+                function nearestCentre() {
+                    let best = pos, bd = Infinity;
+                    slides.forEach(function (s) { const c = centreOf(s), d = Math.abs(c - pos); if (d < bd) { bd = d; best = c; } });
+                    return best;
+                }
 
                 function paint() {
                     if (!desk.matches) {
@@ -911,33 +951,74 @@
                     });
                 }
 
-                function tick() {
-                    const diff = target - el.scrollLeft;
-                    if (Math.abs(diff) < 0.5) { el.scrollLeft = target; raf = 0; paint(); return; }
-                    el.scrollLeft += reduce ? diff : diff * 0.09;
-                    paint();
-                    raf = requestAnimationFrame(tick);
+                let pos = centreOf(originals[0]);
+                let vel = 0, mouseX = null, pausedUntil = 0, visible = true, last = 0, touched = false;
+
+                function active() {
+                    return desk.matches && visible && (!panel || panel.classList.contains('is-active'));
                 }
 
-                {
-                    el.addEventListener('mousemove', function (e) {
-                        if (!desk.matches) return;
+                function frame(t) {
+                    requestAnimationFrame(frame);
+                    const dt = last ? Math.min((t - last) / 1000, 0.05) : 0;
+                    last = t;
+                    if (!active()) return;
+
+                    let want = 0, hold = false;
+                    if (mouseX !== null) {
                         const r = el.getBoundingClientRect();
-                        const max = el.scrollWidth - el.clientWidth;
-                        if (max <= 0) return;
-                        // Middle 80% of the width maps to the full range, so the ends are easy to reach.
-                        const f = Math.min(Math.max(((e.clientX - r.left) / r.width - 0.1) / 0.8, 0), 1);
-                        target = f * max;
-                        if (!raf) raf = requestAnimationFrame(tick);
-                    });
-                    el.addEventListener('wheel', function () { target = el.scrollLeft; }, { passive: true });
+                        const half = r.width / 2;
+                        const off = mouseX - (r.left + half);
+                        const dead = originals[0].offsetWidth / 2;          // the centre card
+                        if (Math.abs(off) <= dead) {
+                            hold = true;
+                        } else {
+                            const k = Math.min((Math.abs(off) - dead) / Math.max(half - dead, 1), 1);
+                            want = Math.sign(off) * (MIN_SPEED + k * k * (MAX_SPEED - MIN_SPEED));
+                        }
+                    } else if (!reduce && t >= pausedUntil) {
+                        want = AUTO_SPEED;
+                    }
+
+                    vel += (want - vel) * Math.min(1, dt * 4);             // ease into the new speed
+                    pos += vel * dt;
+                    if (hold) pos += (nearestCentre() - pos) * Math.min(1, dt * 6); // settle the centre card
+
+                    if (loop) {
+                        const W = period(), base = centreOf(originals[0]);
+                        if (W > 0) {
+                            while (pos >= base + W / 2) pos -= W;
+                            while (pos < base - W / 2) pos += W;
+                        }
+                    } else {
+                        pos = centreOf(originals[0]);
+                    }
+
+                    el.scrollLeft = pos;
+                    paint();
                 }
-                el.addEventListener('scroll', function () { if (!raf) { target = el.scrollLeft; paint(); } }, { passive: true });
+
+                el.addEventListener('mousemove', function (e) { mouseX = e.clientX; touched = true; });
+                el.addEventListener('mouseleave', function () { mouseX = null; pausedUntil = performance.now() + 500; });
+                // Trackpad / wheel scrolling still works; the drift waits a moment after it.
+                el.addEventListener('scroll', function () {
+                    if (Math.abs(el.scrollLeft - pos) > 2) {
+                        pos = el.scrollLeft; vel = 0; touched = true;
+                        pausedUntil = performance.now() + 1500;
+                    }
+                    if (!active()) paint();
+                }, { passive: true });
+
+                if ('IntersectionObserver' in window) {
+                    new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; }).observe(el);
+                }
                 window.addEventListener('resize', paint);
-                if (desk.addEventListener) desk.addEventListener('change', function () { el.scrollLeft = 0; target = 0; paint(); });
-                // Start on the first card, centred.
-                el.scrollLeft = 0; target = 0;
+                window.addEventListener('load', function () { if (!touched) pos = centreOf(originals[0]); });
+                if (desk.addEventListener) desk.addEventListener('change', function () { pos = centreOf(originals[0]); vel = 0; paint(); });
+
+                el.scrollLeft = pos;
                 paint();
+                requestAnimationFrame(frame);
             });
         })();
 
