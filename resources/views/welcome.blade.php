@@ -127,11 +127,11 @@
         .lp-sub { margin-top: 0.25rem; font-size: clamp(0.8rem, 1vw, 1.05rem); color: var(--lp-ink); }
 
         /* Cohort tabs: full-width row, equal-width tabs, grey rule underneath, one sliding maroon bar. */
-        .cohort-tabs { position: relative; margin-top: clamp(1.5rem, 3vw, 3rem); display: flex; flex-wrap: wrap; border-bottom: 2px solid #d1d5db; }
-        .cohort-tab { flex: 1 1 0; min-width: 7rem; padding: 0 0.75rem 0.6rem; font-size: clamp(1rem, 1.4vw, 1.5rem); font-weight: 700; line-height: 1.4; color: var(--lp-ink); transition: color .2s ease; }
+        .cohort-tabs { position: relative; margin-top: clamp(1.5rem, 3vw, 3rem); display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(1rem, 3vw, 3rem); border-bottom: 1px solid #e5e7eb; }
+        .cohort-tab { flex: 0 0 auto; padding: 0 0.75rem 0.6rem; font-size: clamp(1rem, 1.4vw, 1.5rem); font-weight: 700; line-height: 1.4; color: var(--lp-ink); transition: color .2s ease; }
         .cohort-tab:hover { color: #4b5563; }
         .cohort-tab.is-active { color: var(--lp-maroon); }
-        .cohort-indicator { position: absolute; height: 3px; border-radius: 9999px; background: var(--lp-maroon); pointer-events: none; }
+        .cohort-indicator { position: absolute; height: 2px; border-radius: 9999px; background: var(--lp-maroon); pointer-events: none; }
         .cohort-panels { margin-top: clamp(1.25rem, 1.8vw, 2rem); display: grid; }
         .cohort-panels > .cohort-panel { grid-area: 1 / 1; min-width: 0; }
         .lp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
@@ -259,6 +259,11 @@
         /* The new hero (x-hero.section) ends in its own white curve, so <main> no longer
            tucks up under it with the arch. */
         main.hero-arch { margin-top: 0; clip-path: none; }
+        /* Pull the section up into the white of the hero curve so the gap under it is smaller.
+           Transparent so the curve (and the photo at the edges) still shows through; the body is white. */
+        @media (min-width: 901px) {
+            main.hero-arch { margin-top: calc(-120 * 100vw / 1728); background-color: transparent; }
+        }
     </style>
 </head>
 
