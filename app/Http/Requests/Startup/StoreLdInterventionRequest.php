@@ -37,7 +37,7 @@ class StoreLdInterventionRequest extends FormRequest
                 $this->meaningfulText('Please enter a valid title.'),
             ]),
             // Item 26 is optional as a whole table - see SheetRowRules::optionalText().
-            'date_from' => ['nullable', 'date', 'after:1900-01-01'],
+            'date_from' => ['nullable', 'date', 'after:1900-01-01', 'before_or_equal:9999-12-31'],
             'date_to' => $this->optionalDateTo(),
             'number_of_hours' => $this->optionalHours(),
             // Free-form text - only markup characters are blocked, same as
@@ -61,6 +61,8 @@ class StoreLdInterventionRequest extends FormRequest
             'date_from.required' => 'Please enter the start date.',
             'date_from.date' => 'Please enter a valid start date.',
             'date_from.after' => 'Please enter a valid start date.',
+            'date_from.before_or_equal' => 'The year must be 4 digits.',
+            'date_to.before_or_equal' => 'The year must be 4 digits.',
             'date_to.required' => 'Please enter the end date.',
             'date_to.date' => 'Please enter a valid end date.',
             'date_to.after_or_equal' => 'End date must be on or after the start date.',

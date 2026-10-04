@@ -3,6 +3,19 @@ import Alpine from 'alpinejs';
 window.Alpine = Alpine;
 
 /**
+ * Date fields: browsers let the year segment take up to 6 digits (e.g. 11/01/545151)
+ * unless the input has a max. Give every <input type="date"> without one a
+ * max of 9999-12-31 so the year stops at 4 digits. Done on focus, so it also
+ * covers date inputs added later by Alpine (x-for rows, modals, etc.).
+ */
+document.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (el instanceof HTMLInputElement && el.type === 'date' && !el.max) {
+        el.max = '9999-12-31';
+    }
+});
+
+/**
  * Reflects a value into the URL's query string (?key=value) without
  * triggering a navigation. Used across tabbed/filtered pages (Roadblock
  * Management, Assessment Hub, Startup Roadblock/Archive, etc.) so that

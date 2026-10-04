@@ -82,7 +82,7 @@ trait SheetRowRules
     protected function optionalDateTo(): array
     {
         return array_values(array_filter([
-            'nullable', 'date',
+            'nullable', 'date', 'before_or_equal:9999-12-31', // keeps the year to 4 digits
             $this->filled('date_from') ? 'after_or_equal:date_from' : null,
         ]));
     }
