@@ -512,6 +512,17 @@ class AssessmentHubController extends Controller
             ->newestFirst()
             ->get();
 
+        // The open tab/stage is showing new dots this visit - keep the
+        // sidebar's lit until the admin leaves (AppServiceProvider).
+        $hubHere = \App\Support\PageVisit::location('admin.assessment-hub.index', $request->query());
+        if ($hubHere['main'] === 'information-sheet' && (
+            ($hubHere['tab'] === 'schedule' && $readyForEvaluation)
+            || ($hubHere['tab'] === 'evaluation' && $hubHere['stage'] === 'today' && $newMissedTodayIds)
+            || ($hubHere['tab'] === 'evaluation' && $hubHere['stage'] === 'missed' && $newMissedPastIds)
+        )) {
+            $request->attributes->set('sidebar_dot_here', true);
+        }
+
         \App\Support\PageVisit::markSeen(
             $admin,
             'admin.assessment-hub.index',

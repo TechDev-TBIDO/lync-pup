@@ -58,6 +58,13 @@ class RoadblockController extends Controller
             ->values()
             ->all();
 
+        // The open tab is showing new dots this visit - keep the sidebar's lit
+        // until the admin leaves (AppServiceProvider).
+        if (($location['tab'] === 'manage' && $newRoadblockIds)
+            || ($location['tab'] === 'archive' && $location['stage'] === 'assessment' && $newPendingReviewIds)) {
+            request()->attributes->set('sidebar_dot_here', true);
+        }
+
         // Stamps whichever of the two the open tab/stage shows (PageVisit).
         \App\Support\PageVisit::markSeen($admin, 'admin.roadblocks.index', $location, $visitedAt);
 
