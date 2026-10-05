@@ -62,28 +62,20 @@ class RoadblockController extends Controller
         // Archive tab: roadblocks the admin acted on since the last visit
         // (scheduled, resolved, failed, removed...). The founder's own fresh
         // submission (still Pending) isn't news to them, so it's left out.
-        $newRoadblockIds = $roadblocks
-            ->filter(fn (Roadblock $r) => $r->status !== 'Pending' && $r->updated_at?->gt($seenAt))
-            ->pluck('roadblock_id')
-            ->all();
+        // Red dots - the same computation the sidebar's Submission dot uses
+        // (App\Support\FounderTabDots), so a red tab always means a red sidebar.
+        $dots = \App\Support\FounderTabDots::submissions($user);
+        $newRoadblockIds = $dots['newRoadblockIds'];
+        $newUpdateKeys = $dots['newUpdateKeys'];
+        $fingerprint = fn ($row) => \App\Support\FounderTabDots::weeklyFingerprint($row);
 
-        // Update tab: Document 7 rows carry no timestamps of their own, so each
-        // row's content fingerprint is remembered per visit; a row whose
-        // fingerprint wasn't there last time is new (or was edited).
-        $fingerprint = fn ($row) => md5(json_encode($row));
-        $seenRows = ($user->module_seen_at ?? [])['founder_weekly_rows'] ?? null;
-        $newUpdateKeys = $weeklyUpdates
-            ->map($fingerprint)
-            ->filter(fn ($fp) => is_array($seenRows)
-                ? ! in_array($fp, $seenRows, true)
-                : ($doc7?->updated_at?->gt($seenAt) ?? false))
-            ->values()
-            ->all();
+        // The open tab is showing new dots this visit - keep the sidebar's
+        // Submission dot lit until the founder leaves (AppServiceProvider).
+        $openTab = \App\Support\PageVisit::location('startup.submissions.index', request()->query())['tab'];
+        if (($openTab === 'archive' && $newRoadblockIds) || ($openTab === 'update' && $newUpdateKeys)) {
+            request()->attributes->set('sidebar_dot_here', true);
+        }
 
-        // Only the tab actually opened counts as seen: the Archive dots /
-        // stamp clear when Archive is viewed, the Update dots when Update is
-        // viewed, each tab's notifications likewise. Switching tabs later
-        // reports the newly opened tab via the page-seen endpoint.
         \App\Support\PageVisit::markSeen(
             $user,
             'startup.submissions.index',

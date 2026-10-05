@@ -154,6 +154,13 @@ class MeetingController extends Controller
             ->sortByDesc('sort_key')
             ->values();
 
+        // The open tab is showing new dots this visit - keep the sidebar's
+        // Meeting dot lit until the founder leaves (AppServiceProvider).
+        $openTab = \App\Support\PageVisit::location('startup.meetings.index', request()->query())['tab'];
+        if (($openTab === 'meetings' ? $meetings : $archivedMeetings)->contains('is_new', true)) {
+            request()->attributes->set('sidebar_dot_here', true);
+        }
+
         // Red dots: which items (and so which tab) changed since the last visit.
         // Shown on this visit, then cleared - along with the sidebar dot.
         // Only the tab opened counts as seen; a tab switched to later is

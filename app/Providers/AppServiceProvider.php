@@ -28,6 +28,16 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // The admin sidebar's red dots are cached for 60s (see the admin
+        // composer below). Anything that can light one bumps this version,
+        // which is part of the cache key - so a founder's new roadblock /
+        // submitted sheet / missed slot shows on the very next admin page
+        // instead of up to a minute later.
+        foreach ([Roadblock::class, Startup::class, \App\Models\InformationSheet::class, EvaluationSchedule::class] as $model) {
+            $model::saved(fn () => self::bumpAdminBadges());
+            $model::deleted(fn () => self::bumpAdminBadges());
+        }
+
         Gate::define('admin-only', fn ($user) => $user->role === 'Admin');
         Gate::define('startup-only', fn ($user) => $user->role === 'Startup');
 
@@ -108,7 +118,6 @@ class AppServiceProvider extends ServiceProvider
                     // A "... scheduled" card whose meeting already moved to
                     // Archive has nothing left to check - the dot below takes over.
                     \App\Support\FounderMeetingArchive::retractEnded($user);
-                    $meetingArchiveNew = \App\Support\FounderMeetingArchive::hasNew($user, $user->startup);
 
                     $unread = $user->unreadNotifications()->get(['id', 'type', 'data']);
                     $unreadRoutes = $unread
@@ -118,10 +127,11 @@ class AppServiceProvider extends ServiceProvider
 
                     $startup = $user->startup;
 
-                    $roadblockChanged = $startup && $startup->roadblocks()
-                        ->whereIn('status', ['Scheduled', 'Resolved', 'Failed', 'Deleted by Admin'])
-                        ->where('updated_at', '>', $user->moduleSeenAt('founder_submissions'))
-                        ->exists();
+                    // Meeting / Submission: red whenever any tab inside the page
+                    // is red - read from the same source the tabs use
+                    // (App\Support\FounderTabDots), so the two always agree.
+                    $meetingTabs = \App\Support\FounderTabDots::meetings($user);
+                    $submissionTabs = \App\Support\FounderTabDots::submissions($user)['tabs'];
 
                     // Pre and Post are "seen" separately (FounderReadinessController).
                     $readinessChanged = $startup && $startup->readinessAssessments()
@@ -136,10 +146,10 @@ class AppServiceProvider extends ServiceProvider
                         // New/changed Portfolio Coordinator not seen yet (see
                         // StartupProfileController::edit(), which clears it).
                         'startup.profile.edit' => $unreadRoutes->contains('startup.profile.edit'),
-                        'startup.meetings.index' => $unreadRoutes->contains('startup.meetings.index') || $meetingArchiveNew,
+                        'startup.meetings.index' => in_array(true, $meetingTabs, true),
                         // Approved / Rejected notice not seen yet (cleared by opening the sheet).
                         'startup.information-sheet.edit' => $unreadRoutes->contains('startup.information-sheet.edit'),
-                        'startup.submissions.index' => $unreadRoutes->contains('startup.submissions.index') || $roadblockChanged,
+                        'startup.submissions.index' => in_array(true, $submissionTabs, true),
                         'startup.readiness.index' => $unreadRoutes->contains('startup.readiness.index') || $readinessChanged,
                     ];
 
@@ -156,6 +166,17 @@ class AppServiceProvider extends ServiceProvider
                         // that tab is opened; switching tabs without a reload
                         // turns it off in the browser (the page fires
                         // 'page-tab-seen', see layouts/founder.blade.php).
+                        // Meeting / Submission while open: red if the open tab is
+                        // showing new dots this visit, or any other tab is red.
+                        // (Opening a tab already counted as seen, so it's off on
+                        // the next page.) Static for the visit, like the tabs.
+                        if (in_array($route, ['startup.meetings.index', 'startup.submissions.index'], true)) {
+                            $tabs = $route === 'startup.meetings.index' ? $meetingTabs : $submissionTabs;
+                            $badges[$route] = (bool) request()->attributes->get('sidebar_dot_here') || in_array(true, $tabs, true);
+                            $founderSidebarPendingTabs[$route] = [];
+                            continue;
+                        }
+
                         $here = \App\Support\PageVisit::location($route, request()->query());
                         $pendingTabs = array_key_exists($route, \App\Support\PageVisit::PAGES)
                             ? $unread
@@ -168,10 +189,15 @@ class AppServiceProvider extends ServiceProvider
                                 ->all()
                             : [];
 
-                        // Something new in Meeting > Archive with no card of its own.
-                        if ($route === 'startup.meetings.index' && $meetingArchiveNew && ($here['tab'] ?? null) !== 'archive') {
-                            $pendingTabs = array_values(array_unique([...$pendingTabs, 'archive']));
+                        // The tab open right now is showing new red dots this
+                        // visit (flagged by its controller): stay lit until the
+                        // founder leaves the page, same as the admin side.
+                        if (request()->attributes->get('sidebar_dot_here')) {
+                            $badges[$route] = true;
+                            $founderSidebarPendingTabs[$route] = [];
+                            continue;
                         }
+
 
                         $badges[$route] = $pendingTabs !== [];
                         $founderSidebarPendingTabs[$route] = $pendingTabs;
@@ -200,6 +226,7 @@ class AppServiceProvider extends ServiceProvider
                 $badgeCacheKey = 'admin-sidebar-badges:'.$user->getKey().':'.md5(json_encode([
                     $user->module_seen_at,
                     $user->risk_monitoring_seen_signature,
+                    Cache::get('admin-sidebar-badges-version', 0),
                 ]));
 
                 $badges = Cache::remember($badgeCacheKey, 60, function () use ($user) {
@@ -339,6 +366,16 @@ class AppServiceProvider extends ServiceProvider
                         [self::adminViewKey($route, request()->query())]
                     ));
 
+                    // The tab open right now is showing new red dots this visit
+                    // (its controller flagged it): the sidebar agrees and stays
+                    // lit until the admin leaves the page - opening it already
+                    // counted as seen, so it's off on the next page.
+                    if (request()->attributes->get('sidebar_dot_here')) {
+                        $badges[$route] = true;
+                        $adminSidebarPendingTabs[$route] = [];
+                        continue;
+                    }
+
                     $badges[$route] = $pending !== [];
                     $adminSidebarPendingTabs[$route] = $pending;
                 }
@@ -387,5 +424,15 @@ class AppServiceProvider extends ServiceProvider
             'admin.roadblocks.index' => $loc['tab'] === 'archive' ? 'archive|'.$loc['stage'] : $loc['tab'],
             default => implode('|', $loc),
         };
+    }
+
+    /** Invalidates every admin's cached sidebar dots (see boot()). */
+    public static function bumpAdminBadges(): void
+    {
+        try {
+            Cache::forever('admin-sidebar-badges-version', (int) Cache::get('admin-sidebar-badges-version', 0) + 1);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }
