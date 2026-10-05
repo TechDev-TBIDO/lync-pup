@@ -26,6 +26,6 @@
 
     <div class="lph-actions">
         <a class="lph-btn lph-btn--ghost lph-abs" style="--x:1323;--y:43" href="{{ route('login') }}">Log in</a>
-        <a class="lph-btn lph-btn--solid lph-abs" style="--x:1449;--y:43" href="{{ route('register') }}">Apply Now</a>
+        <a class="lph-btn lph-btn--solid lph-abs" style="--x:1449;--y:43" href="{{ route('register', ['from' => 'landing']) }}">Apply Now</a>
     </div>
 </nav>
