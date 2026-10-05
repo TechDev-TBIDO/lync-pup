@@ -179,7 +179,16 @@
                                 </span>
 
                                 @if (!empty($adminSidebarBadges[$item['route']] ?? false))
+                                @if (!empty(($adminSidebarPendingTabs ?? [])[$item['route']] ?? []))
+                                {{-- Open page, new item on another tab/stage: goes out
+                                     once every such view has been opened (no reload). --}}
+                                <span x-data="{ pending: @js($adminSidebarPendingTabs[$item['route']]) }"
+                                    x-show="pending.length"
+                                    @page-tab-seen.window="if ($event.detail.route === @js($item['route'])) pending = pending.filter(t => t !== $event.detail.tab)"
+                                    class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New since your last visit" aria-label="New since your last visit"></span>
+                                @else
                                 <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New since your last visit" aria-label="New since your last visit"></span>
+                                @endif
                                 @endif
                             </a>
                             @endforeach

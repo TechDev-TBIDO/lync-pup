@@ -24,10 +24,15 @@ class AssessmentHubController extends Controller
         // so this is done lazily on load — same as Roadblock Management.
         AssessmentMeeting::promoteEndedMeetingsToPendingReview();
 
-        // Opening the hub counts as having seen every evaluation that has
-        // gone MISSED so far — clears the sidebar red dot's "missed" part
-        // (see AppServiceProvider). Newer misses light it again.
-        $request->user()?->markModuleSeen('assessment_hub_missed', now());
+        // A newly MISSED evaluation only counts as seen once the stage that
+        // shows it is opened - Evaluation > Today for today's slots,
+        // Evaluation > Missed for earlier days - not merely the hub (it opens
+        // on Schedule). Stamped at the end via PageVisit::markSeen(), and
+        // from the page-seen endpoint when the stage is switched in place.
+        $admin = $request->user();
+        $visitedAt = now();
+        $missedSeenToday = self::missedSeenAt($admin, 'today');
+        $missedSeenPast = self::missedSeenAt($admin, 'missed');
 
         // The app-wide selected cohort (see ResolveSelectedCohort) — every
         // startup-scoped list on this page narrows to just this cohort when
@@ -153,6 +158,25 @@ class AssessmentHubController extends Controller
             ->filter(fn ($row) => $row->isMissed() && ! $row->isToday())
             ->sortByDesc('evaluation_date')
             ->values();
+
+        // Red dots: which missed evaluations are new since their stage was
+        // last opened (same rule as the sidebar, see AppServiceProvider).
+        $newMissedTodayIds = $todayEvaluations
+            ->filter(fn ($row) => $row->isMissed() && self::missedIsNew($row, $missedSeenToday, $missedSeenPast))
+            ->pluck('evaluation_schedule_id')->map(fn ($id) => (int) $id)->values()->all();
+        $newMissedPastIds = $missedEvaluations
+            ->filter(fn ($row) => self::missedIsNew($row, $missedSeenToday, $missedSeenPast))
+            ->pluck('evaluation_schedule_id')->map(fn ($id) => (int) $id)->values()->all();
+
+        // Schedule sub-tab dot: a submitted sheet still waiting for "Set
+        // Evaluation" - same rule as the sidebar's (AppServiceProvider).
+        $readyForEvaluation = Startup::query()
+            ->pending()
+            ->whereHas('informationSheet', fn ($q) => $q->whereNotNull('submission_date'))
+            ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
+            ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
+            ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
+            ->exists();
 
         $approvedStartups = Startup::with('informationSheet')
             ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
@@ -487,7 +511,17 @@ class AssessmentHubController extends Controller
             ->newestFirst()
             ->get();
 
+        \App\Support\PageVisit::markSeen(
+            $admin,
+            'admin.assessment-hub.index',
+            \App\Support\PageVisit::location('admin.assessment-hub.index', $request->query()),
+            $visitedAt,
+        );
+
         return view('admin.assessment-hub.index', [
+            'newMissedTodayIds' => $newMissedTodayIds,
+            'newMissedPastIds' => $newMissedPastIds,
+            'readyForEvaluation' => $readyForEvaluation,
             'pendingStartups' => $pendingStartups,
             'scheduledToday' => $scheduledToday,
             'todayEvaluations' => $todayEvaluations,
@@ -528,5 +562,36 @@ class AssessmentHubController extends Controller
                 ->orderBy('number')
                 ->get(),
         ]);
+    }
+
+    /**
+     * When this admin last opened the Evaluation stage ('today' or 'missed')
+     * that shows newly MISSED evaluations. Falls back to the single hub-wide
+     * stamp used before the two were split, so nothing old relights at once.
+     */
+    public static function missedIsNew(EvaluationSchedule $row, \Illuminate\Support\Carbon $seenToday, \Illuminate\Support\Carbon $seenPast): bool
+    {
+        $endsAt = $row->ends_at ?? $row->evaluation_date->copy()->endOfDay();
+
+        // Today's slots show on Evaluation > Today.
+        if ($row->isToday()) {
+            return $endsAt->gt($seenToday);
+        }
+
+        // Earlier days show on Evaluation > Missed. Also counted as seen if
+        // Today was last opened on that same day after the slot ran out (it
+        // was on screen as MISSED then) - so it doesn't relight overnight.
+        $seenOnItsDay = $seenToday->isSameDay($row->evaluation_date) && $seenToday->gte($endsAt);
+
+        return $endsAt->gt($seenPast) && ! $seenOnItsDay;
+    }
+
+    public static function missedSeenAt(\App\Models\User $user, string $stage): \Illuminate\Support\Carbon
+    {
+        $key = 'assessment_hub_missed_'.$stage;
+
+        return isset(($user->module_seen_at ?? [])[$key])
+            ? $user->moduleSeenAt($key)
+            : $user->moduleSeenAt('assessment_hub_missed');
     }
 }

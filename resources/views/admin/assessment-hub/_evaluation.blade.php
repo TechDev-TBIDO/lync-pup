@@ -34,7 +34,27 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
 ->mapWithKeys(fn ($m) => [$m => \Carbon\Carbon::createFromFormat('Y-m', $m)->format('F, Y')])
 ->prepend('All Months', 'all')->all();
 @endphp
-<div x-data="{ stage: @js($initialStage), month: 'all' }" x-init="$watch('stage', value => setQueryParam('stage', value))">
+<div x-data="{
+        stage: @js($initialStage),
+        month: 'all',
+        // Tells the server (and the sidebar / tab dots) which Evaluation stage
+        // is now actually on screen, so a newly MISSED evaluation counts as
+        // seen only once its own stage has been opened (App\Support\PageVisit).
+        reportSeen(view) {
+            const [main, tab, stage] = view.split('|');
+            if (main !== 'information-sheet' || tab !== 'evaluation') return;
+            fetch(@js(route('page-seen')), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
+                body: JSON.stringify({ route: 'admin.assessment-hub.index', main, tab, stage }),
+            }).catch(() => {});
+            window.dispatchEvent(new CustomEvent('page-tab-seen', { detail: { route: 'admin.assessment-hub.index', tab: view } }));
+        },
+    }"
+    x-init="
+        $watch('stage', value => setQueryParam('stage', value));
+        $watch(() => [mainTab, subTab, stage].join('|'), view => reportSeen(view));
+    ">
     @php $stages = ['today' => 'Today', 'upcoming' => 'Upcoming', 'missed' => 'Missed']; @endphp
 
     <div class="mb-6 flex flex-col sm:flex-row sm:items-end gap-4">
@@ -60,8 +80,13 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                     <button type="button"
                         x-show="stage !== '{{ $value }}'"
                         @click="stage = '{{ $value }}'; open = false"
-                        class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                        class="flex w-full items-center gap-1.5 px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                         {{ $label }}
+                        @if (in_array('information-sheet|evaluation|'.$value, $hubMissedViews ?? [], true))
+                        <span {!! $hubDot(['information-sheet|evaluation|'.$value]) !!} x-show="pending.length" class="inline-flex">
+                            <x-new-dot title="Newly missed evaluation" aria-label="Newly missed evaluation" />
+                        </span>
+                        @endif
                     </button>
                     @endforeach
                 </div>
@@ -141,6 +166,9 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                             {!! $avatar($item->startup) !!}
                                         </span>
                                         <span class="min-w-0 flex-1 truncate" title="{{ $item->startup->company_name }}">{{ $item->startup->company_name }}</span>
+                                        @if (in_array((int) $item->evaluation_schedule_id, $newMissedTodayIds ?? [], true))
+                                        <x-new-dot class="shrink-0" title="Newly missed evaluation" aria-label="Newly missed evaluation" />
+                                        @endif
 
                                     </div>
                                 </div>
@@ -446,6 +474,9 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                             {!! $avatar($item->startup) !!}
                                         </span>
                                         <span class="min-w-0 flex-1 truncate" title="{{ $item->startup->company_name }}">{{ $item->startup->company_name }}</span>
+                                        @if (in_array((int) $item->evaluation_schedule_id, $newMissedPastIds ?? [], true))
+                                        <x-new-dot class="shrink-0" title="Newly missed evaluation" aria-label="Newly missed evaluation" />
+                                        @endif
                                     </div>
                                 </div>
                             </td>

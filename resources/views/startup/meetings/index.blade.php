@@ -142,6 +142,7 @@
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
                 body: JSON.stringify({ route: 'startup.meetings.index', tab: value }),
             }).catch(() => {});
+            window.dispatchEvent(new CustomEvent('page-tab-seen', { detail: { route: 'startup.meetings.index', tab: value } }));
         });
                     $watch('archiveStatusFilter', value => setQueryParam('status', value));
                     $watch('meetingSort', value => setQueryParam('sort', value));

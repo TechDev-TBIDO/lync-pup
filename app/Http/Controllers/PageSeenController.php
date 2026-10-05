@@ -23,7 +23,7 @@ class PageSeenController extends Controller
         $prefix = $user->role === 'Admin' ? 'admin.' : 'startup.';
         abort_unless(array_key_exists($route, PageVisit::PAGES) && str_starts_with($route, $prefix), 422);
 
-        PageVisit::markSeen($user, $route, PageVisit::location($route, $request->only(['tab', 'stage'])));
+        PageVisit::markSeen($user, $route, PageVisit::location($route, $request->only(array_keys(PageVisit::PAGES[$route]))));
 
         return response()->noContent();
     }

@@ -106,8 +106,8 @@ class AppServiceProvider extends ServiceProvider
                     // sidebar dot appears right away (see EvaluationMissed).
                     \App\Notifications\EvaluationMissed::sendDueFor($user->startup);
 
-                    $unreadRoutes = $user->unreadNotifications()
-                        ->get(['data'])
+                    $unread = $user->unreadNotifications()->get(['id', 'type', 'data']);
+                    $unreadRoutes = $unread
                         ->map(fn ($n) => $n->data['route'] ?? null)
                         ->filter()
                         ->unique();
@@ -140,9 +140,32 @@ class AppServiceProvider extends ServiceProvider
                     ];
 
                     foreach (array_keys($badges) as $route) {
-                        if (request()->routeIs($route)) {
-                            $badges[$route] = false;
+                        if (! request()->routeIs($route)) {
+                            continue;
                         }
+
+                        // The page currently open doesn't show its own dot for
+                        // what's on screen - but on a tabbed page (Meetings /
+                        // Archive, Roadblock / Update / Archive) only the tab
+                        // being shown counts as seen (App\Support\PageVisit).
+                        // Something new on another tab keeps the dot lit until
+                        // that tab is opened; switching tabs without a reload
+                        // turns it off in the browser (the page fires
+                        // 'page-tab-seen', see layouts/founder.blade.php).
+                        $here = \App\Support\PageVisit::location($route, request()->query());
+                        $pendingTabs = array_key_exists($route, \App\Support\PageVisit::PAGES)
+                            ? $unread
+                                ->filter(fn ($n) => ($n->data['route'] ?? null) === $route)
+                                ->map(fn ($n) => \App\Support\PageVisit::target($n))
+                                ->reject(fn ($target) => $target === $here)
+                                ->map(fn ($target) => implode('|', $target))
+                                ->unique()
+                                ->values()
+                                ->all()
+                            : [];
+
+                        $badges[$route] = $pendingTabs !== [];
+                        $founderSidebarPendingTabs[$route] = $pendingTabs;
                     }
                 } catch (\Throwable $e) {
                     // Badge-only; never break the founder's pages over it.
@@ -152,6 +175,7 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('founderSidebarBadges', $badges);
+            $view->with('founderSidebarPendingTabs', $founderSidebarPendingTabs ?? []);
         });
 
         View::composer('components.layouts.admin', function ($view) {
@@ -198,27 +222,51 @@ class AppServiceProvider extends ServiceProvider
                         ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
                         ->exists();
 
-                    $hubSeenAt = $user->moduleSeenAt('assessment_hub_missed');
+                    // (b) is "seen" per stage - Evaluation > Today shows today's
+                    // misses, Evaluation > Missed the earlier ones - so it only
+                    // clears once that stage is opened (AssessmentHubController::
+                    // missedSeenAt(), App\Support\PageVisit), not on landing.
+                    $seenToday = \App\Http\Controllers\Admin\AssessmentHubController::missedSeenAt($user, 'today');
+                    $seenPast = \App\Http\Controllers\Admin\AssessmentHubController::missedSeenAt($user, 'missed');
 
-                    $hasMissedEvaluation = ! $readyForEvaluation && EvaluationSchedule::with('startup.informationSheet')
+                    $missedRows = EvaluationSchedule::with('startup.informationSheet')
                         ->where('status', 'Scheduled')
-                        ->whereDate('evaluation_date', '>=', $hubSeenAt->toDateString())
+                        ->whereDate('evaluation_date', '>=', $seenToday->min($seenPast)->toDateString())
                         ->whereDate('evaluation_date', '<=', now()->toDateString())
                         ->whereHas('startup')
                         ->whereDoesntHave('startup.informationSheet', fn ($q) => $q->whereIn('approval_status', ['Approved', 'Rejected']))
                         ->get()
-                        ->contains(fn (EvaluationSchedule $row) => $row->isMissed()
-                            && ($row->ends_at ?? $row->evaluation_date->copy()->endOfDay())->gt($hubSeenAt));
+                        ->filter(fn (EvaluationSchedule $row) => $row->isMissed());
 
-                    $badges['admin.assessment-hub.index'] = $readyForEvaluation || $hasMissedEvaluation;
+                    $hubMissedViews = array_keys(array_filter([
+                        'information-sheet|evaluation|today' => $missedRows->contains(fn ($row) => $row->isToday() && \App\Http\Controllers\Admin\AssessmentHubController::missedIsNew($row, $seenToday, $seenPast)),
+                        'information-sheet|evaluation|missed' => $missedRows->contains(fn ($row) => ! $row->isToday() && \App\Http\Controllers\Admin\AssessmentHubController::missedIsNew($row, $seenToday, $seenPast)),
+                    ]));
+
+                    $badges['admin.assessment-hub.index'] = $readyForEvaluation || $hubMissedViews !== [];
+                    // Not a route - read (and removed) below for the open-page case.
+                    $badges['_hub_missed_views'] = $hubMissedViews;
 
                     // Roadblock Management — a newly submitted roadblock this admin
                     // hasn't opened yet, or any roadblock awaiting review (status
                     // Pending Review, or still Scheduled but its meeting already
                     // ended and the lazy sweep hasn't promoted it yet).
-                    $hasNewRoadblock = $user->unreadNotifications()
-                        ->where('type', NewRoadblockSubmitted::class)
-                        ->exists();
+                    //
+                    // "New" uses the same rule as the page's own per-card dots
+                    // (Admin\RoadblockController::index()): a Pending roadblock
+                    // submitted after this admin last opened the Manage tab.
+                    // Founders' submissions stopped sending NewRoadblockSubmitted
+                    // (a88d578, its dashboard card was removed), so reading only
+                    // that notification left this dot dark for every new
+                    // submission. Opening the Manage tab stamps
+                    // module_seen_at.roadblocks, which is part of the cache key
+                    // above, so the dot clears right away.
+                    $hasNewRoadblock = Roadblock::where('status', 'Pending')
+                        ->where('created_at', '>', $user->moduleSeenAt('roadblocks'))
+                        ->exists()
+                        || $user->unreadNotifications()
+                            ->where('type', NewRoadblockSubmitted::class)
+                            ->exists();
 
                     $hasPendingReview = ! $hasNewRoadblock && (
                         Roadblock::where('status', 'Pending Review')->exists()
@@ -247,16 +295,33 @@ class AppServiceProvider extends ServiceProvider
                     return $badges;
                 });
 
+                $hubMissedViews = $badges['_hub_missed_views'] ?? [];
+                unset($badges['_hub_missed_views']);
+
                 // The page being viewed never shows its own badge (it may still
-                // be in the 60s cache from before this visit).
+                // be in the 60s cache from before this visit) - except the
+                // Assessment Hub when a newly missed evaluation sits on a stage
+                // other than the one open: that keeps it lit until the stage is
+                // opened, and switching there in place turns it off in the
+                // browser ('page-tab-seen', see layouts/admin.blade.php).
                 foreach (array_keys($badges) as $route) {
-                    if (request()->routeIs($route)) {
-                        $badges[$route] = false;
+                    if (! request()->routeIs($route)) {
+                        continue;
                     }
+
+                    $pending = [];
+                    if ($route === 'admin.assessment-hub.index') {
+                        $here = implode('|', \App\Support\PageVisit::location($route, request()->query()));
+                        $pending = array_values(array_diff($hubMissedViews, [$here]));
+                    }
+
+                    $badges[$route] = $pending !== [];
+                    $adminSidebarPendingTabs[$route] = $pending;
                 }
             }
 
             $view->with('adminSidebarBadges', $badges);
+            $view->with('adminSidebarPendingTabs', $adminSidebarPendingTabs ?? []);
 
             // App-wide cohort filter + manage control (see
             // components/cohort-sidebar-control.blade.php) — rendered once

@@ -210,12 +210,25 @@
                     <button type="button" @click="tab = 'manage'" :class="tab === 'manage' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500'" class="whitespace-nowrap pb-3 border-b-2 text-sm font-medium sm:text-base">
                         <span class="sm:hidden">Manage</span>
                         <span class="hidden sm:inline">Manage Roadblock</span>
+                        {{-- Same rule as the per-card dots below: a roadblock
+                             submitted since this admin last opened this tab. --}}
+                        @if (! empty($newRoadblockIds))
+                        <x-new-dot x-show="! leftTabs.includes('manage')" class="ml-1 inline-block align-middle" />
+                        @endif
                     </button>
                     <button type="button" @click="tab = 'today'" :class="tab === 'today' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500'" class="whitespace-nowrap pb-3 border-b-2 text-sm font-medium sm:text-base">
                         <span class="sm:hidden">Today</span>
                         <span class="hidden sm:inline">Scheduled Today</span>
                     </button>
-                    <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500'" class="whitespace-nowrap pb-3 border-b-2 text-sm font-medium sm:text-base">Archive</button>
+                    <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500'" class="whitespace-nowrap pb-3 border-b-2 text-sm font-medium sm:text-base">Archive
+                        {{-- Lit while anything is waiting in Pending Review -
+                             the same rule as the sidebar's Roadblock Management
+                             dot, so the two always agree. Clears once each one
+                             is marked Resolved or Failed. --}}
+                        @if ($assessment->isNotEmpty())
+                        <x-new-dot class="ml-1 inline-block align-middle" title="Waiting for review" aria-label="Waiting for review" />
+                        @endif
+                    </button>
                 </nav>
             </div>
 
@@ -622,7 +635,12 @@
                         {{-- trigger --}}
                         <button type="button" @click="open = !open"
                             class="flex w-[140px] items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 hover:border-gray-400 sm:w-[160px]">
-                            <span class="truncate" x-text="{{ Js::from($stages) }}[archiveStage]"></span>
+                            <span class="flex min-w-0 items-center gap-1.5">
+                                <span class="truncate" x-text="{{ Js::from($stages) }}[archiveStage]"></span>
+                                @if ($assessment->isNotEmpty())
+                                <x-new-dot x-show="archiveStage === 'assessment'" title="Waiting for review" aria-label="Waiting for review" />
+                                @endif
+                            </span>
                             <svg class="h-4 w-4 flex-shrink-0 text-gray-400 transition" :class="open && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                             </svg>
@@ -641,8 +659,11 @@
                             <button type="button"
                                 x-show="archiveStage !== '{{ $value }}'"
                                 @click="archiveStage = '{{ $value }}'; open = false"
-                                class="w-full text-left px-3 py-2 text-sm text-gray-700 transition [@media(hover:hover)]:hover:bg-gradient-to-r [@media(hover:hover)]:hover:from-[#6D0D23] [@media(hover:hover)]:hover:to-[#11386A] [@media(hover:hover)]:hover:text-white">
+                                class="flex w-full items-center gap-1.5 text-left px-3 py-2 text-sm text-gray-700 transition [@media(hover:hover)]:hover:bg-gradient-to-r [@media(hover:hover)]:hover:from-[#6D0D23] [@media(hover:hover)]:hover:to-[#11386A] [@media(hover:hover)]:hover:text-white">
                                 {{ $label }}
+                                @if ($value === 'assessment' && $assessment->isNotEmpty())
+                                <x-new-dot title="Waiting for review" aria-label="Waiting for review" />
+                                @endif
                             </button>
                             @endforeach
                         </div>
@@ -682,8 +703,10 @@
                                                 </span>
                                                 @endif
 
-                                                <div class="min-w-0">
+                                                <div class="flex min-w-0 items-center gap-1.5">
                                                     <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
+                                                    {{-- Waiting for Resolved / Failed - see the Archive tab's dot. --}}
+                                                    <x-new-dot title="Waiting for review" aria-label="Waiting for review" />
                                                 </div>
                                             </div>
                                         </td>
