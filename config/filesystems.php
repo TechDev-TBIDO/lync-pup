@@ -47,18 +47,23 @@ return [
             'report' => false,
         ],
 
-        // Uses Cloudflare R2 when it's configured in .env (R2_BUCKET set);
+        // Uses S3-compatible object storage when it's configured in .env
+        // (STORAGE_BUCKET set) — Supabase Storage in production. The older
+        // R2_* names (from when this was Cloudflare R2) are still read as a
+        // fallback so a server that hasn't been switched over keeps working;
         // otherwise falls back to local storage/app/public so the app still
         // runs on machines without R2 credentials (local dev, testers).
         // Either way URLs stay root-relative "/storage/..." and are served
         // through StorageController.
-        'public' => env('R2_BUCKET') ? [
+        'public' => env('STORAGE_BUCKET', env('R2_BUCKET')) ? [
             'driver' => 's3',
-            'key' => env('R2_ACCESS_KEY_ID'),
-            'secret' => env('R2_SECRET_ACCESS_KEY'),
-            'region' => 'auto',
-            'bucket' => env('R2_BUCKET'),
-            'endpoint' => env('R2_ENDPOINT'),
+            'key' => env('STORAGE_ACCESS_KEY_ID', env('R2_ACCESS_KEY_ID')),
+            'secret' => env('STORAGE_SECRET_ACCESS_KEY', env('R2_SECRET_ACCESS_KEY')),
+            // Supabase Storage needs the project's real region (e.g.
+            // ap-southeast-1) to sign requests; R2 accepted 'auto'.
+            'region' => env('STORAGE_REGION', env('R2_REGION', 'auto')),
+            'bucket' => env('STORAGE_BUCKET', env('R2_BUCKET')),
+            'endpoint' => env('STORAGE_ENDPOINT', env('R2_ENDPOINT')),
             'use_path_style_endpoint' => true,
             // Root-relative on purpose (not built from APP_URL): this app is tested
             // from multiple devices on the same network (dev machine, tester phones/
