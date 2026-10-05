@@ -12,6 +12,7 @@
         // goes out once its stage is opened ('page-tab-seen', fired by
         // _evaluation.blade.php), the same way the sidebar's does.
         $hubMissedViews = array_keys(array_filter([
+            'information-sheet|schedule' => (bool) ($readyForEvaluation ?? false),
             'information-sheet|evaluation|today' => ! empty($newMissedTodayIds ?? []),
             'information-sheet|evaluation|missed' => ! empty($newMissedPastIds ?? []),
         ]));
@@ -94,8 +95,8 @@
                 :class="mainTab === 'information-sheet' ? 'border-rose-900 text-rose-900 font-bold' : 'border-transparent text-gray-400 font-medium'"
                 class="-mb-px shrink-0 whitespace-nowrap border-b-2 pb-3 text-base sm:text-lg">
                 Information Sheet
-                @if (($readyForEvaluation ?? false) || $hubMissedViews)
-                <span {!! $hubDot($hubMissedViews) !!} x-show="{{ ($readyForEvaluation ?? false) ? 'true' : 'pending.length' }}" class="ml-1 inline-flex align-middle">
+                @if ($hubMissedViews)
+                <span {!! $hubDot($hubMissedViews) !!} x-show="pending.length" class="ml-1 inline-flex align-middle">
                     <x-new-dot />
                 </span>
                 @endif
@@ -134,9 +135,11 @@
                         {{-- Schedule: a submitted sheet still waiting for Set
                              Evaluation. Evaluation: a newly missed evaluation. --}}
                         @if ($key === 'schedule' && ($readyForEvaluation ?? false))
-                        <x-new-dot class="ml-1 inline-block align-middle" title="Waiting for an evaluation schedule" aria-label="Waiting for an evaluation schedule" />
-                        @elseif ($key === 'evaluation' && $hubMissedViews)
-                        <span {!! $hubDot($hubMissedViews) !!} x-show="pending.length" class="ml-1 inline-flex align-middle">
+                        <span {!! $hubDot(['information-sheet|schedule']) !!} x-show="pending.length" class="ml-1 inline-flex align-middle">
+                            <x-new-dot title="New Information Sheet waiting for an evaluation schedule" aria-label="New Information Sheet waiting for an evaluation schedule" />
+                        </span>
+                        @elseif ($key === 'evaluation' && array_diff($hubMissedViews, ['information-sheet|schedule']))
+                        <span {!! $hubDot(array_values(array_diff($hubMissedViews, ['information-sheet|schedule']))) !!} x-show="pending.length" class="ml-1 inline-flex align-middle">
                             <x-new-dot title="Newly missed evaluation" aria-label="Newly missed evaluation" />
                         </span>
                         @endif
