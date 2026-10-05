@@ -344,9 +344,19 @@ class Startup extends Model
      *
      * Admin retains edit access throughout, and an Approved sheet stays
      * locked on its own separate check.
+     *
+     * Only while the sheet is still waiting on that evaluation's decision
+     * (Pending): the moment it is rejected - even mid-morning on the
+     * evaluation day itself - the founder can revise and resubmit right
+     * away instead of waiting for tomorrow. Read straight from the database
+     * so a decision made earlier in the same request is never missed.
      */
     public function evaluationDayLockActive(): bool
     {
+        if ($this->informationSheet()->value('approval_status') !== 'Pending') {
+            return false;
+        }
+
         return $this->evaluationSchedules()
             ->where('status', '!=', 'Cancelled')
             ->whereDate('evaluation_date', now()->toDateString())

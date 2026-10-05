@@ -62,7 +62,9 @@ class MeetingTest extends TestCase
 
     public function test_evaluation_card_shows_a_working_join_link_for_an_online_modality_today(): void
     {
-        $user = $this->founderUser();
+        // Still awaiting a decision: an already-approved/rejected sheet's
+        // evaluation moves straight to Archive (EvaluationSchedule::isDecided()).
+        $user = $this->founderUser(['approval_status' => 'Pending']);
 
         EvaluationSchedule::create([
             'startup_id' => $user->startup->startup_id,
@@ -87,7 +89,9 @@ class MeetingTest extends TestCase
 
     public function test_evaluation_card_has_no_join_link_for_an_in_person_modality(): void
     {
-        $user = $this->founderUser();
+        // Still awaiting a decision: an already-approved/rejected sheet's
+        // evaluation moves straight to Archive (EvaluationSchedule::isDecided()).
+        $user = $this->founderUser(['approval_status' => 'Pending']);
 
         EvaluationSchedule::create([
             'startup_id' => $user->startup->startup_id,
