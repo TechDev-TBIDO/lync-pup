@@ -1,7 +1,7 @@
 <x-layouts.admin title="Dashboard">
 
     @php
-        // --- Incubation Progress donut (0-5 scale, see DashboardController) ---
+        // --- Incubation Progress donut (weighted milestones, see DashboardController) ---
         $incubationTotal = max($incubationProgress['total'], 1);
         $incubationActive = collect($incubationProgress['breakdown'])->filter(fn ($b) => $b['count'] > 0)->values();
         $gapDeg1 = $incubationActive->count() > 1 ? 5 : 0;
@@ -243,6 +243,10 @@
                                             <span class="flex flex-col leading-tight">
                                                 <span class="text-[13px] font-medium text-gray-700">{{ $row['label'] }}</span>
                                                 <span class="text-[12px] text-gray-400">{{ $row['range'] }}</span>
+                                                @if ($row['label'] === 'High Ready')
+                                                    {{-- Of the High Ready startups, how many have actually completed Venture Exit. --}}
+                                                    <span class="text-[11px] text-gray-400">Completed: {{ $row['complete'] ?? 0 }} {{ Str::plural('startup', $row['complete'] ?? 0) }}</span>
+                                                @endif
                                             </span>
                                         </span>
                                     </td>
