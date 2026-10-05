@@ -68,7 +68,7 @@ class WordDocumentExporter
         // storage/app, resources/ isn't gitignored) so these masters ship
         // with every clone instead of needing a manual out-of-band copy.
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[1]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         // Blank or "N/A" (any spelling: n/a, NA, N.A., N / A) prints as an
         // empty cell on the Information Sheet export - the founder/admin only
@@ -254,7 +254,7 @@ class WordDocumentExporter
         $progress = $assessment?->progressFor('TRL') ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[2]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -403,7 +403,7 @@ class WordDocumentExporter
         $progress = $assessment?->progressFor('MRL') ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[3]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -468,7 +468,7 @@ class WordDocumentExporter
         $progress = $assessment?->progressFor('TMRL') ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[4]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -534,7 +534,7 @@ class WordDocumentExporter
         $progress = $assessment?->progressFor('SRL') ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[5]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -600,7 +600,7 @@ class WordDocumentExporter
         $progress = $assessment?->progressFor('TRL') ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[9]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -662,7 +662,7 @@ class WordDocumentExporter
         $progress = $assessment?->progressFor('MRL') ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[10]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -724,7 +724,7 @@ class WordDocumentExporter
         $progress = $assessment?->progressFor('TMRL') ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[11]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -786,7 +786,7 @@ class WordDocumentExporter
         $progress = $assessment?->progressFor('SRL') ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[12]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -874,7 +874,7 @@ class WordDocumentExporter
         $data = $document?->data ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[6]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
@@ -923,7 +923,7 @@ class WordDocumentExporter
 
         // The three Prepared By signers share one caption; a blank one is
         // skipped and the next one moves into its column.
-        $processor->setValue('prepared_by_label', htmlspecialchars((string) data_get($data, 'prepared_by_label', ''), ENT_XML1));
+        $processor->setValue('prepared_by_label', (string) data_get($data, 'prepared_by_label', ''));
         $this->fillSignatorySlots($processor, [
             ['name' => 'prepared_by_name_1', 'position' => 'prepared_by_position_1', 'block' => 'sig_prep_1'],
             ['name' => 'prepared_by_name_2', 'position' => 'prepared_by_position_2', 'block' => 'sig_prep_2'],
@@ -932,7 +932,7 @@ class WordDocumentExporter
             ->map(fn ($person) => ['name' => $person['name'] ?? null, 'position' => $person['position'] ?? null])
             ->all(), true, false);
 
-        $processor->setValue('noted_by_label', htmlspecialchars((string) data_get($data, 'noted_by_label', ''), ENT_XML1));
+        $processor->setValue('noted_by_label', (string) data_get($data, 'noted_by_label', ''));
         $processor->setValue('noted_by', $vc(data_get($data, 'noted_by')));
         $processor->setValue('noted_by_position', $v(data_get($data, 'noted_by_position')));
 
@@ -959,7 +959,7 @@ class WordDocumentExporter
         $data = $document?->data ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[7]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
 
@@ -1031,7 +1031,7 @@ class WordDocumentExporter
         $data = $document?->data ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[8]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
@@ -1097,7 +1097,7 @@ class WordDocumentExporter
         $processor->setValue('sum_total', $overallAvg !== null ? number_format($overallAvg, 2) : '');
         $processor->setValue('sum_overall_interp', (string) (\App\Support\ActiveAssessmentForms::scoreInterpretation($overallAvg) ?? ''));
 
-        $processor->setValue('validated_by_label', htmlspecialchars((string) data_get($data, 'validated_by_label', ''), ENT_XML1));
+        $processor->setValue('validated_by_label', (string) data_get($data, 'validated_by_label', ''));
         $processor->setValue('validated_by_name', $v(data_get($data, 'validated_by_name')));
         $processor->setValue('validated_by_position', $v(data_get($data, 'validated_by_position')));
         // Contact No. and Date were captured by the form (validated_by_contact
@@ -1134,7 +1134,7 @@ class WordDocumentExporter
         $data = $document?->data ?? [];
 
         $templatePath = resource_path('document-templates/' . self::TEMPLATES[13]);
-        $processor = new TemplateProcessor($templatePath);
+        $processor = new EscapingTemplateProcessor($templatePath);
 
         $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
         $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
@@ -1263,7 +1263,7 @@ class WordDocumentExporter
      * always stays in the last slot on the right; only the ones before it
      * shift left to fill gaps.
      */
-    protected function fillSignatorySlots(TemplateProcessor $processor, array $slots, array $people, bool $upperName = true, bool $pinLast = true): void
+    protected function fillSignatorySlots(EscapingTemplateProcessor $processor, array $slots, array $people, bool $upperName = true, bool $pinLast = true): void
     {
         $people = array_values($people);
         $isFilled = fn (array $person) => trim(
@@ -1293,7 +1293,7 @@ class WordDocumentExporter
             ));
 
             if (! empty($slot['label'])) {
-                $processor->setValue($slot['label'], htmlspecialchars((string) ($person['label'] ?? ''), ENT_XML1));
+                $processor->setValue($slot['label'], (string) ($person['label'] ?? ''));
             }
 
             $processor->setValue($slot['name'], $upperName ? mb_strtoupper($name) : $name);
@@ -1312,10 +1312,10 @@ class WordDocumentExporter
                 // so an empty second line no longer adds a blank gap.
                 $keys = array_values($slot['position']);
                 foreach ($keys as $k => $key) {
-                    $processor->setValue($key, $k === 0 ? $asLines($lines) : '');
+                    $processor->setXmlValue($key, $k === 0 ? $asLines($lines) : '');
                 }
             } else {
-                $processor->setValue($slot['position'], $asLines($lines));
+                $processor->setXmlValue($slot['position'], $asLines($lines));
             }
         }
     }
