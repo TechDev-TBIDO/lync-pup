@@ -84,10 +84,13 @@ class MeetingController extends Controller
         // that was approved (or rejected) within its own day used to stay on
         // this "active" list forever instead of moving to Archive once
         // Item 2 needed a real destination for it.
-        $evaluations = EvaluationSchedule::where('startup_id', $startup->startup_id)
+        // ...or once the sheet has already been approved/rejected, even if
+        // that happened before the booked slot itself ran out (isDecided()).
+        $evaluations = EvaluationSchedule::with('startup.informationSheet')
+            ->where('startup_id', $startup->startup_id)
             ->where('status', 'Scheduled')
             ->get()
-            ->reject(fn (EvaluationSchedule $schedule) => $schedule->hasEnded())
+            ->reject(fn (EvaluationSchedule $schedule) => $schedule->isArchivedForFounder())
             ->map(function (EvaluationSchedule $schedule) {
                 return [
                     'type' => 'evaluation',
@@ -198,17 +201,19 @@ class MeetingController extends Controller
     }
 
     /**
-     * Information Sheet evaluation meetings whose booked slot has ended —
+     * Information Sheet evaluation meetings whose booked slot has ended, or
+     * whose sheet was already approved/rejected before it did —
      * tagged Approved, Rejected, or Missed per EvaluationSchedule::archiveStatus(),
      * based on the sheet's decision (or lack of one) by the time the
      * evaluation day ended.
      */
     private function archivedEvaluations(string $startupId)
     {
-        return EvaluationSchedule::where('startup_id', $startupId)
+        return EvaluationSchedule::with('startup.informationSheet')
+            ->where('startup_id', $startupId)
             ->where('status', 'Scheduled')
             ->get()
-            ->filter(fn (EvaluationSchedule $schedule) => $schedule->hasEnded())
+            ->filter(fn (EvaluationSchedule $schedule) => $schedule->isArchivedForFounder())
             ->map(function (EvaluationSchedule $schedule) {
                 return [
                     'type' => 'evaluation',

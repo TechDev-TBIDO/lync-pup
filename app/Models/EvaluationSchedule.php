@@ -171,6 +171,31 @@ class EvaluationSchedule extends Model
             && ! $this->approvedOnEvaluationDay();
     }
 
+    /**
+     * The sheet was already approved or rejected for this booking - the
+     * evaluation is over even if its booked slot hasn't run out yet (an
+     * admin can decide as soon as the evaluation day is reached, e.g. a
+     * 2-3 PM slot approved at 10 AM). Founder-side, a decided booking
+     * belongs in Meeting > Archive, not the active list.
+     *
+     * Resubmitting after a rejection deletes the old rows (see
+     * Startup\InformationSheetController::update()), so every row still
+     * here belongs to the sheet's current decision.
+     */
+    public function isDecided(): bool
+    {
+        return in_array($this->startup?->informationSheet?->approval_status, ['Approved', 'Rejected'], true);
+    }
+
+    /**
+     * Founder Meeting page: off the active list and into Archive once the
+     * booked time has passed OR the sheet has been decided early.
+     */
+    public function isArchivedForFounder(): bool
+    {
+        return $this->hasEnded() || $this->isDecided();
+    }
+
     public function isUpcoming(): bool
     {
         return $this->status === 'Scheduled' && $this->evaluation_date->gt(now()->startOfDay());
@@ -213,7 +238,13 @@ class EvaluationSchedule extends Model
             return 'Approved after missed';
         }
 
-        if ($sheet?->approval_status === 'Rejected' && $sheet->rejected_at && $this->updated_at->gte($sheet->rejected_at)) {
+        // Rejected on the evaluation day itself - same end-of-day deadline as
+        // approvedOnEvaluationDay(), so a rejection made early (before the
+        // booked slot even started) still reads 'Rejected'. One that only
+        // landed on a later day means the meeting itself was missed. (Was
+        // updated_at >= rejected_at, which tagged an early rejection 'Missed'.)
+        if ($sheet?->approval_status === 'Rejected' && $sheet->rejected_at
+            && $sheet->rejected_at->lte($this->evaluation_date->copy()->endOfDay())) {
             return 'Rejected';
         }
 

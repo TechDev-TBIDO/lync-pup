@@ -453,7 +453,7 @@ class InformationSheetTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'Admin']);
         [$user, $startup] = $this->makeFounder();
-        $schedule = EvaluationSchedule::create([
+        EvaluationSchedule::create([
             'startup_id' => $startup->startup_id,
             'evaluation_date' => now(),
             'start_time' => '08:00',
@@ -475,11 +475,17 @@ class InformationSheetTest extends TestCase
             'Resubmitting while the old, still-Scheduled row is untouched must not relock the sheet.'
         );
 
-        // Admin re-books the same row for later today — its updated_at
-        // naturally moves past rejected_at, so it counts as a fresh
-        // evaluation again.
+        // Resubmitting deletes the old, already-decided booking (see
+        // Startup\InformationSheetController::update()), so the admin books
+        // a fresh evaluation for later today - that one locks again.
         $this->travel(1)->minute();
-        $schedule->update(['start_time' => '15:00', 'end_time' => '16:00']);
+        EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now(),
+            'start_time' => '15:00',
+            'end_time' => '16:00',
+            'status' => 'Scheduled',
+        ]);
 
         $this->assertTrue($startup->fresh()->evaluationDayLockActive());
 

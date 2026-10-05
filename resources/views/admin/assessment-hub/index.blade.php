@@ -63,7 +63,23 @@
         @include('admin.assessment-hub._export-modal')
 
         <div class="mb-6 flex gap-6 overflow-x-auto overflow-y-hidden border-b sm:gap-8">
-            <button type="button" @click="mainTab = 'information-sheet'"
+            {{-- Leaving the Assessment tab hides its form (TRL/MRL/TMRL/SRL,
+                 Document 6/7/8, Venture Exit) without saving it, so an unsaved
+                 draft gets the same Unsaved Changes prompt as the sidebar,
+                 stage tabs and startup switcher. Leave reloads onto this tab,
+                 which discards the draft exactly like those links do. --}}
+            <button type="button"
+                @click="
+                    if (mainTab !== 'information-sheet' && $store.navigation.hasUnsavedChanges) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('main', 'information-sheet');
+                        $store.navigation.pendingAction = null;
+                        $store.navigation.nextUrl = url.toString();
+                        $store.navigation.showLeaveModal = true;
+                    } else {
+                        mainTab = 'information-sheet';
+                    }
+                "
                 :class="mainTab === 'information-sheet' ? 'border-rose-900 text-rose-900 font-bold' : 'border-transparent text-gray-400 font-medium'"
                 class="-mb-px shrink-0 whitespace-nowrap border-b-2 pb-3 text-base sm:text-lg">
                 Information Sheet
