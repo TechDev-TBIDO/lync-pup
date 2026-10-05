@@ -25,7 +25,12 @@ class MeetingController extends Controller
     {
         $seenAt = $this->seenAt[$tab] ?? null;
 
-        return $seenAt && $model->updated_at && $model->updated_at->gt($seenAt);
+        // Archive rows count from when they landed there (meeting ended /
+        // status changed), same rule as the sidebar's Meeting dot
+        // (App\Support\FounderMeetingArchive).
+        $at = $tab === 'archive' ? \App\Support\FounderMeetingArchive::enteredAt($model) : $model->updated_at;
+
+        return $seenAt && $at && $at->gt($seenAt);
     }
 
     public function index(): View
@@ -36,15 +41,18 @@ class MeetingController extends Controller
         $visitedAt = now();
         // Per-tab stamps; before they existed, the single page-wide stamp.
         $user = Auth::user();
-        foreach (['meetings', 'archive'] as $tab) {
+        foreach (['meetings'] as $tab) {
             $this->seenAt[$tab] = isset(($user->module_seen_at ?? [])["founder_meetings_{$tab}"])
                 ? $user->moduleSeenAt("founder_meetings_{$tab}")
                 : $user->founderSeenSince('founder_meetings', 'startup.meetings.index');
         }
+        // Archive: same stamp the sidebar's Meeting dot reads.
+        $this->seenAt['archive'] = \App\Support\FounderMeetingArchive::seenAt($user);
 
         $startup = Auth::user()->startup;
 
         \App\Notifications\EvaluationMissed::sendDueFor($startup);
+        \App\Support\FounderMeetingArchive::retractEnded(Auth::user());
 
         $mentorships = Roadblock::with(['mentor', 'coordinator'])
             ->where('startup_id', $startup->startup_id)

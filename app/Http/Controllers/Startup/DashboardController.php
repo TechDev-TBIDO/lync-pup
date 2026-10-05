@@ -25,6 +25,10 @@ class DashboardController extends Controller
         // Announce any evaluation that has just become Missed, before the
         // updates list below is read (no scheduler - created lazily).
         \App\Notifications\EvaluationMissed::sendDueFor($startup);
+        // ...and drop any "... scheduled" card whose meeting already ended and
+        // moved to Meeting > Archive - nothing left to check (the sidebar's
+        // Meeting dot points at the Archive instead).
+        \App\Support\FounderMeetingArchive::retractEnded(auth()->user());
 
         // "Cohort 3 - 001": no per-cohort sequence exists anywhere in the
         // app yet, so it's derived here — this startup's rank by startup_id

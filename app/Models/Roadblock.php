@@ -178,6 +178,24 @@ class Roadblock extends Model
      * status, or (transitionally, before the next sweep catches it) it's
      * still "Scheduled" but its meeting time has already passed.
      */
+    /**
+     * When this roadblock landed in Archive > Pending Review: its meeting
+     * ending, or (for a row already Pending Review) the last time its status
+     * was written - promotion and Recover both stamp updated_at. Drives the
+     * admin's "new in Pending Review" red dots (null = not in Pending Review).
+     */
+    public function pendingReviewSince(): ?Carbon
+    {
+        if (! $this->isInAssessment()) {
+            return null;
+        }
+
+        $endedAt = $this->meeting_ends_at;
+        $statusAt = $this->status === 'Pending Review' ? $this->updated_at : null;
+
+        return $endedAt && $statusAt ? $endedAt->max($statusAt) : ($endedAt ?? $statusAt);
+    }
+
     public function isInAssessment(): bool
     {
         return $this->status === 'Pending Review'

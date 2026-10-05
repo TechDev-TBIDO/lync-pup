@@ -105,6 +105,10 @@ class AppServiceProvider extends ServiceProvider
                     // Any page: announce a newly Missed evaluation so the
                     // sidebar dot appears right away (see EvaluationMissed).
                     \App\Notifications\EvaluationMissed::sendDueFor($user->startup);
+                    // A "... scheduled" card whose meeting already moved to
+                    // Archive has nothing left to check - the dot below takes over.
+                    \App\Support\FounderMeetingArchive::retractEnded($user);
+                    $meetingArchiveNew = \App\Support\FounderMeetingArchive::hasNew($user, $user->startup);
 
                     $unread = $user->unreadNotifications()->get(['id', 'type', 'data']);
                     $unreadRoutes = $unread
@@ -132,7 +136,7 @@ class AppServiceProvider extends ServiceProvider
                         // New/changed Portfolio Coordinator not seen yet (see
                         // StartupProfileController::edit(), which clears it).
                         'startup.profile.edit' => $unreadRoutes->contains('startup.profile.edit'),
-                        'startup.meetings.index' => $unreadRoutes->contains('startup.meetings.index'),
+                        'startup.meetings.index' => $unreadRoutes->contains('startup.meetings.index') || $meetingArchiveNew,
                         // Approved / Rejected notice not seen yet (cleared by opening the sheet).
                         'startup.information-sheet.edit' => $unreadRoutes->contains('startup.information-sheet.edit'),
                         'startup.submissions.index' => $unreadRoutes->contains('startup.submissions.index') || $roadblockChanged,
@@ -163,6 +167,11 @@ class AppServiceProvider extends ServiceProvider
                                 ->values()
                                 ->all()
                             : [];
+
+                        // Something new in Meeting > Archive with no card of its own.
+                        if ($route === 'startup.meetings.index' && $meetingArchiveNew && ($here['tab'] ?? null) !== 'archive') {
+                            $pendingTabs = array_values(array_unique([...$pendingTabs, 'archive']));
+                        }
 
                         $badges[$route] = $pendingTabs !== [];
                         $founderSidebarPendingTabs[$route] = $pendingTabs;
@@ -215,9 +224,12 @@ class AppServiceProvider extends ServiceProvider
                     //      as the Today list's red MISSED badge, isMissed()).
                     //      Opening the hub clears this part of the dot (see
                     //      AssessmentHubController::index()).
+                    // (a) counts only sheets submitted since this admin last opened
+                    // Information Sheet > Schedule (the hub's landing tab), so it
+                    // goes out once that list has been seen, like every other dot.
                     $readyForEvaluation = Startup::query()
                         ->pending()
-                        ->whereHas('informationSheet', fn ($q) => $q->whereNotNull('submission_date'))
+                        ->whereHas('informationSheet', fn ($q) => $q->where('submission_date', '>', $user->moduleSeenAt('assessment_hub_schedule')))
                         ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
                         ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
                         ->exists();
@@ -243,9 +255,14 @@ class AppServiceProvider extends ServiceProvider
                         'information-sheet|evaluation|missed' => $missedRows->contains(fn ($row) => ! $row->isToday() && \App\Http\Controllers\Admin\AssessmentHubController::missedIsNew($row, $seenToday, $seenPast)),
                     ]));
 
-                    $badges['admin.assessment-hub.index'] = $readyForEvaluation || $hubMissedViews !== [];
+                    $hubViews = $hubMissedViews;
+                    if ($readyForEvaluation) {
+                        array_unshift($hubViews, 'information-sheet|schedule');
+                    }
+
+                    $badges['admin.assessment-hub.index'] = $hubViews !== [];
                     // Not a route - read (and removed) below for the open-page case.
-                    $badges['_hub_missed_views'] = $hubMissedViews;
+                    $badges['_views']['admin.assessment-hub.index'] = $hubViews;
 
                     // Roadblock Management — a newly submitted roadblock this admin
                     // hasn't opened yet, or any roadblock awaiting review (status
@@ -268,17 +285,23 @@ class AppServiceProvider extends ServiceProvider
                             ->where('type', NewRoadblockSubmitted::class)
                             ->exists();
 
-                    $hasPendingReview = ! $hasNewRoadblock && (
-                        Roadblock::where('status', 'Pending Review')->exists()
-                        || Roadblock::where('status', 'Scheduled')
-                            ->whereNotNull('meeting_date')
-                            ->whereNotNull('meeting_end_time')
-                            ->whereDate('meeting_date', '<=', now()->toDateString())
-                            ->get(['roadblock_id', 'meeting_date', 'meeting_end_time'])
-                            ->contains(fn (Roadblock $r) => $r->meeting_ends_at?->isPast())
-                    );
+                    // Archive > Pending Review: a roadblock that landed there since
+                    // this admin last opened that stage - seen once opened, not
+                    // "until resolved" (Roadblock::pendingReviewSince()).
+                    $pendingReviewSeenAt = $user->moduleSeenAt('roadblocks_pending_review');
+                    $hasNewPendingReview = Roadblock::whereIn('status', ['Scheduled', 'Pending Review'])
+                        ->whereNotNull('meeting_date')
+                        ->whereNotNull('meeting_end_time')
+                        ->whereDate('meeting_date', '<=', now()->toDateString())
+                        ->get()
+                        ->contains(fn (Roadblock $r) => $r->pendingReviewSince()?->gt($pendingReviewSeenAt));
 
-                    $badges['admin.roadblocks.index'] = $hasNewRoadblock || $hasPendingReview;
+                    $roadblockViews = array_keys(array_filter([
+                        'manage' => $hasNewRoadblock,
+                        'archive|assessment' => $hasNewPendingReview,
+                    ]));
+                    $badges['admin.roadblocks.index'] = $roadblockViews !== [];
+                    $badges['_views']['admin.roadblocks.index'] = $roadblockViews;
 
                     // Risk Monitoring — a startup is at Moderate risk or higher and
                     // that picture has changed since this admin last opened the
@@ -295,8 +318,10 @@ class AppServiceProvider extends ServiceProvider
                     return $badges;
                 });
 
-                $hubMissedViews = $badges['_hub_missed_views'] ?? [];
-                unset($badges['_hub_missed_views']);
+                // Not routes: which tab/stage holds each page's new item
+                // (Assessment Hub, Roadblock Management).
+                $pageViews = $badges['_views'] ?? [];
+                unset($badges['_views']);
 
                 // The page being viewed never shows its own badge (it may still
                 // be in the 60s cache from before this visit) - except the
@@ -309,11 +334,10 @@ class AppServiceProvider extends ServiceProvider
                         continue;
                     }
 
-                    $pending = [];
-                    if ($route === 'admin.assessment-hub.index') {
-                        $here = implode('|', \App\Support\PageVisit::location($route, request()->query()));
-                        $pending = array_values(array_diff($hubMissedViews, [$here]));
-                    }
+                    $pending = array_values(array_diff(
+                        $pageViews[$route] ?? [],
+                        [self::adminViewKey($route, request()->query())]
+                    ));
 
                     $badges[$route] = $pending !== [];
                     $adminSidebarPendingTabs[$route] = $pending;
@@ -344,5 +368,24 @@ class AppServiceProvider extends ServiceProvider
             $view->with('sidebarCohorts', $sidebarCohorts);
             $view->with('sidebarSelectedCohort', $sidebarSelectedCohort);
         });
+    }
+
+    /**
+     * The tab/stage an admin page is showing, as the key its sidebar dot and
+     * in-page dots use ('page-tab-seen' events carry the same key):
+     * Assessment Hub 'information-sheet|evaluation|missed', 'information-
+     * sheet|schedule'; Roadblock Management 'manage', 'archive|assessment'.
+     */
+    public static function adminViewKey(string $route, array $query): string
+    {
+        $loc = \App\Support\PageVisit::location($route, $query);
+
+        return match ($route) {
+            'admin.assessment-hub.index' => $loc['tab'] === 'evaluation'
+                ? implode('|', $loc)
+                : $loc['main'].'|'.$loc['tab'],
+            'admin.roadblocks.index' => $loc['tab'] === 'archive' ? 'archive|'.$loc['stage'] : $loc['tab'],
+            default => implode('|', $loc),
+        };
     }
 }

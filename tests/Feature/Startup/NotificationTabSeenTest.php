@@ -80,6 +80,9 @@ class NotificationTabSeenTest extends TestCase
     public function test_meetings_archive_tab_does_not_clear_an_upcoming_meeting_card(): void
     {
         [$user, $roadblock] = $this->founder();
+        // An upcoming session - a card for one that already ended/closed is
+        // removed on its own (App\Support\FounderMeetingArchive::retractEnded()).
+        $roadblock->update(['status' => 'Scheduled', 'meeting_date' => now()->addDay()->toDateString(), 'meeting_start_time' => '10:00', 'meeting_end_time' => '11:00']);
         $user->notify(new MentorshipScheduled($roadblock));
 
         $this->actingAs($user)->get(route('startup.meetings.index', ['tab' => 'archive']))->assertOk();

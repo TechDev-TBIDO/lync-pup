@@ -168,6 +168,20 @@
                 this.upcomingSort = 'soonest';
             },
 
+            // Tell the server (and the sidebar / tab dots) which tab - and on
+            // Archive, which stage - is now on screen, so its red dots count
+            // as seen (App\\Support\\PageVisit). Same view key as
+            // AppServiceProvider::adminViewKey().
+            reportSeen() {
+                fetch(@js(route('page-seen')), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
+                    body: JSON.stringify({ route: 'admin.roadblocks.index', tab: this.tab, stage: this.archiveStage }),
+                }).catch(() => {});
+                const key = this.tab === 'archive' ? `archive|${this.archiveStage}` : this.tab;
+                window.dispatchEvent(new CustomEvent('page-tab-seen', { detail: { route: 'admin.roadblocks.index', tab: key } }));
+            },
+
             sortUpcomingRows() {
                 const body = document.getElementById('upcoming-rows');
                 if (! body) return;
@@ -183,15 +197,9 @@
             $watch('tab', (value, previous) => {
             if (previous && ! leftTabs.includes(previous)) leftTabs.push(previous);
             setQueryParam('tab', value);
-            // Tell the server this tab has now been opened, so its
-            // notifications / red dots clear (App\\Support\\PageVisit).
-            fetch(@js(route('page-seen')), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
-                body: JSON.stringify({ route: 'admin.roadblocks.index', tab: value }),
-            }).catch(() => {});
+            reportSeen();
         });
-            $watch('archiveStage', value => setQueryParam('stage', value));
+            $watch('archiveStage', value => { setQueryParam('stage', value); if (tab === 'archive') reportSeen(); });
             $watch('upcomingSort', () => sortUpcomingRows());
         ">
             <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -221,12 +229,14 @@
                         <span class="hidden sm:inline">Scheduled Today</span>
                     </button>
                     <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500'" class="whitespace-nowrap pb-3 border-b-2 text-sm font-medium sm:text-base">Archive
-                        {{-- Lit while anything is waiting in Pending Review -
-                             the same rule as the sidebar's Roadblock Management
-                             dot, so the two always agree. Clears once each one
-                             is marked Resolved or Failed. --}}
-                        @if ($assessment->isNotEmpty())
-                        <x-new-dot class="ml-1 inline-block align-middle" title="Waiting for review" aria-label="Waiting for review" />
+                        {{-- A roadblock landed in Pending Review since this admin
+                             last opened Archive > Pending Review - same rule as
+                             the sidebar's dot. Goes out once that stage is
+                             opened (and stays out after leaving the page). --}}
+                        @if (! empty($newPendingReviewIds))
+                        <span x-data="{ pending: ['archive|assessment'] }" @page-tab-seen.window="if ($event.detail.route === 'admin.roadblocks.index') pending = pending.filter(t => t !== $event.detail.tab)" x-show="pending.length" class="ml-1 inline-flex align-middle">
+                            <x-new-dot title="New in Pending Review" aria-label="New in Pending Review" />
+                        </span>
                         @endif
                     </button>
                 </nav>
@@ -637,8 +647,10 @@
                             class="flex w-[140px] items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 hover:border-gray-400 sm:w-[160px]">
                             <span class="flex min-w-0 items-center gap-1.5">
                                 <span class="truncate" x-text="{{ Js::from($stages) }}[archiveStage]"></span>
-                                @if ($assessment->isNotEmpty())
-                                <x-new-dot x-show="archiveStage === 'assessment'" title="Waiting for review" aria-label="Waiting for review" />
+                                @if (! empty($newPendingReviewIds))
+                                <span x-data="{ pending: ['archive|assessment'] }" @page-tab-seen.window="if ($event.detail.route === 'admin.roadblocks.index') pending = pending.filter(t => t !== $event.detail.tab)" x-show="pending.length && archiveStage === 'assessment'" class="inline-flex">
+                                    <x-new-dot title="New in Pending Review" aria-label="New in Pending Review" />
+                                </span>
                                 @endif
                             </span>
                             <svg class="h-4 w-4 flex-shrink-0 text-gray-400 transition" :class="open && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -661,8 +673,10 @@
                                 @click="archiveStage = '{{ $value }}'; open = false"
                                 class="flex w-full items-center gap-1.5 text-left px-3 py-2 text-sm text-gray-700 transition [@media(hover:hover)]:hover:bg-gradient-to-r [@media(hover:hover)]:hover:from-[#6D0D23] [@media(hover:hover)]:hover:to-[#11386A] [@media(hover:hover)]:hover:text-white">
                                 {{ $label }}
-                                @if ($value === 'assessment' && $assessment->isNotEmpty())
-                                <x-new-dot title="Waiting for review" aria-label="Waiting for review" />
+                                @if ($value === 'assessment' && ! empty($newPendingReviewIds))
+                                <span x-data="{ pending: ['archive|assessment'] }" @page-tab-seen.window="if ($event.detail.route === 'admin.roadblocks.index') pending = pending.filter(t => t !== $event.detail.tab)" x-show="pending.length" class="inline-flex">
+                                    <x-new-dot title="New in Pending Review" aria-label="New in Pending Review" />
+                                </span>
                                 @endif
                             </button>
                             @endforeach
@@ -705,8 +719,10 @@
 
                                                 <div class="flex min-w-0 items-center gap-1.5">
                                                     <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
-                                                    {{-- Waiting for Resolved / Failed - see the Archive tab's dot. --}}
-                                                    <x-new-dot title="Waiting for review" aria-label="Waiting for review" />
+                                                    {{-- New in Pending Review since the last visit to this stage. --}}
+                                                    @if (in_array((int) $roadblock->roadblock_id, $newPendingReviewIds ?? [], true))
+                                                    <x-new-dot title="New in Pending Review" aria-label="New in Pending Review" />
+                                                    @endif
                                                 </div>
                                             </div>
                                         </td>

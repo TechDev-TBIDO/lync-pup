@@ -168,11 +168,12 @@ class AssessmentHubController extends Controller
             ->filter(fn ($row) => self::missedIsNew($row, $missedSeenToday, $missedSeenPast))
             ->pluck('evaluation_schedule_id')->map(fn ($id) => (int) $id)->values()->all();
 
-        // Schedule sub-tab dot: a submitted sheet still waiting for "Set
-        // Evaluation" - same rule as the sidebar's (AppServiceProvider).
+        // Schedule sub-tab dot: a sheet submitted (still waiting for "Set
+        // Evaluation") since this admin last opened Schedule - same rule as
+        // the sidebar's (AppServiceProvider). Seen once opened.
         $readyForEvaluation = Startup::query()
             ->pending()
-            ->whereHas('informationSheet', fn ($q) => $q->whereNotNull('submission_date'))
+            ->whereHas('informationSheet', fn ($q) => $q->where('submission_date', '>', $admin->moduleSeenAt('assessment_hub_schedule')))
             ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
             ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
             ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))

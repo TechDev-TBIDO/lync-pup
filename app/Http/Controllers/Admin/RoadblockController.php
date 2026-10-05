@@ -45,9 +45,21 @@ class RoadblockController extends Controller
             ->pluck('roadblock_id')
             ->map(fn ($id) => (int) $id) // driver may hand ids back as strings; the view compares strictly
             ->all();
-        if ($location['tab'] === 'manage') {
-            $admin->markModuleSeen('roadblocks', $visitedAt);
-        }
+        // Archive > Pending Review: roadblocks that landed there since this
+        // admin last opened that stage (Roadblock::pendingReviewSince()).
+        // Seen once opened - not "until resolved" - same as the other dots.
+        $pendingReviewSeenAt = $admin->moduleSeenAt('roadblocks_pending_review');
+        $newPendingReviewIds = Roadblock::whereIn('status', ['Scheduled', 'Pending Review'])
+            ->whereNotNull('meeting_date')
+            ->get()
+            ->filter(fn (Roadblock $r) => $r->pendingReviewSince()?->gt($pendingReviewSeenAt))
+            ->pluck('roadblock_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        // Stamps whichever of the two the open tab/stage shows (PageVisit).
+        \App\Support\PageVisit::markSeen($admin, 'admin.roadblocks.index', $location, $visitedAt);
 
         // The app-wide selected cohort (see ResolveSelectedCohort) — every
         // stage table below narrows to just this cohort's roadblocks when
@@ -140,6 +152,8 @@ class RoadblockController extends Controller
                 ->get(),
             'pending' => $pending,
             'newRoadblockIds' => $newRoadblockIds,
+            'newPendingReviewIds' => $newPendingReviewIds,
+            'roadblockView' => $location['tab'] === 'archive' ? 'archive|'.$location['stage'] : $location['tab'],
             'upcoming' => $upcoming,
             'scheduledToday' => $scheduledToday,
             'assessment' => $assessment,

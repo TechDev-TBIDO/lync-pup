@@ -32,7 +32,7 @@ class PageVisit
         'startup.submissions.index' => ['tab' => ['roadblock', 'update', 'archive']],
         'startup.meetings.index' => ['tab' => ['meetings', 'archive']],
         'startup.readiness.index' => ['stage' => ['Pre-Assessment', 'Post-Assessment']],
-        'admin.roadblocks.index' => ['tab' => ['manage', 'today', 'archive']],
+        'admin.roadblocks.index' => ['tab' => ['manage', 'today', 'archive'], 'stage' => ['assessment', 'resolved', 'failed']],
         // Only Information Sheet > Evaluation > Today / Missed carry "seen"
         // state here (a newly MISSED evaluation, see AssessmentHubController::
         // missedSeenAt()); the other values just make the location complete.
@@ -111,6 +111,10 @@ class PageVisit
             $route === 'startup.submissions.index' && $tab === 'update' => \App\Http\Controllers\Startup\RoadblockController::rememberWeeklyRowsSeen($user),
             $route === 'startup.meetings.index' => $user->markModuleSeen("founder_meetings_{$tab}", $at),
             $route === 'admin.roadblocks.index' && $tab === 'manage' => $user->markModuleSeen('roadblocks', $at),
+            $route === 'admin.roadblocks.index' && $tab === 'archive' && ($location['stage'] ?? null) === 'assessment' => $user->markModuleSeen('roadblocks_pending_review', $at),
+            $route === 'admin.assessment-hub.index'
+                && ($location['main'] ?? null) === 'information-sheet'
+                && $tab === 'schedule' => $user->markModuleSeen('assessment_hub_schedule', $at),
             $route === 'admin.assessment-hub.index'
                 && ($location['main'] ?? null) === 'information-sheet'
                 && $tab === 'evaluation'

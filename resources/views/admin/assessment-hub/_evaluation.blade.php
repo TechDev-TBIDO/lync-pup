@@ -42,13 +42,16 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
         // seen only once its own stage has been opened (App\Support\PageVisit).
         reportSeen(view) {
             const [main, tab, stage] = view.split('|');
-            if (main !== 'information-sheet' || tab !== 'evaluation') return;
+            if (main !== 'information-sheet') return;
             fetch(@js(route('page-seen')), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
                 body: JSON.stringify({ route: 'admin.assessment-hub.index', main, tab, stage }),
             }).catch(() => {});
-            window.dispatchEvent(new CustomEvent('page-tab-seen', { detail: { route: 'admin.assessment-hub.index', tab: view } }));
+            // Same key AppServiceProvider::adminViewKey() builds: the stage
+            // only matters on Evaluation.
+            const key = tab === 'evaluation' ? view : `${main}|${tab}`;
+            window.dispatchEvent(new CustomEvent('page-tab-seen', { detail: { route: 'admin.assessment-hub.index', tab: key } }));
         },
     }"
     x-init="
