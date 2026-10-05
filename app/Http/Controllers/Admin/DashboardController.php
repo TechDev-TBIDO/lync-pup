@@ -39,20 +39,30 @@ class DashboardController extends Controller
     ];
 
     /**
-     * Bucket ranges are contiguous (each band's upper bound is the next
-     * band's lower bound) per the reference mockup table, which showed
-     * "70.25 – 85.25%" / "20.25 – 40.25%" etc. rather than the slightly
-     * different text-only ranges also given alongside it — the mockup table
-     * is treated as authoritative since it's the actual UI reference.
-     * Bucketing checks from the top down (>= min), so a value that lands
-     * exactly on a shared boundary belongs to the higher band.
+     * Each band's upper bound is the exact running total (see
+     * INCUBATION_WEIGHTS) at which a stage is fully finished: 10 =
+     * Information Sheet approved, 30 = + Pre-Assessment, 50 = +
+     * Active-Assessment, 70 = + Post-Assessment. So a band names the stage
+     * a startup is on, and finishing a stage moves it up immediately
+     * (bucketing checks from the top down, >= min). High Ready covers every
+     * startup with all assessments done, exited or not; the card shows how
+     * many of those have actually completed Venture Exit.
      */
     protected const INCUBATION_BUCKETS = [
-        'High Ready' => [85.25, 100.00],
-        'Moderately Ready' => [70.25, 85.25],
-        'Moderately Unready' => [40.25, 70.25],
-        'Not Ready' => [20.25, 40.25],
-        'Critically Unready' => [0.00, 20.25],
+        'High Ready' => 70.00,
+        'Moderately Ready' => 50.00,
+        'Moderately Unready' => 30.00,
+        'Not Ready' => 10.00,
+        'Critically Unready' => 0.00,
+    ];
+
+    /** Range text shown under each band's name. */
+    protected const INCUBATION_RANGE_LABELS = [
+        'High Ready' => '≤ 100%',
+        'Moderately Ready' => '< 70%',
+        'Moderately Unready' => '< 50%',
+        'Not Ready' => '< 30%',
+        'Critically Unready' => '< 10%',
     ];
 
     protected const INCUBATION_COLORS = [
@@ -132,7 +142,7 @@ class DashboardController extends Controller
         // CACHE_SECONDS. The key includes the exact startup pool (so a new
         // verified/approved startup gets a fresh build immediately) and the
         // host (the cards contain absolute links).
-        $cardsCacheKey = 'admin-dashboard-cards:v2:'.md5(json_encode([
+        $cardsCacheKey = 'admin-dashboard-cards:v3:'.md5(json_encode([
             $request->getHost(),
             $selectedCohort?->cohort_id,
             $startupIds->values()->all(),
@@ -383,6 +393,7 @@ class DashboardController extends Controller
                 'label' => $label,
                 'range' => self::incubationRangeLabel($label),
                 'count' => 0,
+                'complete' => 0,
                 'percent' => 0.0,
                 'color' => self::INCUBATION_COLORS[$label],
             ]);
@@ -442,6 +453,9 @@ class DashboardController extends Controller
         // Every startup's percentage plus what built it, grouped by bucket
         // for the clickable counts / "See breakdown" pop-up on the card.
         $startupsByBucket = collect(array_keys(self::INCUBATION_BUCKETS))->mapWithKeys(fn ($label) => [$label => []])->all();
+        // Startups whose Venture Exit is actually done (Graduated/Completed),
+        // per band — shown as "Completed: N startups" under High Ready.
+        $completeByBucket = collect(array_keys(self::INCUBATION_BUCKETS))->mapWithKeys(fn ($label) => [$label => 0])->all();
 
         foreach ($startupIds as $id) {
             $pieces = $this->incubationPieces(
@@ -457,6 +471,11 @@ class DashboardController extends Controller
             $bucket = self::incubationBucketLabel($exactPercent);
 
             $counts[$bucket]++;
+
+            $exitData = $ventureExitDocs->get($id)?->data;
+            if ($exitData !== null && \App\Support\ActiveAssessmentForms::isVentureExitCompleted((array) $exitData)) {
+                $completeByBucket[$bucket]++;
+            }
 
             $startup = $startupNames->get($id);
             $startupsByBucket[$bucket][] = [
@@ -476,6 +495,7 @@ class DashboardController extends Controller
             'range' => self::incubationRangeLabel($label),
             'count' => $counts[$label],
             'percent' => round(($counts[$label] / $totalStartups) * 100, 1),
+            'complete' => $completeByBucket[$label],
             'color' => self::INCUBATION_COLORS[$label],
             // Highest percentage first, then A–Z.
             'startups' => collect($startupsByBucket[$label])
@@ -579,8 +599,10 @@ class DashboardController extends Controller
     /** Which bucket a whole-progress percentage falls into — see INCUBATION_BUCKETS. */
     protected static function incubationBucketLabel(float $percent): string
     {
-        foreach (self::INCUBATION_BUCKETS as $label => [$min, $max]) {
-            if ($percent >= $min) {
+        // Tiny tolerance so a stage total that's exact on paper (e.g. 20 ×
+        // 3/3) but a hair under in floating point still reaches its band.
+        foreach (self::INCUBATION_BUCKETS as $label => $min) {
+            if ($percent + 1e-9 >= $min) {
                 return $label;
             }
         }
@@ -588,12 +610,9 @@ class DashboardController extends Controller
         return 'Critically Unready';
     }
 
-    /** "(80.25% – 100.00%)" style range label for the breakdown table (name shown separately). */
     protected static function incubationRangeLabel(string $label): string
     {
-        [$min, $max] = self::INCUBATION_BUCKETS[$label];
-
-        return sprintf('(%.2f%% – %.2f%%)', $min, $max);
+        return self::INCUBATION_RANGE_LABELS[$label];
     }
 
     /**
