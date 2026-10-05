@@ -148,6 +148,8 @@ class InformationSheetController extends Controller
 
         // Decided - the founder's "Evaluation missed" card no longer applies.
         \App\Notifications\EvaluationMissed::retractFor($startup);
+        // ...and neither does the "Evaluation scheduled" one.
+        \App\Notifications\EvaluationScheduled::retractFor($startup);
 
         if (! $wasApproved) {
             // This is the moment Meeting / Submission / Readiness Result unlock
@@ -218,6 +220,8 @@ class InformationSheetController extends Controller
 
         // Decided - the founder's "Evaluation missed" card no longer applies.
         \App\Notifications\EvaluationMissed::retractFor($startup);
+        // ...and neither does the "Evaluation scheduled" one.
+        \App\Notifications\EvaluationScheduled::retractFor($startup);
 
         $deadline = $startup->refresh()->rejectionDeadline();
 

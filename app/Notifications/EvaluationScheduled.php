@@ -76,6 +76,18 @@ class EvaluationScheduled extends FounderNotification
         return ['evaluation_schedule_id' => $this->schedule->evaluation_schedule_id];
     }
 
+    /**
+     * Removes the founder's "Evaluation scheduled / rescheduled" cards once
+     * the sheet has been decided - the evaluation is over, so the reminder
+     * no longer applies (read or unread).
+     */
+    public static function retractFor(\App\Models\Startup $startup): void
+    {
+        $startup->user?->notifications()
+            ->where('type', self::class)
+            ->delete();
+    }
+
     /** Opens the exact tab and pulses the item this is about (?highlight=, see app.js). */
     protected function routeParams(): array
     {
