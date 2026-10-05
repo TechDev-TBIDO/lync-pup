@@ -196,7 +196,16 @@
                                 </span>
 
                                 @if (!empty(($founderSidebarBadges ?? [])[$item['route']] ?? false))
+                                @if (!empty(($founderSidebarPendingTabs ?? [])[$item['route']] ?? []))
+                                {{-- Open page, new item on another tab: goes out once
+                                     every such tab has been opened (no reload needed). --}}
+                                <span x-data="{ pending: @js($founderSidebarPendingTabs[$item['route']]) }"
+                                    x-show="pending.length"
+                                    @page-tab-seen.window="if ($event.detail.route === @js($item['route'])) pending = pending.filter(t => t !== $event.detail.tab)"
+                                    class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New update" aria-label="New update"></span>
+                                @else
                                 <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New update" aria-label="New update"></span>
+                                @endif
                                 @endif
                             </a>
                             @endif

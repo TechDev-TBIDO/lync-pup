@@ -6,6 +6,17 @@
         // uses to decide between its Documents/Meetings nav.
         $onMeetings = $selectedStage === 'Meetings';
     @endphp
+    @php
+        // Red dots (see AssessmentHubController::index()): which Evaluation
+        // stages hold a newly MISSED evaluation not yet seen there. Each dot
+        // goes out once its stage is opened ('page-tab-seen', fired by
+        // _evaluation.blade.php), the same way the sidebar's does.
+        $hubMissedViews = array_keys(array_filter([
+            'information-sheet|evaluation|today' => ! empty($newMissedTodayIds ?? []),
+            'information-sheet|evaluation|missed' => ! empty($newMissedPastIds ?? []),
+        ]));
+        $hubDot = fn (array $views) => 'x-data="{ pending: '.e(Js::from(array_values(array_intersect($hubMissedViews, $views)))).' }" @page-tab-seen.window="if ($event.detail.route === \'admin.assessment-hub.index\') pending = pending.filter(t => t !== $event.detail.tab)"';
+    @endphp
     <div x-data="{ mainTab: @js($initialMainTab) }"
         x-init="$watch('mainTab', value => setQueryParam('main', value))">
         <div class="mb-6 flex items-start justify-between gap-3">
@@ -83,6 +94,11 @@
                 :class="mainTab === 'information-sheet' ? 'border-rose-900 text-rose-900 font-bold' : 'border-transparent text-gray-400 font-medium'"
                 class="-mb-px shrink-0 whitespace-nowrap border-b-2 pb-3 text-base sm:text-lg">
                 Information Sheet
+                @if (($readyForEvaluation ?? false) || $hubMissedViews)
+                <span {!! $hubDot($hubMissedViews) !!} x-show="{{ ($readyForEvaluation ?? false) ? 'true' : 'pending.length' }}" class="ml-1 inline-flex align-middle">
+                    <x-new-dot />
+                </span>
+                @endif
             </button>
 
             <button type="button" @click="mainTab = 'assessment'"
@@ -115,6 +131,15 @@
                         ? 'bg-white text-rose-900 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'">
                         {{ $label }}
+                        {{-- Schedule: a submitted sheet still waiting for Set
+                             Evaluation. Evaluation: a newly missed evaluation. --}}
+                        @if ($key === 'schedule' && ($readyForEvaluation ?? false))
+                        <x-new-dot class="ml-1 inline-block align-middle" title="Waiting for an evaluation schedule" aria-label="Waiting for an evaluation schedule" />
+                        @elseif ($key === 'evaluation' && $hubMissedViews)
+                        <span {!! $hubDot($hubMissedViews) !!} x-show="pending.length" class="ml-1 inline-flex align-middle">
+                            <x-new-dot title="Newly missed evaluation" aria-label="Newly missed evaluation" />
+                        </span>
+                        @endif
                     </button>
                     @endforeach
                 </div>

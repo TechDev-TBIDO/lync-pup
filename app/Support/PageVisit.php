@@ -33,6 +33,14 @@ class PageVisit
         'startup.meetings.index' => ['tab' => ['meetings', 'archive']],
         'startup.readiness.index' => ['stage' => ['Pre-Assessment', 'Post-Assessment']],
         'admin.roadblocks.index' => ['tab' => ['manage', 'today', 'archive']],
+        // Only Information Sheet > Evaluation > Today / Missed carry "seen"
+        // state here (a newly MISSED evaluation, see AssessmentHubController::
+        // missedSeenAt()); the other values just make the location complete.
+        'admin.assessment-hub.index' => [
+            'main' => ['information-sheet', 'assessment'],
+            'tab' => ['schedule', 'evaluation', 'approved', 'rejected'],
+            'stage' => ['today', 'upcoming', 'missed'],
+        ],
     ];
 
     /**
@@ -103,6 +111,10 @@ class PageVisit
             $route === 'startup.submissions.index' && $tab === 'update' => \App\Http\Controllers\Startup\RoadblockController::rememberWeeklyRowsSeen($user),
             $route === 'startup.meetings.index' => $user->markModuleSeen("founder_meetings_{$tab}", $at),
             $route === 'admin.roadblocks.index' && $tab === 'manage' => $user->markModuleSeen('roadblocks', $at),
+            $route === 'admin.assessment-hub.index'
+                && ($location['main'] ?? null) === 'information-sheet'
+                && $tab === 'evaluation'
+                && in_array($location['stage'] ?? null, ['today', 'missed'], true) => $user->markModuleSeen('assessment_hub_missed_'.$location['stage'], $at),
             default => null,
         };
     }
