@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterFounderRequest;
 use App\Models\Startup;
 use App\Models\User;
+use App\Models\VersionHistory;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -95,6 +96,9 @@ class RegisteredUserController extends Controller
         // an unverified user can be on) anyway, but double-check here
         // since it's a destructive action.
         if ($shouldDelete) {
+            // Logged out by now, so the founder is passed as the actor.
+            VersionHistory::record(null, 'Founder Registrations', 'cancel_signup', "{$user->name} ({$user->email})", $user);
+
             $user->startup?->delete();
             $user->delete();
         }

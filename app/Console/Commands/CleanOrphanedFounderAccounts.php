@@ -50,6 +50,14 @@ class CleanOrphanedFounderAccounts extends Command
         }
 
         foreach ($orphans as $user) {
+            \App\Models\VersionHistory::record(
+                null,
+                'Founder Registrations',
+                'delete_signup',
+                "{$user->name} ({$user->email}) (orphaned account cleanup)",
+                actorLabel: 'System',
+            );
+
             $user->delete();
         }
 

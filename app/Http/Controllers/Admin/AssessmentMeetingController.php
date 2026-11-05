@@ -205,6 +205,19 @@ class AssessmentMeetingController extends Controller
         // Meetings page, so deleting that stale record is invisible to them.
         // Decided before the row (and its date) is gone.
         $wasVisibleToFounder = ! $assessmentMeeting->isArchived();
+        $slot = collect([
+            $assessmentMeeting->stage,
+            $assessmentMeeting->meeting_date?->format('M j, Y'),
+            $assessmentMeeting->start_time ? \Illuminate\Support\Carbon::parse($assessmentMeeting->start_time)->format('g:i A') : null,
+        ])->filter()->implode(', ');
+
+        VersionHistory::record(
+            $assessmentMeeting->startup,
+            'Assessment Meetings',
+            'delete_assessment_meeting',
+            $assessmentMeeting->startup?->company_name,
+            changes: ChangeLog::note("Meeting removed ({$slot})"),
+        );
 
         $assessmentMeeting->delete();
 

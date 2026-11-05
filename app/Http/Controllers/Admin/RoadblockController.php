@@ -273,6 +273,8 @@ class RoadblockController extends Controller
         // filterable) as "Deleted by Admin".
         $roadblock->update(['status' => 'Deleted by Admin']);
 
+        $this->logDeletion($roadblock, 'delete_roadblock_assignment', 'Scheduled');
+
         // The founder was told "Mentorship session scheduled" when this was
         // assigned — tell them it's now off, and take that earlier card down
         // so a still-unread one can't keep advertising a meeting that no
@@ -280,6 +282,21 @@ class RoadblockController extends Controller
         $this->retireMentorshipCards($roadblock, notifyFounder: true);
 
         return back()->with('status', 'Roadblock deleted.');
+    }
+
+    /** Shared by unassign() and destroy(): says which roadblock went and from what status. */
+    protected function logDeletion(Roadblock $roadblock, string $action, ?string $fromStatus): void
+    {
+        VersionHistory::record(
+            $roadblock->startup,
+            'Roadblock Management',
+            $action,
+            $roadblock->startup?->company_name,
+            changes: [
+                ...ChangeLog::note("Roadblock: {$roadblock->display_category}"),
+                ...ChangeLog::status($fromStatus, 'Deleted by Admin'),
+            ],
+        );
     }
 
     /**
@@ -371,8 +388,11 @@ class RoadblockController extends Controller
         // unassign() above) so the founder's Archive still shows what
         // happened to their submission instead of it just disappearing.
         $wasScheduled = $roadblock->status === 'Scheduled';
+        $fromStatus = $roadblock->status;
 
         $roadblock->update(['status' => 'Deleted by Admin']);
+
+        $this->logDeletion($roadblock, 'delete_roadblock', $fromStatus);
 
         // Same stale-card problem as unassign() when the roadblock still had
         // a scheduled session; for any other status there's no session to

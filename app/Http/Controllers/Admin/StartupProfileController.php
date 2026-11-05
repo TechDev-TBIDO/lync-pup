@@ -103,8 +103,7 @@ class StartupProfileController extends Controller
             'perPage' => $perPage,
             'perPageOptions' => self::PER_PAGE_OPTIONS,
             // One shared, page-wide Edit History feed of every Assign/Edit
-            // Coordinator + Delete Startup action across every startup
-            // (see VersionHistoryController for its rename/delete actions).
+            // Coordinator + Delete Startup action across every startup.
             // Filed under each startup's own cohort, so it only lists this
             // page's selected cohort (or every cohort, labelled, under "All").
             'startupVersionHistory' => VersionHistory::where('context', 'Startup Profile')

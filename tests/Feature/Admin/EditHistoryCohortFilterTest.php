@@ -47,9 +47,12 @@ class EditHistoryCohortFilterTest extends TestCase
             'user_id' => $this->admin()->id,
         ]);
 
-        $entry->created_at = Carbon::parse($at);
-        $entry->updated_at = Carbon::parse($at);
-        $entry->save();
+        // Backdating is test setup only: the model refuses this outside of here.
+        VersionHistory::withoutEvents(function () use ($entry, $at) {
+            $entry->created_at = Carbon::parse($at);
+            $entry->updated_at = Carbon::parse($at);
+            $entry->save();
+        });
 
         return $entry;
     }
@@ -254,45 +257,44 @@ class EditHistoryCohortFilterTest extends TestCase
 
     // ---- Delete Version is gone; Rename Version stays --------------------------
 
-    public function test_delete_version_is_gone_from_the_panel_but_rename_version_stays(): void
+    public function test_the_panel_has_no_rename_or_delete_option(): void
     {
         $this->seedFeed('Mentor Profile', 'update_mentor');
 
         $html = $this->actingAs($this->admin())->get(route('admin.mentors.index', ['cohort' => '']))->getContent();
 
-        $this->assertStringContainsString('Rename Version', $html);
+        $this->assertStringNotContainsString('Rename Version', $html);
         $this->assertStringNotContainsString('Delete Version', $html);
         $this->assertStringNotContainsString('cannot be undone', $html);
     }
 
-    public function test_the_delete_route_no_longer_exists_and_the_entry_survives(): void
+    public function test_entries_cannot_be_renamed_or_deleted(): void
     {
         $entry = $this->logEntry('Mentor Profile', 'update_mentor', 1, 'Dr. Cruz', '2026-09-22 09:00:00');
 
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.version-history.update'));
         $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.version-history.destroy'));
 
-        $url = route('admin.version-history.update', $entry);
-        $this->actingAs($this->admin())->delete($url)->assertStatus(405);
+        $url = url("/admin/version-history/{$entry->version_history_id}");
+        $this->actingAs($this->admin())->patch($url, ['label' => 'Renamed'])->assertNotFound();
+        $this->actingAs($this->admin())->delete($url)->assertNotFound();
 
-        $this->assertDatabaseHas('version_histories', ['version_history_id' => $entry->version_history_id]);
+        $this->assertSame('Edited Mentor - Dr. Cruz', $entry->fresh()->display_label);
     }
 
-    public function test_rename_version_still_works_and_touches_nothing_else(): void
+    public function test_the_model_refuses_changes_to_an_entry(): void
     {
-        $entry = $this->logEntry('Mentor Profile', 'update_mentor', 1, 'Dr. Cruz', '2026-09-22 09:00:00', [
-            ['label' => 'Expertise', 'from' => 'Finance', 'to' => 'Marketing'],
-        ]);
+        $entry = $this->logEntry('Mentor Profile', 'update_mentor', 1, 'Dr. Cruz', '2026-09-22 09:00:00');
 
-        $this->actingAs($this->admin())
-            ->patch(route('admin.version-history.update', $entry), ['label' => 'Before the audit'])
-            ->assertRedirect();
+        try {
+            $entry->update(['subject_label' => 'Someone Else']);
+            $this->fail('An entry should not be editable.');
+        } catch (\LogicException) {
+        }
 
-        $entry->refresh();
-
-        $this->assertSame('Before the audit', $entry->label);
-        $this->assertSame('Before the audit', $entry->display_label);
-        $this->assertSame(1, $entry->cohort_number);
-        $this->assertSame([['label' => 'Expertise', 'from' => 'Finance', 'to' => 'Marketing']], $entry->field_changes);
+        $entry = $entry->fresh();
+        $this->expectException(\LogicException::class);
+        $entry->delete();
     }
 
     // ---- Relationship names (uses real models, so it lives with the cohort feeds) --

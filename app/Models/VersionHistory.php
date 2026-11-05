@@ -32,10 +32,26 @@ class VersionHistory extends Model
         'subject_label',
         'field_changes',
         'cohort_number',
-        'label',
         'user_id',
         'actor_name_snapshot',
     ];
+
+    /**
+     * The audit trail is append-only: an entry can't be deleted, and the only
+     * change allowed is recordChanges() adding this same save's lines to it.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (self $entry) {
+            if (array_diff(array_keys($entry->getDirty()), ['field_changes', 'updated_at']) !== []) {
+                throw new \LogicException('Audit trail entries cannot be changed.');
+            }
+        });
+
+        static::deleting(function () {
+            throw new \LogicException('Audit trail entries cannot be deleted.');
+        });
+    }
 
     protected function casts(): array
     {
@@ -68,6 +84,16 @@ class VersionHistory extends Model
         // across every startup, even though each entry does have one).
         'assign_coordinator' => 'Assigned Coordinator',
         'delete_startup' => 'Deleted Startup',
+        'delete_report' => 'Deleted Report',
+        'purge_stored_exports' => 'Purged Stored Export Files',
+        'founder_remove_team_member' => 'Founder Removed Team Member',
+
+        // Information Sheet items a founder removes from their own sheet.
+        'founder_remove_sheet_item' => 'Founder Removed Information Sheet Item',
+
+        // Founder Registrations (context 'Founder Registrations' — page-wide).
+        'delete_signup' => 'Deleted Founder Signup',
+        'cancel_signup' => 'Founder Cancelled Signup',
 
         // Mentor Profile (context 'Mentor Profile' — page-wide; no startup).
         'create_mentor' => 'Added Mentor',
@@ -86,6 +112,8 @@ class VersionHistory extends Model
         'resolve_roadblock' => 'Resolved Roadblock',
         'fail_roadblock' => 'Marked Roadblock Failed',
         'recover_roadblock' => 'Recovered Roadblock',
+        'delete_roadblock_assignment' => 'Deleted Roadblock Assignment',
+        'delete_roadblock' => 'Deleted Roadblock',
 
         // Assessment Hub > Meetings (context 'Assessment Meetings' —
         // page-wide feed across every startup's assessment meetings; kept
@@ -93,6 +121,7 @@ class VersionHistory extends Model
         'resolve_assessment_meeting' => 'Resolved Assessment Meeting',
         'fail_assessment_meeting' => 'Marked Assessment Meeting Failed',
         'recover_assessment_meeting' => 'Recovered Assessment Meeting',
+        'delete_assessment_meeting' => 'Deleted Assessment Meeting',
 
         // Manage Admins (context 'Admin Management' — page-wide; no startup).
         'invite_admin' => 'Invited Admin',
@@ -121,8 +150,7 @@ class VersionHistory extends Model
     }
 
     /**
-     * What the panel shows as the entry's primary heading — the custom
-     * rename if one was set. Otherwise falls back to action_label
+     * What the panel shows as the entry's primary heading: action_label
      * (ACTION_LABELS' human-readable name for the action, e.g. "Rejected
      * Information Sheet") — with subject_label appended when one was
      * recorded, since a combined feed has to say what each row is about on
@@ -140,10 +168,6 @@ class VersionHistory extends Model
      */
     public function getDisplayLabelAttribute(): string
     {
-        if ($this->label) {
-            return $this->label;
-        }
-
         if ($this->subject_label) {
             return "{$this->action_label} - {$this->subject_label}";
         }
