@@ -14,6 +14,12 @@ class StoreMentorRequest extends FormRequest
         return $this->user()->isAdmin();
     }
 
+    /** Unticking every field of focus submits nothing, which should clear them. */
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['focus_tags' => $this->input('focus_tags', [])]);
+    }
+
     public function rules(): array
     {
         return [
@@ -38,6 +44,8 @@ class StoreMentorRequest extends FormRequest
             'contact_email' => ['nullable', 'email', 'max:150', 'regex:/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/'],
             // Strict PH mobile: exactly 09XXXXXXXXX or +639XXXXXXXXX (PhMobile rule).
             'contact_number' => ['nullable', new PhMobile],
+            'focus_tags' => ['array', 'max:30'],
+            'focus_tags.*' => ['string', 'max:255', 'distinct'],
             'mentor_photo' => [
                 'nullable',
                 'max:20480', // 20MB raw upload cap; gets compressed to ~2MB on save

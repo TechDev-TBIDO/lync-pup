@@ -13,7 +13,11 @@ class Coordinator extends Model
 
     protected $fillable = [
         'honorific', 'first_name', 'last_name', 'name',
-        'role_title', 'email', 'phone', 'coordinator_photo_path', 'assigned_startups_count',
+        'role_title', 'email', 'phone', 'coordinator_photo_path', 'assigned_startups_count', 'focus_tags',
+    ];
+
+    protected $casts = [
+        'focus_tags' => 'array',
     ];
 
     public function assignments()

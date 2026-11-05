@@ -70,7 +70,7 @@
 
                     @forelse ($mentors as $mentor)
                     <div class="relative aspect-[3/4] overflow-hidden rounded-xl border"
-                        x-data="{ menuOpen: false, editOpen: @js($errors->any() && old('_mentor_id') == $mentor->mentor_id), deleteOpen: false, casesOpen: null }">
+                        x-data="{ infoOpen: false, menuOpen: false, editOpen: @js($errors->any() && old('_mentor_id') == $mentor->mentor_id), deleteOpen: false, casesOpen: null }">
 
                         {{-- Menu wrapper. z-index lifts while the dropdown is open so it clears
                      neighbouring cards, which all sit at z-20 too. --}}
@@ -131,18 +131,22 @@
                         </div>
 
                         {{-- Photo fills the entire card, positioned absolutely as the base layer --}}
-                        <div class="absolute inset-0 bg-gray-200">
+                        <button type="button" @click="infoOpen = true" aria-label="View details for {{ $mentor->display_name }}"
+                            class="absolute inset-0 block h-full w-full cursor-pointer bg-gray-200">
                             @if ($mentor->mentor_photo_path)
-                            <img src="{{ Storage::url($mentor->mentor_photo_path) }}" class="h-full w-full object-cover">
+                            <img src="{{ Storage::url($mentor->mentor_photo_path) }}" alt="" class="h-full w-full object-cover">
                             @else
-                            <div class="flex h-full w-full items-center justify-center text-xs text-gray-400 sm:text-sm">No Photo</div>
+                            <span class="flex h-full w-full items-center justify-center text-xs text-gray-400 sm:text-sm">No Photo</span>
                             @endif
-                        </div>
+                        </button>
 
                         {{-- Text overlay, anchored bottom, gradient fading up into the photo --}}
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-3 pt-10 text-white sm:p-4 sm:pt-16">
+                        <div @click="infoOpen = true" class="absolute bottom-0 left-0 right-0 cursor-pointer bg-gradient-to-t from-black via-black/70 to-transparent p-3 pt-10 text-white sm:p-4 sm:pt-16">
                             <p class="truncate text-sm font-bold sm:text-base">{{ $mentor->display_name }}</p>
                             <p class="mb-1.5 truncate text-[10px] text-white/70 sm:mb-2 sm:text-xs">{{ $mentor->display_specialization }} Mentor</p>
+                            @if ($mentor->focus_tags)
+                            <p class="mb-1.5 truncate text-[10px] text-white/70 sm:mb-2 sm:text-xs" title="{{ implode(', ', $mentor->focus_tags) }}">{{ implode(', ', $mentor->focus_tags) }}</p>
+                            @endif
 
                             <div class="space-y-1 border-t border-white/20 pt-1.5 text-[10px] text-white/80 sm:space-y-1.5 sm:pt-2 sm:text-xs">
                                 <p class="flex items-center gap-1.5 sm:gap-2">
@@ -194,6 +198,17 @@
                                 </p>
                             </div>
                         </div>
+
+                        <x-person-details-modal
+                            :name="$mentor->full_name ?: $mentor->display_name"
+                            :subtitle="$mentor->display_specialization ? $mentor->display_specialization.' Mentor' : 'Mentor'"
+                            :photo="$mentor->mentor_photo_path ? Storage::url($mentor->mentor_photo_path) : null"
+                            :email="$mentor->contact_email"
+                            :phone="$mentor->contact_number"
+                            :rows="['Organization' => $mentor->organization]"
+                            :tags="$mentor->focus_tags ?? []"
+                            :stats="['Active Cases' => $mentor->active_cases_count, 'Completed' => $mentor->completed_cases_count]"
+                            :startups="$mentor->active_roadblocks->map(fn ($r) => $r->startup?->company_name)->filter()->unique()->values()->all()" />
 
                         {{-- Delete confirmation. Teleported to <body> so z-50 is measured against
                      the page, not against this card's stacking context. --}}

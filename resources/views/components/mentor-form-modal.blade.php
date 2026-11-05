@@ -133,7 +133,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     const values = {};
                     for (const [key, value] of data.entries()) {
                         if (value instanceof File) continue;
-                        values[key] = value;
+                        values[key] = key in values ? values[key] + '\n' + value : value;
                     }
                     return values;
                 },
@@ -492,6 +492,13 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         @if ($isErroredRecord) @error('contact_number') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
                     </div>
                 </div>
+
+                <x-focus-tags-input
+                    :selected="$oldFor('focus_tags', $mentor?->focus_tags ?? [])"
+                    :default="$mentor?->focus_tags ?? []"
+                    :reset-event="$resetEvent">
+                    @if ($isErroredRecord) @error('focus_tags') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
+                </x-focus-tags-input>
 
                 {{-- Profile Photo: half width --}}
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">

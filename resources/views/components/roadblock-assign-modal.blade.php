@@ -237,6 +237,36 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                     </p>
                                     @endif
 
+                                    <div class="mb-3"
+                                        x-data="{
+                                            loading: false, loaded: false, source: null, matches: [],
+                                            load() {
+                                                if (this.loaded || this.loading) return;
+                                                this.loading = true;
+                                                fetch(@js(route('admin.roadblocks.assignee-suggestions', $roadblock)), { headers: { Accept: 'application/json' } })
+                                                    .then(r => { if (! r.ok) throw new Error(); return r.json(); })
+                                                    .then(d => { this.matches = d.matches; this.source = d.source; this.loaded = true; })
+                                                    .catch(() => { this.source = 'error'; })
+                                                    .finally(() => { this.loading = false; });
+                                            },
+                                        }"
+                                        x-init="$watch('{{ $mode === 'edit' ? 'editOpen' : ($mode === 'reschedule' ? 'rescheduleOpen' : 'assignOpen') }}', v => { if (v) load(); }); if ({{ $mode === 'edit' ? 'editOpen' : ($mode === 'reschedule' ? 'rescheduleOpen' : 'assignOpen') }}) load();">
+                                        <p class="mb-2 text-sm font-medium text-gray-700">Suggested Matches</p>
+                                        <x-assignee-match-notice class="mb-2" />
+                                        <template x-for="m in matches" :key="m.key">
+                                            <button type="button" @click="assignee = m.key"
+                                                class="mb-2 block w-full rounded-lg border px-3 py-2 text-left transition hover:border-rose-300"
+                                                :class="assignee === m.key ? 'border-[#9F1239] bg-[#FAD4DE]/40' : 'border-gray-200'">
+                                                <span class="flex items-center justify-between gap-2">
+                                                    <span class="truncate text-sm font-semibold" x-text="m.name"></span>
+                                                    <span class="flex-shrink-0 text-xs font-medium text-[#9F1239]" x-text="m.label"></span>
+                                                </span>
+                                                <span class="block truncate text-xs text-gray-500" x-text="m.type + ' · ' + m.matched.join(', ') + ' · ' + m.workload + ' active'"></span>
+                                                <span x-show="m.reason" class="mt-0.5 block text-xs text-gray-600" x-text="m.reason"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+
                                     <p class="mb-2 text-sm font-medium text-gray-700">Profile Preview</p>
 
                                     {{-- One name per row on phones: two columns truncates almost every name --}}

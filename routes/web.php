@@ -91,6 +91,8 @@ Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->pref
     Route::get('startups', [StartupProfileController::class, 'index'])->name('startups.index');
     Route::get('startups/{startup}', [StartupProfileController::class, 'show'])->name('startups.show');
 
+    Route::get('startups/{startup}/coordinator-suggestions', [\App\Http\Controllers\Admin\AssigneeSuggestionController::class, 'startup'])
+        ->name('startups.coordinator-suggestions');
     Route::post('startups/{startup}/coordinator', [CoordinatorAssignmentController::class, 'store'])
         ->name('startups.coordinator.store');
 
@@ -148,6 +150,7 @@ Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->pref
         ->name('notifications.show');
 
     Route::get('/roadblocks', [AdminRoadblockController::class, 'index'])->name('roadblocks.index');
+    Route::get('/roadblocks/{roadblock}/assignee-suggestions', [\App\Http\Controllers\Admin\AssigneeSuggestionController::class, 'roadblock'])->name('roadblocks.assignee-suggestions');
     Route::put('/roadblocks/{roadblock}/assign', [AdminRoadblockController::class, 'assign'])->name('roadblocks.assign');
     Route::delete('/roadblocks/{roadblock}/assign', [AdminRoadblockController::class, 'unassign'])->name('roadblocks.unassign');
     Route::post('/roadblocks/{roadblock}/resolve', [AdminRoadblockController::class, 'resolve'])->name('roadblocks.resolve');
