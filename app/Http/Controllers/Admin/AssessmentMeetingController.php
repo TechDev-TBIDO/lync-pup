@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreAssessmentMeetingRequest;
 use App\Http\Requests\Admin\UpdateAssessmentMeetingRequest;
+use App\Mail\MeetingScheduleMail;
 use App\Models\AssessmentMeeting;
 use App\Models\User;
 use App\Models\VersionHistory;
@@ -12,6 +13,7 @@ use App\Notifications\AssessmentMeetingCancelled;
 use App\Notifications\AssessmentMeetingScheduled;
 use App\Notifications\AssessmentMeetingStatusUpdated;
 use App\Support\ChangeLog;
+use App\Support\MeetingEmail;
 use Illuminate\Http\RedirectResponse;
 
 /**
@@ -22,15 +24,26 @@ use Illuminate\Http\RedirectResponse;
  */
 class AssessmentMeetingController extends Controller
 {
+    /** What a founder would need to hear about if a reschedule changed it. */
+    private const FOUNDER_FACING_FIELDS = [
+        'stage' => 'Document',
+        'meeting_date' => ['label' => 'Date', 'type' => 'date'],
+        'start_time' => ['label' => 'Start Time', 'type' => 'time'],
+        'end_time' => ['label' => 'End Time', 'type' => 'time'],
+        'modality' => 'Platform',
+        'link' => 'Meeting Link / Location',
+        'notes' => 'Notes',
+    ];
+
     public function store(StoreAssessmentMeetingRequest $request): RedirectResponse
     {
         $meeting = AssessmentMeeting::create($request->validated());
 
-        $this->notifyScheduled($meeting, rescheduled: false);
+        $mailWarning = $this->notifyScheduled($meeting, rescheduled: false, sendEmail: true);
 
         return redirect()
             ->route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => 'Meetings'])
-            ->with('status', 'Meeting scheduled.');
+            ->with('status', 'Meeting scheduled.'.$mailWarning);
     }
 
     public function update(UpdateAssessmentMeetingRequest $request, AssessmentMeeting $assessmentMeeting): RedirectResponse
@@ -42,8 +55,9 @@ class AssessmentMeetingController extends Controller
         }
 
         $originalStartupId = $assessmentMeeting->startup_id;
+        $wasScheduled = $assessmentMeeting->status === AssessmentMeeting::STATUS_SCHEDULED;
 
-        $assessmentMeeting->update([
+        $changes = ChangeLog::track($assessmentMeeting, self::FOUNDER_FACING_FIELDS, fn () => $assessmentMeeting->update([
             ...$request->validated(),
             // Reschedule from any stage (Scheduled, or a Failed one in the
             // Archive) puts the meeting back to a clean Scheduled state at
@@ -51,7 +65,7 @@ class AssessmentMeetingController extends Controller
             'status' => AssessmentMeeting::STATUS_SCHEDULED,
             'resolved_at' => null,
             'failed_at' => null,
-        ]);
+        ]));
 
         // The admin can also point a meeting at a different startup while
         // editing it. The original startup's meeting is effectively gone, so
@@ -59,14 +73,15 @@ class AssessmentMeetingController extends Controller
         // hears about it as a fresh meeting.
         if ((int) $assessmentMeeting->startup_id !== (int) $originalStartupId) {
             $this->retireMeetingCards($assessmentMeeting, $originalStartupId, cancelled: true);
-            $this->notifyScheduled($assessmentMeeting, rescheduled: false);
+            $mailWarning = $this->notifyScheduled($assessmentMeeting, rescheduled: false, sendEmail: true);
         } else {
-            $this->notifyScheduled($assessmentMeeting, rescheduled: true);
+            // Saving the form without changing anything shouldn't email the founder.
+            $mailWarning = $this->notifyScheduled($assessmentMeeting, rescheduled: true, sendEmail: $changes !== [] || ! $wasScheduled);
         }
 
         return redirect()
             ->route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => 'Meetings'])
-            ->with('status', 'Meeting rescheduled.');
+            ->with('status', 'Meeting rescheduled.'.$mailWarning);
     }
 
     /**
@@ -203,14 +218,17 @@ class AssessmentMeetingController extends Controller
     /**
      * Tells the founder about a new or rescheduled meeting. A reschedule
      * refreshes their existing unread card for this same meeting in place
-     * instead of stacking a second one on top of it.
+     * instead of stacking a second one on top of it. The email goes out either
+     * way, since an unread card is exactly one they haven't seen.
+     *
+     * Returns the warning to show the admin if the email couldn't be sent.
      */
-    protected function notifyScheduled(AssessmentMeeting $meeting, bool $rescheduled): void
+    protected function notifyScheduled(AssessmentMeeting $meeting, bool $rescheduled, bool $sendEmail): string
     {
         $user = $this->founderFor($meeting->startup_id);
 
         if (! $user) {
-            return;
+            return '';
         }
 
         $notification = new AssessmentMeetingScheduled($meeting, $rescheduled);
@@ -225,6 +243,10 @@ class AssessmentMeetingController extends Controller
         } else {
             $user->notify($notification);
         }
+
+        return $sendEmail
+            ? MeetingEmail::send($user, MeetingScheduleMail::forAssessmentMeeting($meeting, $user, $rescheduled))
+            : '';
     }
 
     /**
