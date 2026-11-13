@@ -1,9 +1,6 @@
 {{--
-    Version History — a read-only activity log (see VersionHistory model's
-    docblock). Rename only edits an entry's display label; it never touches
-    the underlying InformationSheet/EvaluationSchedule/
-    ReadinessLevelAssessment/AssessmentDocument record the entry describes.
-    There is no delete — entries can be relabelled, never removed.
+    Version History — a read-only audit trail (see the VersionHistory model).
+    Entries can't be renamed, edited or removed.
 
     $entries must already be ordered newest-first (->newestFirst()) — the
     very first one is what gets the "Current Version" badge.
@@ -71,13 +68,9 @@
 
 <div x-data="{
         open: false,
-        menuOpenId: null,
-        renamingId: null,
-        renameValue: '',
         panelPos: {},
-        startRename(id, current) { this.menuOpenId = null; this.renamingId = id; this.renameValue = current; },
         toggle() { this.open = !this.open; if (this.open) this.place(); },
-        close() { this.open = false; this.menuOpenId = null; },
+        close() { this.open = false; },
         // Anchor to the button, on the preferred side, then clamp inside the
         // viewport (12px margin) so no edge can be cut off; the panel's height
         // is capped to the space below the button and its list scrolls inside.
@@ -96,11 +89,6 @@
             };
         },
         outside(e) {
-            // A click on something the panel itself just removed still counts
-            // as inside: choosing Rename Version swaps its row to the rename
-            // input, which detaches the button before this window listener
-            // runs — without this the whole panel snapped shut on Rename.
-            if (! e.target.isConnected) return;
             const panel = document.getElementById('{{ $panelId }}');
             if (this.$refs.trigger.contains(e.target) || (panel && panel.contains(e.target))) return;
             this.close();
@@ -155,10 +143,8 @@
                         <p class="mb-1.5 {{ $loop->first ? '' : 'mt-3' }} text-xs font-semibold text-gray-500">{{ $groupLabel }}</p>
                     @endif
 
-                    <div class="group relative mb-1.5 rounded-lg p-2 transition hover:bg-gray-50"
-                        @click.outside="menuOpenId === {{ $entry->version_history_id }} && (menuOpenId = null)">
+                    <div class="group relative mb-1.5 rounded-lg p-2 transition hover:bg-gray-50">
 
-                        <template x-if="renamingId !== {{ $entry->version_history_id }}">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0 flex-1">
                                     <p class="break-words text-sm font-semibold leading-snug text-gray-900">{{ $entry->display_label }}</p>
@@ -202,47 +188,7 @@
                                     </div>
                                 </div>
 
-                                <div class="relative shrink-0 opacity-0 transition group-hover:opacity-100"
-                                    :class="menuOpenId === {{ $entry->version_history_id }} && '!opacity-100'">
-                                    <button type="button"
-                                        @click="menuOpenId = (menuOpenId === {{ $entry->version_history_id }} ? null : {{ $entry->version_history_id }})"
-                                        class="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700">
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                                            <circle cx="12" cy="5" r="1.6" />
-                                            <circle cx="12" cy="12" r="1.6" />
-                                            <circle cx="12" cy="19" r="1.6" />
-                                        </svg>
-                                    </button>
-
-                                    <div x-show="menuOpenId === {{ $entry->version_history_id }}" x-cloak x-transition
-                                        class="absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
-                                        style="display:none;">
-                                        <button type="button"
-                                            @click="startRename({{ $entry->version_history_id }}, @js($entry->display_label))"
-                                            class="block w-full px-3 py-2 text-left text-xs font-medium text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
-                                            Rename Version
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
-                        </template>
-
-                        <template x-if="renamingId === {{ $entry->version_history_id }}">
-                            <form method="POST" action="{{ route('admin.version-history.update', $entry) }}"
-                                class="flex items-center gap-2" @submit="renamingId = null">
-                                @csrf
-                                @method('PATCH')
-                                <input type="text" name="label" x-model="renameValue" x-init="$el.focus(); $el.select()"
-                                    @keydown.escape="renamingId = null"
-                                    class="w-full rounded-md border border-rose-800 px-2 py-1 text-sm font-semibold text-gray-900 focus:outline-none">
-                                <button type="submit"
-                                    class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
-                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                </button>
-                            </form>
-                        </template>
                     </div>
                 @endforeach
             @endif

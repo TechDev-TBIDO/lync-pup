@@ -18,6 +18,9 @@ class StoreCoordinatorRequest extends FormRequest
         if ($this->hasFile('coordinator_photo') && ! $this->file('coordinator_photo')->isValid()) {
             $this->files->remove('coordinator_photo');
         }
+
+        // Unticking every field of focus submits nothing, which should clear them.
+        $this->merge(['focus_tags' => $this->input('focus_tags', [])]);
     }
 
     public function rules(): array
@@ -38,6 +41,8 @@ class StoreCoordinatorRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:150', 'regex:/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/'],
             // Strict PH mobile: exactly 09XXXXXXXXX or +639XXXXXXXXX (PhMobile rule).
             'phone' => ['nullable', new PhMobile],
+            'focus_tags' => ['array', 'max:30'],
+            'focus_tags.*' => ['string', 'max:255', 'distinct'],
             'coordinator_photo' => [
                 'nullable',
                 'max:20480',

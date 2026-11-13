@@ -26,7 +26,6 @@ use App\Http\Controllers\Admin\FounderApplicationController;
 use App\Http\Controllers\Admin\CohortController;
 use App\Http\Controllers\Admin\RiskMonitoringController;
 use App\Http\Controllers\Admin\ExportController;
-use App\Http\Controllers\Admin\VersionHistoryController;
 use App\Http\Controllers\Admin\AdminManagementController;
 use App\Http\Controllers\Startup\FounderReadinessController;
 
@@ -91,6 +90,8 @@ Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->pref
     Route::get('startups', [StartupProfileController::class, 'index'])->name('startups.index');
     Route::get('startups/{startup}', [StartupProfileController::class, 'show'])->name('startups.show');
 
+    Route::get('startups/{startup}/coordinator-suggestions', [\App\Http\Controllers\Admin\AssigneeSuggestionController::class, 'startup'])
+        ->name('startups.coordinator-suggestions');
     Route::post('startups/{startup}/coordinator', [CoordinatorAssignmentController::class, 'store'])
         ->name('startups.coordinator.store');
 
@@ -148,6 +149,7 @@ Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->pref
         ->name('notifications.show');
 
     Route::get('/roadblocks', [AdminRoadblockController::class, 'index'])->name('roadblocks.index');
+    Route::get('/roadblocks/{roadblock}/assignee-suggestions', [\App\Http\Controllers\Admin\AssigneeSuggestionController::class, 'roadblock'])->name('roadblocks.assignee-suggestions');
     Route::put('/roadblocks/{roadblock}/assign', [AdminRoadblockController::class, 'assign'])->name('roadblocks.assign');
     Route::delete('/roadblocks/{roadblock}/assign', [AdminRoadblockController::class, 'unassign'])->name('roadblocks.unassign');
     Route::post('/roadblocks/{roadblock}/resolve', [AdminRoadblockController::class, 'resolve'])->name('roadblocks.resolve');
@@ -169,7 +171,6 @@ Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->pref
     Route::post('/assessment-hub/meetings/{assessmentMeeting}/resolve', [AssessmentMeetingController::class, 'resolve'])->name('assessment-hub.meetings.resolve');
     Route::post('/assessment-hub/meetings/{assessmentMeeting}/fail', [AssessmentMeetingController::class, 'fail'])->name('assessment-hub.meetings.fail');
     Route::post('/assessment-hub/meetings/{assessmentMeeting}/recover', [AssessmentMeetingController::class, 'recover'])->name('assessment-hub.meetings.recover');
-    Route::patch('/version-history/{versionHistory}', [VersionHistoryController::class, 'update'])->name('version-history.update');
 
     Route::get('/exports/documents', [ExportController::class, 'documents'])->name('exports.documents');
     Route::get('/exports/{startup}/status', [ExportController::class, 'documentStatus'])->name('exports.status');

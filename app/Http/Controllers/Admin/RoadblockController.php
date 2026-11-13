@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignRoadblockRequest;
+use App\Mail\MeetingScheduleMail;
 use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\Mentor;
@@ -15,6 +16,7 @@ use App\Notifications\NewRoadblockSubmitted;
 use App\Notifications\RoadblockStatusUpdated;
 use App\Support\ChangeLog;
 use App\Support\HistoryFields;
+use App\Support\MeetingEmail;
 
 class RoadblockController extends Controller
 {
@@ -188,6 +190,10 @@ class RoadblockController extends Controller
         // since both actions share this same method/route.
         $wasAlreadyScheduled = $roadblock->status === 'Scheduled';
 
+        // Wider than the above: a Failed roadblock being given a new slot is
+        // still a reschedule as far as the founder is concerned.
+        $hadASlotBefore = $roadblock->status !== 'Pending';
+
         $validated = $request->validated();
 
         // What this save actually changed (assignee, date, time, platform, ...)
@@ -212,9 +218,14 @@ class RoadblockController extends Controller
         // a brand new event, so it should update the existing unread card
         // rather than stack a second one on top of it (MentorshipScheduled
         // stamps roadblock_id into its payload precisely so it can be found
-        // again here).
+        // again here). The email goes out either way, since an unread card is
+        // exactly one they haven't seen; only an Edit that changed nothing
+        // skips it.
+        $mailWarning = '';
+
         if ($user = $roadblock->startup?->user) {
-            $notification = new MentorshipScheduled($roadblock->fresh(['mentor', 'coordinator']));
+            $freshRoadblock = $roadblock->fresh(['mentor', 'coordinator']);
+            $notification = new MentorshipScheduled($freshRoadblock);
 
             $existing = $user->unreadNotifications()
                 ->where('type', MentorshipScheduled::class)
@@ -225,6 +236,10 @@ class RoadblockController extends Controller
                 $existing->forceFill(['data' => $notification->toDatabase($user)])->save();
             } else {
                 $user->notify($notification);
+            }
+
+            if ($changes !== []) {
+                $mailWarning = MeetingEmail::send($user, MeetingScheduleMail::forMentorship($freshRoadblock, $user, $hadASlotBefore));
             }
         }
 
@@ -238,7 +253,7 @@ class RoadblockController extends Controller
             $roadblock->startup?->company_name
         );
 
-        return back()->with('status', 'Roadblock scheduled.');
+        return back()->with('status', 'Roadblock scheduled.'.$mailWarning);
     }
 
     public function unassign(Roadblock $roadblock)
@@ -258,6 +273,8 @@ class RoadblockController extends Controller
         // filterable) as "Deleted by Admin".
         $roadblock->update(['status' => 'Deleted by Admin']);
 
+        $this->logDeletion($roadblock, 'delete_roadblock_assignment', 'Scheduled');
+
         // The founder was told "Mentorship session scheduled" when this was
         // assigned — tell them it's now off, and take that earlier card down
         // so a still-unread one can't keep advertising a meeting that no
@@ -265,6 +282,21 @@ class RoadblockController extends Controller
         $this->retireMentorshipCards($roadblock, notifyFounder: true);
 
         return back()->with('status', 'Roadblock deleted.');
+    }
+
+    /** Shared by unassign() and destroy(): says which roadblock went and from what status. */
+    protected function logDeletion(Roadblock $roadblock, string $action, ?string $fromStatus): void
+    {
+        VersionHistory::record(
+            $roadblock->startup,
+            'Roadblock Management',
+            $action,
+            $roadblock->startup?->company_name,
+            changes: [
+                ...ChangeLog::note("Roadblock: {$roadblock->display_category}"),
+                ...ChangeLog::status($fromStatus, 'Deleted by Admin'),
+            ],
+        );
     }
 
     /**
@@ -356,8 +388,11 @@ class RoadblockController extends Controller
         // unassign() above) so the founder's Archive still shows what
         // happened to their submission instead of it just disappearing.
         $wasScheduled = $roadblock->status === 'Scheduled';
+        $fromStatus = $roadblock->status;
 
         $roadblock->update(['status' => 'Deleted by Admin']);
+
+        $this->logDeletion($roadblock, 'delete_roadblock', $fromStatus);
 
         // Same stale-card problem as unassign() when the roadblock still had
         // a scheduled session; for any other status there's no session to

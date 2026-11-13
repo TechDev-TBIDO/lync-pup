@@ -18,7 +18,8 @@ use Tests\TestCase;
 /**
  * Every Edit History panel follows the cohort selected on its page: with one
  * cohort selected only that cohort's entries show; with "All Cohorts" they
- * all show, in time order, each labelled with its cohort. Also locks in that
+ * all show, in time order, each labelled with its cohort. The exceptions are
+ * Mentor and Coordinator history, which always show every entry. Also locks in that
  * Delete Version is gone from the panel (and its route) while Rename stays.
  */
 class EditHistoryCohortFilterTest extends TestCase
@@ -47,9 +48,12 @@ class EditHistoryCohortFilterTest extends TestCase
             'user_id' => $this->admin()->id,
         ]);
 
-        $entry->created_at = Carbon::parse($at);
-        $entry->updated_at = Carbon::parse($at);
-        $entry->save();
+        // Backdating is test setup only: the model refuses this outside of here.
+        VersionHistory::withoutEvents(function () use ($entry, $at) {
+            $entry->created_at = Carbon::parse($at);
+            $entry->updated_at = Carbon::parse($at);
+            $entry->save();
+        });
 
         return $entry;
     }
@@ -72,8 +76,6 @@ class EditHistoryCohortFilterTest extends TestCase
     public static function pagedFeeds(): array
     {
         return [
-            'mentors' => ['Mentor Profile', 'update_mentor', 'admin.mentors.index', 'mentorVersionHistory'],
-            'coordinators' => ['Coordinator Profile', 'update_coordinator', 'admin.coordinators.index', 'coordinatorVersionHistory'],
             'roadblocks' => ['Roadblock Management', 'resolve_roadblock', 'admin.roadblocks.index', 'roadblockVersionHistory'],
             'startup profiles' => ['Startup Profile', 'assign_coordinator', 'admin.startups.index', 'startupVersionHistory'],
         ];
@@ -99,6 +101,29 @@ class EditHistoryCohortFilterTest extends TestCase
 
         $response->assertOk();
         $this->assertSame(['In No Cohort', 'In Cohort Two', 'In Cohort One'], $this->subjects($response->viewData($viewKey)));
+    }
+
+    public static function crossCohortFeeds(): array
+    {
+        return [
+            'mentors' => ['Mentor Profile', 'delete_mentor', 'admin.mentors.index', 'mentorVersionHistory'],
+            'coordinators' => ['Coordinator Profile', 'delete_coordinator', 'admin.coordinators.index', 'coordinatorVersionHistory'],
+        ];
+    }
+
+    /** Mentors and coordinators serve every cohort, so their history ignores the selection. */
+    #[DataProvider('crossCohortFeeds')]
+    public function test_mentor_and_coordinator_history_shows_every_entry_whatever_cohort_is_selected(string $context, string $action, string $routeName, string $viewKey): void
+    {
+        $this->seedFeed($context, $action);
+        $admin = $this->admin();
+
+        foreach ([$this->cohortId(1), $this->cohortId(2), ''] as $cohort) {
+            $response = $this->actingAs($admin)->get(route($routeName, ['cohort' => $cohort]));
+
+            $response->assertOk();
+            $this->assertSame(['In No Cohort', 'In Cohort Two', 'In Cohort One'], $this->subjects($response->viewData($viewKey)));
+        }
     }
 
     public function test_the_selection_sticks_as_the_admin_moves_between_pages(): void
@@ -237,62 +262,71 @@ class EditHistoryCohortFilterTest extends TestCase
 
     public function test_the_cohort_tag_only_appears_when_all_cohorts_are_shown(): void
     {
-        $this->seedFeed('Mentor Profile', 'update_mentor');
+        $this->seedFeed('Roadblock Management', 'resolve_roadblock');
         $admin = $this->admin();
 
-        $all = $this->actingAs($admin)->get(route('admin.mentors.index', ['cohort' => '']))->getContent();
+        $all = $this->actingAs($admin)->get(route('admin.roadblocks.index', ['cohort' => '']))->getContent();
         $this->assertStringContainsString('data-history-cohort', $all);
         $this->assertStringContainsString('>Cohort 1<', $all);
         $this->assertStringContainsString('>Cohort 2<', $all);
         $this->assertStringContainsString('>All Cohorts<', $all);
 
-        $one = $this->actingAs($admin)->get(route('admin.mentors.index', ['cohort' => $this->cohortId(1)]))->getContent();
+        $one = $this->actingAs($admin)->get(route('admin.roadblocks.index', ['cohort' => $this->cohortId(1)]))->getContent();
         $this->assertStringNotContainsString('data-history-cohort', $one);
         $this->assertStringContainsString('In Cohort One', $one);
         $this->assertStringNotContainsString('In Cohort Two', $one);
     }
 
-    // ---- Delete Version is gone; Rename Version stays --------------------------
-
-    public function test_delete_version_is_gone_from_the_panel_but_rename_version_stays(): void
+    public function test_mentor_history_never_shows_a_cohort_tag(): void
     {
         $this->seedFeed('Mentor Profile', 'update_mentor');
 
         $html = $this->actingAs($this->admin())->get(route('admin.mentors.index', ['cohort' => '']))->getContent();
 
-        $this->assertStringContainsString('Rename Version', $html);
+        $this->assertStringContainsString('In Cohort Two', $html);
+        $this->assertStringNotContainsString('data-history-cohort', $html);
+    }
+
+    // ---- Delete Version is gone; Rename Version stays --------------------------
+
+    public function test_the_panel_has_no_rename_or_delete_option(): void
+    {
+        $this->seedFeed('Mentor Profile', 'update_mentor');
+
+        $html = $this->actingAs($this->admin())->get(route('admin.mentors.index', ['cohort' => '']))->getContent();
+
+        $this->assertStringNotContainsString('Rename Version', $html);
         $this->assertStringNotContainsString('Delete Version', $html);
         $this->assertStringNotContainsString('cannot be undone', $html);
     }
 
-    public function test_the_delete_route_no_longer_exists_and_the_entry_survives(): void
+    public function test_entries_cannot_be_renamed_or_deleted(): void
     {
         $entry = $this->logEntry('Mentor Profile', 'update_mentor', 1, 'Dr. Cruz', '2026-09-22 09:00:00');
 
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.version-history.update'));
         $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.version-history.destroy'));
 
-        $url = route('admin.version-history.update', $entry);
-        $this->actingAs($this->admin())->delete($url)->assertStatus(405);
+        $url = url("/admin/version-history/{$entry->version_history_id}");
+        $this->actingAs($this->admin())->patch($url, ['label' => 'Renamed'])->assertNotFound();
+        $this->actingAs($this->admin())->delete($url)->assertNotFound();
 
-        $this->assertDatabaseHas('version_histories', ['version_history_id' => $entry->version_history_id]);
+        $this->assertSame('Edited Mentor - Dr. Cruz', $entry->fresh()->display_label);
     }
 
-    public function test_rename_version_still_works_and_touches_nothing_else(): void
+    public function test_the_model_refuses_changes_to_an_entry(): void
     {
-        $entry = $this->logEntry('Mentor Profile', 'update_mentor', 1, 'Dr. Cruz', '2026-09-22 09:00:00', [
-            ['label' => 'Expertise', 'from' => 'Finance', 'to' => 'Marketing'],
-        ]);
+        $entry = $this->logEntry('Mentor Profile', 'update_mentor', 1, 'Dr. Cruz', '2026-09-22 09:00:00');
 
-        $this->actingAs($this->admin())
-            ->patch(route('admin.version-history.update', $entry), ['label' => 'Before the audit'])
-            ->assertRedirect();
+        try {
+            $entry->update(['subject_label' => 'Someone Else']);
+            $this->fail('An entry should not be editable.');
+        } catch (\LogicException) {
+        }
 
-        $entry->refresh();
-
-        $this->assertSame('Before the audit', $entry->label);
-        $this->assertSame('Before the audit', $entry->display_label);
-        $this->assertSame(1, $entry->cohort_number);
-        $this->assertSame([['label' => 'Expertise', 'from' => 'Finance', 'to' => 'Marketing']], $entry->field_changes);
+        $entry = $entry->fresh();
+        $this->expectException(\LogicException::class);
+        $entry->delete();
     }
 
     // ---- Relationship names (uses real models, so it lives with the cohort feeds) --

@@ -22,6 +22,11 @@ class Mentor extends Model
         'contact_number',
         'organization',
         'mentor_photo_path',
+        'focus_tags',
+    ];
+
+    protected $casts = [
+        'focus_tags' => 'array',
     ];
 
     public function getDisplayNameAttribute(): string

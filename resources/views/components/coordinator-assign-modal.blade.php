@@ -96,16 +96,39 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         search: '',
         selected: null,
         coordinators: {{ Illuminate\Support\Js::from($coordinatorList) }},
+        loading: false,
+        loaded: false,
+        source: null,
+        matches: [],
+
+        loadMatches() {
+            if (this.loaded || this.loading) return;
+            this.loading = true;
+            fetch(@js(route('admin.startups.coordinator-suggestions', $startup)), { headers: { Accept: 'application/json' } })
+                .then(r => { if (! r.ok) throw new Error(); return r.json(); })
+                .then(d => { this.matches = d.matches; this.source = d.source; this.loaded = true; })
+                .catch(() => { this.source = 'error'; })
+                .finally(() => { this.loading = false; });
+        },
+
+        matchFor(c) {
+            return this.matches.find(m => m.key === 'coordinator-' + c.id) || null;
+        },
+
+        matchRank(c) {
+            const rank = this.matches.findIndex(m => m.key === 'coordinator-' + c.id);
+            return rank === -1 ? this.matches.length : rank;
+        },
 
         get filtered() {
             const q = this.search.trim().toLowerCase();
-            if (!q) return this.coordinators;
-
-            return this.coordinators.filter(c =>
+            const list = q ? this.coordinators.filter(c =>
                 (c.name || '').toLowerCase().includes(q) ||
                 (c.role_title || '').toLowerCase().includes(q) ||
                 (c.email || '').toLowerCase().includes(q)
-            );
+            ) : this.coordinators;
+
+            return [...list].sort((a, b) => this.matchRank(a) - this.matchRank(b));
         },
 
         get chosen() {
@@ -122,6 +145,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             this.search = '';
             this.selected = null;
             this.open = true;
+            this.loadMatches();
         },
 
         // Auto-open when arriving from the Startup Profile list's Assign
@@ -264,6 +288,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             </span>
                         </div>
 
+                        <x-assignee-match-notice class="mb-2" />
+
                         {{-- List --}}
                         <div class="max-h-64 divide-y overflow-y-auto rounded-md border border-gray-300">
                             <template x-for="c in filtered" :key="c.id">
@@ -297,6 +323,13 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <span class="min-w-0">
                                         <span class="block truncate text-sm font-semibold" x-text="c.name"></span>
                                         <span class="block truncate text-xs text-gray-500" x-text="c.role_title"></span>
+                                        <template x-if="matchFor(c)">
+                                            <span class="block text-xs">
+                                                <span class="block font-medium text-[#9F1239]"
+                                                    x-text="matchFor(c).label + ' · ' + matchFor(c).matched.join(', ') + ' · ' + matchFor(c).workload + ' active'"></span>
+                                                <span x-show="matchFor(c).reason" class="block text-gray-600" x-text="matchFor(c).reason"></span>
+                                            </span>
+                                        </template>
                                     </span>
                                 </label>
                             </template>

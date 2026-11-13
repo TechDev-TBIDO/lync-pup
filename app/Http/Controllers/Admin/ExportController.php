@@ -305,6 +305,15 @@ class ExportController extends Controller
             \Illuminate\Support\Facades\Storage::disk('public')->delete($savedReport->file_path);
         }
 
+        // Filed under Startup Profile, whose page-wide feed covers every
+        // startup and stays readable after a report is gone.
+        \App\Models\VersionHistory::record(
+            $savedReport->startup,
+            'Startup Profile',
+            'delete_report',
+            $savedReport->file_name,
+        );
+
         $savedReport->delete();
 
         return back()->with('status', 'Report removed.');

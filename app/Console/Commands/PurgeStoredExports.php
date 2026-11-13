@@ -64,6 +64,14 @@ class PurgeStoredExports extends Command
 
         SavedReport::where('file_path', '!=', '')->update(['file_path' => '']);
 
+        \App\Models\VersionHistory::record(
+            null,
+            'Startup Profile',
+            'purge_stored_exports',
+            count($files).' stored export file(s)',
+            actorLabel: 'System',
+        );
+
         $this->info('Deleted the stored export files. The Reports list is unchanged and rebuilds files on demand.');
 
         return self::SUCCESS;

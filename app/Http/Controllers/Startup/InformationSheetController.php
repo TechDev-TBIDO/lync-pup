@@ -15,6 +15,8 @@ use App\Models\IncubationInvolvement;
 use App\Models\InformationSheetFile;
 use App\Models\LdIntervention;
 use App\Models\StartupReference;
+use App\Models\VersionHistory;
+use App\Support\ChangeLog;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -112,7 +114,18 @@ class InformationSheetController extends Controller
         // Only fires on an actual resubmission after a rejection — a
         // startup's very first submission has no schedule rows to clean up.
         if ($sheet->approval_status === 'Rejected') {
+            $removed = $startup->evaluationSchedules()->count();
             $startup->evaluationSchedules()->delete();
+
+            if ($removed > 0) {
+                VersionHistory::record(
+                    $startup,
+                    'Information Sheet',
+                    'delete_evaluation',
+                    $startup->company_name,
+                    changes: ChangeLog::note("{$removed} old evaluation booking(s) removed when the rejected sheet was resubmitted"),
+                );
+            }
         }
 
         $data['approval_status'] = 'Pending';
@@ -185,6 +198,8 @@ class InformationSheetController extends Controller
         abort_unless($incubationInvolvement->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
         $incubationInvolvement->delete();
 
+        $this->logRemoval('Incubation Involvement', $incubationInvolvement->organization_name_address);
+
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Removed.');
     }
 
@@ -219,6 +234,8 @@ class InformationSheetController extends Controller
         abort_unless($ldIntervention->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
         $ldIntervention->delete();
 
+        $this->logRemoval('L&D Intervention', $ldIntervention->title);
+
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Removed.');
     }
 
@@ -252,6 +269,8 @@ class InformationSheetController extends Controller
     {
         abort_unless($reference->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
         $reference->delete();
+
+        $this->logRemoval('Reference', $reference->name);
 
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Removed.');
     }
@@ -293,6 +312,22 @@ class InformationSheetController extends Controller
         Storage::disk('public')->delete($file->file_path);
         $file->delete();
 
+        $this->logRemoval('Supporting Document', $file->original_filename);
+
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Supporting document removed.');
+    }
+
+    /** Founders can change their sheet too, so admins see what was removed and by whom. */
+    private function logRemoval(string $section, ?string $name): void
+    {
+        $startup = auth()->user()->startup;
+
+        VersionHistory::record(
+            $startup,
+            'Information Sheet',
+            'founder_remove_sheet_item',
+            $startup->company_name,
+            changes: ChangeLog::note(trim("{$section} · Removed ".($name ?? ''))),
+        );
     }
 }

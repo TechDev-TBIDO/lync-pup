@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Startup;
+use App\Models\VersionHistory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -68,6 +69,10 @@ class FounderApplicationController extends Controller
 
         return view('admin.founder-applications.index', [
             'applications' => $applications,
+            'signupVersionHistory' => VersionHistory::where('context', 'Founder Registrations')
+                ->with('user')
+                ->newestFirst()
+                ->get(),
             'newStartupIds' => $newStartupIds,
             'activeTab' => $tab,
             'perPage' => $perPage,
@@ -108,6 +113,10 @@ class FounderApplicationController extends Controller
         abort_unless($startup->user?->isPendingApproval(), 404);
 
         $user = $startup->user;
+
+        // Before the delete: this entry is all that's left of the signup afterwards.
+        VersionHistory::record(null, 'Founder Registrations', 'delete_signup', "{$startup->company_name} ({$user->email})");
+
         $startup->delete();
         $user->delete();
 

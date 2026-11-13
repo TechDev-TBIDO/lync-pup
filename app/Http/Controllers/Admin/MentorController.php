@@ -66,14 +66,11 @@ class MentorController extends Controller
             'mentors' => $mentors,
             'otherSpecializationSuggestions' => $otherSpecializationSuggestions,
             // One shared, page-wide Edit History feed of every Add/Edit/
-            // Delete Mentor action together — a mentor isn't tied to one
-            // startup, so it follows the cohort selected on this page
-            // instead: each entry is filed under whichever cohort was
-            // selected when the change was made (see VersionHistory::record()),
-            // and picking another cohort here shows only that cohort's
-            // entries. "All Cohorts" lists every one, labelled by cohort.
+            // Delete Mentor action together. Not filtered by the selected
+            // cohort: a mentor can work with startups in any cohort, so an
+            // entry (a deletion included) must not vanish when the admin
+            // switches cohorts. Same as Admin Management's history.
             'mentorVersionHistory' => VersionHistory::where('context', 'Mentor Profile')
-                ->forSelectedCohort()
                 ->with('user')
                 ->newestFirst()
                 ->get(),

@@ -3,10 +3,10 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Support\LoginThrottle;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -39,8 +39,6 @@ class LoginRequest extends FormRequest
         $this->ensureIsNotRateLimited();
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
-
             // A recognized email with the wrong password surfaces under the
             // Password field instead of Email — the founder/admin typed the
             // right account, just the wrong password, so that's where their
@@ -49,7 +47,7 @@ class LoginRequest extends FormRequest
             // "the password" to point at.
             $emailExists = User::where('email', $this->input('email'))->exists();
 
-            throw ValidationException::withMessages(
+            $this->failAttempt(
                 $emailExists
                     ? ['password' => 'Incorrect Password']
                     : ['email' => trans('auth.failed')]
@@ -60,11 +58,9 @@ class LoginRequest extends FormRequest
         // Enforce that the selected tab matches the account's actual role
         if (Auth::user()->role !== $this->input('role')) {
             Auth::logout();
-            RateLimiter::hit($this->throttleKey());
-
             $selected = $this->input('role') === 'Startup' ? 'Founder' : 'Admin';
 
-            throw ValidationException::withMessages([
+            $this->failAttempt([
                 'email' => "This account is not registered as {$selected}.",
             ]);
         }
@@ -94,9 +90,7 @@ class LoginRequest extends FormRequest
             };
 
             Auth::logout();
-            RateLimiter::hit($this->throttleKey());
-
-            throw ValidationException::withMessages([
+            $this->failAttempt([
                 'email' => $message,
             ]);
         }
@@ -113,41 +107,48 @@ class LoginRequest extends FormRequest
                 : 'Your admin account has been disabled. Please contact the PUP TBIDO Super Admin.';
 
             Auth::logout();
-            RateLimiter::hit($this->throttleKey());
-
-            throw ValidationException::withMessages([
+            $this->failAttempt([
                 'email' => $message,
             ]);
         }
 
-        RateLimiter::clear($this->throttleKey());
+        LoginThrottle::clear($this->throttleKey());
+        session()->forget(['login_lockout_until', 'login_lockout_email']);
     }
 
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
-            return;
+        $seconds = LoginThrottle::secondsRemaining($this->throttleKey());
+
+        if ($seconds > 0) {
+            $this->throwLockout($seconds);
+        }
+    }
+
+    /** @param  array<string, string>  $messages */
+    private function failAttempt(array $messages): never
+    {
+        $seconds = LoginThrottle::recordFailure($this->throttleKey());
+
+        if ($seconds > 0) {
+            $this->throwLockout($seconds);
         }
 
+        throw ValidationException::withMessages($messages);
+    }
+
+    private function throwLockout(int $seconds): never
+    {
         event(new Lockout($this));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
-
-        // The message below bakes the number in as plain text, which would sit
-        // frozen on the page. Flashing the raw seconds alongside it lets the
-        // login view swap that text for a live countdown (auth/login.blade.php)
-        // that clears itself once the wait is over. Flash data only survives
-        // the redirect back, so a reload still drops both, as before.
-        session()->flash('lockout_seconds', $seconds);
+        // Kept in the session so the countdown survives a page reload. The
+        // server still enforces the lockout itself, whatever the page shows.
+        session()->put('login_lockout_until', now()->timestamp + $seconds);
+        session()->put('login_lockout_email', Str::lower((string) $this->input('email')));
 
         // Surfaced under the Password field (same as "Incorrect Password"):
         // that's where the blocked attempt came from, so it's where the eye is.
-        throw ValidationException::withMessages([
-            'password' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
-        ]);
+        throw ValidationException::withMessages(['password' => LoginThrottle::message($seconds)]);
     }
 
     public function throttleKey(): string

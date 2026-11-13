@@ -46,7 +46,7 @@
                     </div>
 
                     <div class="flex flex-shrink-0 items-center gap-3">
-                        <x-version-history-panel :entries="$coordinatorVersionHistory ?? collect()" />
+                        <x-version-history-panel :entries="$coordinatorVersionHistory ?? collect()" :show-cohort="false" />
 
                         {{-- Desktop trigger: top right, beside the title --}}
                         <button @click="open = true" class="{{ $addBtn }} hidden flex-shrink-0 sm:flex">
@@ -77,7 +77,7 @@
                     @endphp
 
                     <div class="relative aspect-[3/4] overflow-hidden rounded-xl border"
-                        x-data="{ menuOpen: false, editOpen: @js($errors->any() && old('_coordinator_id') == $coordinator->coordinator_id), deleteOpen: false, startupsOpen: false }">
+                        x-data="{ infoOpen: false, menuOpen: false, editOpen: @js($errors->any() && old('_coordinator_id') == $coordinator->coordinator_id), deleteOpen: false, startupsOpen: false }">
 
                         {{-- Menu wrapper. z-index lifts while the dropdown is open so it clears
                      neighbouring cards, which all sit at z-20 too. --}}
@@ -138,18 +138,22 @@
                         </div>
 
                         {{-- Photo fills the entire card, positioned absolutely as the base layer --}}
-                        <div class="absolute inset-0 bg-gray-200">
+                        <button type="button" @click="infoOpen = true" aria-label="View details for {{ $coordinatorName }}"
+                            class="absolute inset-0 block h-full w-full cursor-pointer bg-gray-200">
                             @if ($coordinator->coordinator_photo_path)
-                            <img src="{{ Storage::url($coordinator->coordinator_photo_path) }}" class="h-full w-full object-cover">
+                            <img src="{{ Storage::url($coordinator->coordinator_photo_path) }}" alt="" class="h-full w-full object-cover">
                             @else
-                            <div class="flex h-full w-full items-center justify-center text-xs text-gray-400 sm:text-sm">No Photo</div>
+                            <span class="flex h-full w-full items-center justify-center text-xs text-gray-400 sm:text-sm">No Photo</span>
                             @endif
-                        </div>
+                        </button>
 
                         {{-- Text overlay, anchored bottom, gradient fading up into the photo --}}
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-3 pt-10 text-white sm:p-4 sm:pt-16">
+                        <div @click="infoOpen = true" class="absolute bottom-0 left-0 right-0 cursor-pointer bg-gradient-to-t from-black via-black/70 to-transparent p-3 pt-10 text-white sm:p-4 sm:pt-16">
                             <p class="truncate text-sm font-bold sm:text-base">{{ $coordinatorName }}</p>
                             <p class="mb-1.5 truncate text-[10px] text-white/70 sm:mb-2 sm:text-xs">{{ $coordinator->role_title }}</p>
+                            @if ($coordinator->focus_tags)
+                            <p class="mb-1.5 truncate text-[10px] text-white/70 sm:mb-2 sm:text-xs" title="{{ implode(', ', $coordinator->focus_tags) }}">{{ implode(', ', $coordinator->focus_tags) }}</p>
+                            @endif
 
                             <div class="space-y-1 border-t border-white/20 pt-1.5 text-[10px] text-white/80 sm:space-y-1.5 sm:pt-2 sm:text-xs">
                                 <p class="flex items-center gap-1.5 sm:gap-2">
@@ -177,6 +181,16 @@
                                 </p>
                             </div>
                         </div>
+
+                        <x-person-details-modal
+                            :name="$coordinator->name ?: $coordinatorName"
+                            :subtitle="$coordinator->role_title"
+                            :photo="$coordinator->coordinator_photo_path ? Storage::url($coordinator->coordinator_photo_path) : null"
+                            :email="$coordinator->email"
+                            :phone="$coordinator->phone"
+                            :tags="$coordinator->focus_tags ?? []"
+                            :stats="['Active Startups' => $coordinator->active_startups_count, 'Active Cases' => $coordinator->active_cases_count, 'Completed Cases' => $coordinator->completed_cases_count]"
+                            :startups="$coordinator->active_startup_assignments->map(fn ($a) => $a->startup?->company_name)->filter()->unique()->values()->all()" />
 
                         {{-- Delete confirmation. Teleported to <body> so z-[100] is measured against
                      the page, not against this card's stacking context. --}}

@@ -37,6 +37,7 @@ class HistoryFields
             'specialization' => ['label' => 'Expertise', 'get' => fn (Mentor $m) => $m->display_specialization],
             'contact_email' => 'Email',
             'contact_number' => 'Phone Number',
+            'focus_tags' => ['label' => 'Fields of Focus', 'type' => 'list'],
             'mentor_photo_path' => ['label' => 'Photo', 'type' => 'image'],
         ];
     }
@@ -50,6 +51,7 @@ class HistoryFields
             'honorific' => 'Honorifics',
             'email' => 'Email',
             'phone' => 'Phone Number',
+            'focus_tags' => ['label' => 'Fields of Focus', 'type' => 'list'],
             'coordinator_photo_path' => ['label' => 'Photo', 'type' => 'image'],
         ];
     }

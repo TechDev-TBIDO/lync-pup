@@ -37,6 +37,7 @@
                     <h1 class="text-3xl font-bold text-gray-900">Founder Registrations</h1>
                     <p class="text-gray-500 mt-1">Every founder sign-up so far. Acceptance into the incubation program happens later, from the Assessment Hub, once a startup's evaluation has been held.</p>
                 </div>
+                <x-version-history-panel :entries="$signupVersionHistory" :show-cohort="false" />
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">

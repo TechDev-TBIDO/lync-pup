@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreEvaluationScheduleRequest;
 use App\Http\Requests\Admin\UpdateEvaluationScheduleRequest;
+use App\Mail\MeetingScheduleMail;
 use App\Models\EvaluationSchedule;
 use App\Models\VersionHistory;
 use App\Notifications\EvaluationCancelled;
 use App\Notifications\EvaluationScheduled;
 use App\Support\ChangeLog;
 use App\Support\HistoryFields;
+use App\Support\MeetingEmail;
 use Illuminate\Http\RedirectResponse;
 
 class EvaluationScheduleController extends Controller
@@ -33,9 +35,9 @@ class EvaluationScheduleController extends Controller
             );
         }
 
-        $this->notifyFounder($evaluationSchedule, rescheduled: false);
+        $mailWarning = $this->notifyFounder($evaluationSchedule, rescheduled: false, sendEmail: true);
 
-        return back()->with('status', 'Evaluation scheduled successfully.');
+        return back()->with('status', 'Evaluation scheduled successfully.'.$mailWarning);
     }
 
     public function update(UpdateEvaluationScheduleRequest $request, EvaluationSchedule $evaluationSchedule): RedirectResponse
@@ -43,6 +45,7 @@ class EvaluationScheduleController extends Controller
         $data = $request->validated();
         $data['end_time'] = $this->endTimeFor($data['start_time']);
         $data['status'] = 'Scheduled';
+        $wasScheduled = $evaluationSchedule->status === 'Scheduled';
 
         // What the reschedule really moved (date, time, modality, ...) — one
         // that changes nothing isn't logged.
@@ -52,9 +55,10 @@ class EvaluationScheduleController extends Controller
             VersionHistory::recordChanges($evaluationSchedule->startup, 'Information Sheet', 'reschedule_evaluation', $changes, $evaluationSchedule->startup->company_name);
         }
 
-        $this->notifyFounder($evaluationSchedule, rescheduled: true);
+        // Saving the form without changing anything shouldn't email the founder.
+        $mailWarning = $this->notifyFounder($evaluationSchedule, rescheduled: true, sendEmail: $changes !== [] || ! $wasScheduled);
 
-        return back()->with('status', 'Evaluation schedule saved successfully.');
+        return back()->with('status', 'Evaluation schedule saved successfully.'.$mailWarning);
     }
 
     public function destroy(EvaluationSchedule $evaluationSchedule): RedirectResponse
@@ -118,14 +122,17 @@ class EvaluationScheduleController extends Controller
     /**
      * A reschedule refreshes the founder's still-unread card for this same
      * booking in place (the title flips to "rescheduled"); once they've read
-     * it, a fresh card goes out instead so the change isn't missed.
+     * it, a fresh card goes out instead so the change isn't missed. The email
+     * goes out either way, since an unread card is exactly one they haven't seen.
+     *
+     * Returns the warning to show the admin if the email couldn't be sent.
      */
-    private function notifyFounder(EvaluationSchedule $schedule, bool $rescheduled): void
+    private function notifyFounder(EvaluationSchedule $schedule, bool $rescheduled, bool $sendEmail): string
     {
         $user = $schedule->startup?->user;
 
         if (! $user) {
-            return;
+            return '';
         }
 
         $notification = new EvaluationScheduled($schedule, $rescheduled);
@@ -140,5 +147,9 @@ class EvaluationScheduleController extends Controller
         } else {
             $user->notify($notification);
         }
+
+        return $sendEmail
+            ? MeetingEmail::send($user, MeetingScheduleMail::forEvaluation($schedule, $user, $rescheduled))
+            : '';
     }
 }

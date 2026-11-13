@@ -55,11 +55,10 @@ class CoordinatorProfileController extends Controller
         return view('admin.coordinators.index', [
             'coordinators' => $coordinators,
             // One shared, page-wide Edit History feed of every Add/Edit/
-            // Delete Coordinator action together — same reasoning as
-            // MentorController::index()'s mentorVersionHistory, including
-            // following the cohort selected on this page.
+            // Delete Coordinator action together. Not filtered by the
+            // selected cohort, for the same reason as MentorController::
+            // index()'s mentorVersionHistory.
             'coordinatorVersionHistory' => VersionHistory::where('context', 'Coordinator Profile')
-                ->forSelectedCohort()
                 ->with('user')
                 ->newestFirst()
                 ->get(),

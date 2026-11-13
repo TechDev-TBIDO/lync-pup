@@ -11,6 +11,8 @@ use App\Http\Requests\Startup\UpdateTeamMemberRequest;
 use App\Models\Startup;
 use App\Models\StartupTeamMember;
 use App\Models\TeamMember;
+use App\Models\VersionHistory;
+use App\Support\ChangeLog;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -111,9 +113,20 @@ class StartupProfileController extends Controller
 
         if ($request->has('deleted_team_members')) {
 
-            StartupTeamMember::where('startup_id', $startup->startup_id)
-                ->whereIn('startup_team_member_id', $request->deleted_team_members)
-                ->delete();
+            $removed = StartupTeamMember::where('startup_id', $startup->startup_id)
+                ->whereIn('startup_team_member_id', $request->deleted_team_members);
+            $names = (clone $removed)->pluck('full_name')->implode(', ');
+            $removed->delete();
+
+            if ($names !== '') {
+                VersionHistory::record(
+                    $startup,
+                    'Startup Profile',
+                    'founder_remove_team_member',
+                    $startup->company_name,
+                    changes: ChangeLog::note("Team member removed: {$names}"),
+                );
+            }
         }
 
         // The Information Sheet's own Core Team table (Section II) is
@@ -195,6 +208,14 @@ class StartupProfileController extends Controller
         // route. Section II has no minimum any more - it may be left empty.
 
         $teamMember->delete();
+
+        VersionHistory::record(
+            $startup,
+            'Information Sheet',
+            'founder_remove_sheet_item',
+            $startup->company_name,
+            changes: ChangeLog::note('Core Team · Removed '.$teamMember->full_name),
+        );
 
         return redirect()->route('startup.profile.edit')->with('status', 'Team member removed.');
     }
