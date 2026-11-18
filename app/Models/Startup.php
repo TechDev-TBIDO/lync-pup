@@ -547,15 +547,29 @@ class Startup extends Model
     {
         return match (true) {
             $this->hasApprovedInformationSheet() => 'This Information Sheet is approved and locked. Contact your Coordinator for changes.',
+            $this->submittedForReviewLockActive() => 'This Information Sheet has been submitted and is locked while TBIDO reviews it. Contact your Coordinator for changes.',
             $this->evaluationDayLockActive() => 'This Information Sheet is locked for today - your evaluation is scheduled today.',
             $this->missedEvaluationLockActive() => 'This Information Sheet is locked - your evaluation was missed. It unlocks once TBIDO sets a new evaluation schedule.',
             default => null,
         };
     }
 
+    /**
+     * Submitting (or resubmitting) hands the sheet to TBIDO: it stays locked
+     * while it's Pending a decision. A rejection reopens it so the founder can
+     * revise and resubmit; an approval keeps it locked for good.
+     */
+    public function submittedForReviewLockActive(): bool
+    {
+        $sheet = $this->informationSheet;
+
+        return $sheet?->approval_status === 'Pending' && filled($sheet->submission_date);
+    }
+
     public function isInformationSheetLocked(): bool
     {
         return $this->hasApprovedInformationSheet()
+            || $this->submittedForReviewLockActive()
             || $this->evaluationDayLockActive()
             || $this->missedEvaluationLockActive();
     }
@@ -718,6 +732,12 @@ class Startup extends Model
      */
     public function scopeApplicationApproved(Builder $query): Builder
     {
-        return $query->whereHas('user', fn ($q) => $q->where('account_status', 'Active'));
+        // An accepted startup (Approved Information Sheet) always counts,
+        // whatever its founder account's status: otherwise it vanished from
+        // the Active / Assign Coordinator cards and tabs while still showing
+        // on Risk Monitoring, which only looks at the approved sheet.
+        return $query->where(fn ($q) => $q
+            ->whereHas('user', fn ($u) => $u->where('account_status', 'Active'))
+            ->orWhereHas('informationSheet', fn ($sheet) => $sheet->where('approval_status', 'Approved')));
     }
 }

@@ -169,6 +169,8 @@ class InformationSheetController extends Controller
     // Incubation Involvement
     public function storeIncubation(StoreIncubationInvolvementRequest $request): RedirectResponse|Response
     {
+        $this->abortIfLocked();
+
         // See the note on _dry_run in update() above — same all-or-nothing scheme.
         if ($request->boolean('_dry_run')) {
             return response()->noContent();
@@ -182,6 +184,8 @@ class InformationSheetController extends Controller
 
     public function updateIncubation(UpdateIncubationInvolvementRequest $request, IncubationInvolvement $incubationInvolvement): RedirectResponse|Response
     {
+        $this->abortIfLocked();
+
         abort_unless($incubationInvolvement->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
 
         if ($request->boolean('_dry_run')) {
@@ -195,6 +199,8 @@ class InformationSheetController extends Controller
 
     public function destroyIncubation(IncubationInvolvement $incubationInvolvement): RedirectResponse
     {
+        $this->abortIfLocked();
+
         abort_unless($incubationInvolvement->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
         $incubationInvolvement->delete();
 
@@ -206,6 +212,8 @@ class InformationSheetController extends Controller
     // L&D Interventions
     public function storeLd(StoreLdInterventionRequest $request): RedirectResponse|Response
     {
+        $this->abortIfLocked();
+
         if ($request->boolean('_dry_run')) {
             return response()->noContent();
         }
@@ -218,6 +226,8 @@ class InformationSheetController extends Controller
 
     public function updateLd(UpdateLdInterventionRequest $request, LdIntervention $ldIntervention): RedirectResponse|Response
     {
+        $this->abortIfLocked();
+
         abort_unless($ldIntervention->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
 
         if ($request->boolean('_dry_run')) {
@@ -231,6 +241,8 @@ class InformationSheetController extends Controller
 
     public function destroyLd(LdIntervention $ldIntervention): RedirectResponse
     {
+        $this->abortIfLocked();
+
         abort_unless($ldIntervention->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
         $ldIntervention->delete();
 
@@ -242,6 +254,8 @@ class InformationSheetController extends Controller
     // References
     public function storeReference(StoreStartupReferenceRequest $request): RedirectResponse|Response
     {
+        $this->abortIfLocked();
+
         if ($request->boolean('_dry_run')) {
             return response()->noContent();
         }
@@ -254,6 +268,8 @@ class InformationSheetController extends Controller
 
     public function updateReference(UpdateStartupReferenceRequest $request, StartupReference $reference): RedirectResponse|Response
     {
+        $this->abortIfLocked();
+
         abort_unless($reference->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
 
         if ($request->boolean('_dry_run')) {
@@ -267,6 +283,8 @@ class InformationSheetController extends Controller
 
     public function destroyReference(StartupReference $reference): RedirectResponse
     {
+        $this->abortIfLocked();
+
         abort_unless($reference->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
         $reference->delete();
 
@@ -281,6 +299,8 @@ class InformationSheetController extends Controller
     // Files (see RoadblockController::store()).
     public function storeFile(StoreInformationSheetFilesRequest $request): RedirectResponse|Response
     {
+        $this->abortIfLocked();
+
         if ($request->boolean('_dry_run')) {
             return response()->noContent();
         }
@@ -307,6 +327,8 @@ class InformationSheetController extends Controller
 
     public function destroyFile(InformationSheetFile $file): RedirectResponse
     {
+        $this->abortIfLocked();
+
         abort_unless($file->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
 
         Storage::disk('public')->delete($file->file_path);
@@ -329,5 +351,13 @@ class InformationSheetController extends Controller
             $startup->company_name,
             changes: ChangeLog::note(trim("{$section} · Removed ".($name ?? ''))),
         );
+    }
+
+    /** Rows and files are part of the sheet, so they lock with it. */
+    private function abortIfLocked(): void
+    {
+        $startup = auth()->user()->startup;
+
+        abort_if($startup?->isInformationSheetLocked(), 403, $startup?->informationSheetLockMessage() ?? 'This Information Sheet is locked.');
     }
 }

@@ -30,7 +30,8 @@ class IncubationInvolvementValidationTest extends TestCase
             'user_id' => $user->id,
             'startup_photo_path' => 'startups/photo.jpg',
         ]);
-        InformationSheet::factory()->create(['startup_id' => $startup->startup_id]);
+        // Not submitted yet: a submitted sheet locks (see Startup::submittedForReviewLockActive()).
+        InformationSheet::factory()->create(['startup_id' => $startup->startup_id, 'submission_date' => null]);
 
         return [$user, $startup];
     }

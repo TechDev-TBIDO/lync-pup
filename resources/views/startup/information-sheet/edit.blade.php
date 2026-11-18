@@ -15,11 +15,13 @@
         $dobMax = '9999-12-31'; // No real upper limit, but keeps the year to 4 digits (an empty max lets browsers accept 6-digit years).
         $lockReason = $sheet?->approval_status === 'Approved'
             ? 'Approved & Locked — contact your Coordinator for changes'
+            : ($startup->submittedForReviewLockActive()
+                ? 'Submitted & Locked — TBIDO is reviewing your sheet. Contact your Coordinator for changes'
             : ($startup->evaluationDayLockActive()
                 ? 'Locked for today — your evaluation is scheduled today. Contact your Coordinator for changes'
                 : ($startup->missedEvaluationLockActive()
                     ? 'Locked — your evaluation was missed. It unlocks once TBIDO sets a new evaluation schedule'
-                    : null));
+                    : null)));
 
         // Purely informational — deliberately kept outside the isLocked/dirty
         // Alpine state below, since a Rejected sheet must stay fully editable.
@@ -408,10 +410,10 @@ pendingRemoval: [],
                 </svg>
                 <ul class="list-disc pl-4 space-y-0.5 italic marker:text-[#11386A]">
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are required before you can submit.</span> Type <span class="font-bold">N/A</span> where a required one does not apply - except dates, email, phone, height and weight, which need a real value. Fields without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are optional: leave them blank or type <span class="font-bold">N/A</span>.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Save keeps your progress without submitting anything.</span> Come back anytime before your evaluation day to fill in more - a saved-but-incomplete sheet is never sent to TBIDO.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Submit for Review sends it to TBIDO.</span> Every required field needs an answer first - nothing is final until they approve it, and you can keep editing and resubmitting until then.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Save keeps your progress without submitting anything.</span> Come back anytime to fill in more - a saved-but-incomplete sheet is never sent to TBIDO.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Submit for Review sends it to TBIDO.</span> Every required field needs an answer first. Check everything before you submit: the sheet locks once it's submitted.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Your name, mobile and email start from your Startup Profile.</span> Edit them here freely - your Profile will not change.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet locks on your evaluation day. If the evaluation is missed, it stays locked until TBIDO sets a new schedule.</span> Once approved it stays locked - message your Coordinator for changes.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet stays locked while TBIDO reviews it.</span> If it's rejected, it reopens so you can revise and resubmit. Once approved it stays locked - message your Coordinator for changes.</li>
                 </ul>
                 </div>
 

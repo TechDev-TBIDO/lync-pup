@@ -75,6 +75,15 @@ $defaultModality = \App\Support\MeetingPlatform::OPTIONS[0];
 // today) and the time slots stay disabled until a weekday is picked.
 $pristineDate = $schedule?->evaluation_date?->format('Y-m-d') ?? (now()->isWeekend() ? null : now()->format('Y-m-d'));
 $pristineStart = $schedule ? substr($schedule->start_time, 0, 5) : null;
+
+// Rescheduling a booking whose date can't be booked any more (it's passed,
+// e.g. a missed evaluation, or falls on a weekend) starts with no date or time
+// picked, so the time slots stay grayed out until a valid weekday is chosen.
+if (! $isReadOnly && $schedule?->evaluation_date
+    && ($schedule->evaluation_date->isWeekend() || $schedule->evaluation_date->lt(now()->startOfDay()))) {
+    $pristineDate = null;
+    $pristineStart = null;
+}
 $pristineNotes = $schedule?->notes;
 $pristineModality = $schedule?->modality ?: $defaultModality;
 $pristineLink = $schedule?->link;
@@ -219,6 +228,13 @@ $initialServerError = $oldMatchesThisRow
             const dow = new Date(this.viewYear, this.viewMonth, day).getDay();
             return dow === 0 || dow === 6;
         },
+        // Times can only be picked for a weekday that hasn't passed.
+        dateAvailable() {
+            if (! this.date) return false;
+            const d = new Date(this.date + 'T00:00:00');
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            return d >= today && d.getDay() !== 0 && d.getDay() !== 6;
+        },
         monthLabel() { return new Date(this.viewYear, this.viewMonth, 1).toLocaleString('default', { month: 'long' }) + ' ' + this.viewYear; },
         friendlyDate() {
             if (! this.date) return '';
@@ -232,7 +248,7 @@ $initialServerError = $oldMatchesThisRow
             return hour12 + ':' + (m < 10 ? '0' + m : m) + ' ' + (h < 12 ? 'AM' : 'PM');
         },
     }"
-    x-init="if (startTime && !{{ $isReadOnly ? 'true' : 'false' }} && (isPastSlot(startTime) || isSlotBooked(startTime))) { const f = slots.find(t => !isPastSlot(t) && !isSlotBooked(t)); if (f) startTime = f; }@if ($openVar) $watch('{{ $openVar }}', (isOpen) => { if (! isOpen) reset(); })@endif">
+    x-init="if (startTime && dateAvailable() && !{{ $isReadOnly ? 'true' : 'false' }} && (isPastSlot(startTime) || isSlotBooked(startTime))) { const f = slots.find(t => !isPastSlot(t) && !isSlotBooked(t)); if (f) startTime = f; }@if ($openVar) $watch('{{ $openVar }}', (isOpen) => { if (! isOpen) reset(); })@endif">
     <div class="shrink-0 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-4 flex items-center justify-between">
         <h3 class="text-sm font-bold flex items-center gap-3">
             <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-6 w-6 brightness-0 invert" aria-hidden="true">
@@ -325,12 +341,12 @@ $initialServerError = $oldMatchesThisRow
                         @foreach ($timeSlots as [$start, $end])
                         @if (! $isReadOnly || $start === $initialStart)
                         <button type="button"
-                            @click="{{ $isReadOnly ? '' : "if (date && !isSlotBooked('{$start}') && !isPastSlot('{$start}')) { startTime = '{$start}'; serverError = null; }" }}"
-                            :disabled="{{ $isReadOnly ? 'true' : "!date || isSlotBooked('{$start}') || isPastSlot('{$start}')" }}"
+                            @click="{{ $isReadOnly ? '' : "if (dateAvailable() && !isSlotBooked('{$start}') && !isPastSlot('{$start}')) { startTime = '{$start}'; serverError = null; }" }}"
+                            :disabled="{{ $isReadOnly ? 'true' : "!dateAvailable() || isSlotBooked('{$start}') || isPastSlot('{$start}')" }}"
                             :class="{
                                     'bg-[#6C0E24] text-white border-[#6C0E24]': startTime === '{{ $start }}',
-                                    'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed': (!date || isSlotBooked('{{ $start }}') || isPastSlot('{{ $start }}')) && startTime !== '{{ $start }}',
-                                    'border-[#6C0E24] text-gray-900 hover:bg-[#6C0E24]/5': date && !isSlotBooked('{{ $start }}') && !isPastSlot('{{ $start }}') && startTime !== '{{ $start }}' && !{{ $isReadOnly ? 'true' : 'false' }},
+                                    'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed': (!dateAvailable() || isSlotBooked('{{ $start }}') || isPastSlot('{{ $start }}')) && startTime !== '{{ $start }}',
+                                    'border-[#6C0E24] text-gray-900 hover:bg-[#6C0E24]/5': dateAvailable() && !isSlotBooked('{{ $start }}') && !isPastSlot('{{ $start }}') && startTime !== '{{ $start }}' && !{{ $isReadOnly ? 'true' : 'false' }},
                                 }"
                             class="w-full text-left border rounded-lg px-4 py-3 text-sm flex items-center gap-2">
                             <span x-show="startTime === '{{ $start }}'" class="text-white">&#10003;</span>
@@ -433,7 +449,7 @@ $initialServerError = $oldMatchesThisRow
                  changes — edit/reschedule always open pre-filled from the existing
                  $schedule, so without this the required-fields check alone is always
                  satisfied and the button was enabled even with zero edits. --}}
-            <button type="submit" form="{{ $formId }}" :disabled="!date || !startTime || !modality || !link || !isDirty()"
+            <button type="submit" form="{{ $formId }}" :disabled="!dateAvailable() || !startTime || !modality || !link || !isDirty()"
                 class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-40">
                 @if ($mode === 'add') Save Schedule
                 @elseif ($mode === 'edit') Save Changes

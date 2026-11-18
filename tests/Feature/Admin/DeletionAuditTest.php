@@ -116,7 +116,7 @@ class DeletionAuditTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'Startup', 'account_status' => 'Active', 'name' => 'Ana Founder']);
         $startup = Startup::factory()->create(['user_id' => $user->id, 'startup_photo_path' => 'startups/photo.jpg']);
-        $sheet = InformationSheet::factory()->create(['startup_id' => $startup->startup_id, 'approval_status' => 'Pending']);
+        $sheet = InformationSheet::factory()->create(['startup_id' => $startup->startup_id, 'approval_status' => 'Pending', 'submission_date' => null]);
         $reference = StartupReference::factory()->create(['info_sheet_id' => $sheet->info_sheet_id, 'name' => 'Dr. Ana Cruz']);
 
         $this->actingAs($user)->delete(route('startup.references.destroy', $reference))->assertRedirect();
