@@ -6,7 +6,6 @@ use App\Models\AssessmentDocument;
 use App\Models\Startup;
 use App\Models\ReadinessLevelAssessment;
 use App\Support\ReadinessRubric;
-use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpWord\TemplateProcessor;
 
 
@@ -200,27 +199,7 @@ class WordDocumentExporter
             ])->all(),
         );
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc1-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        // Was: convert to PDF via LibreOffice here. Dropped for now - on
-        // this machine, soffice.bin reliably crashes (STATUS_STACK_BUFFER_
-        // OVERRUN inside ucrtbase.dll, confirmed via Windows Event Viewer)
-        // no matter how it's invoked from PHP, even though it runs fine by
-        // hand in a terminal. Rather than keep chasing that under a
-        // deadline, this just returns the filled .docx directly - Macy
-        // opens it in Word herself. convertToPdf() below is left in place,
-        // unused, in case the LibreOffice crash gets sorted out later and
-        // PDF output is worth re-enabling.
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc1-');
     }
 
     /**
@@ -367,18 +346,7 @@ class WordDocumentExporter
             ['label' => $assessment?->approved_by_label, 'name' => $assessment?->approved_by, 'position' => $assessment?->approved_by_position],
         ]);
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc2-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc2-');
     }
 
     /**
@@ -437,18 +405,7 @@ class WordDocumentExporter
             ['label' => $assessment?->mrl_noted_by_label, 'name' => $assessment?->mrl_noted_by, 'position' => $assessment?->mrl_noted_by_position],
         ]);
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc3-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc3-');
     }
 
     /**
@@ -501,18 +458,7 @@ class WordDocumentExporter
             ['label' => $assessment?->tmrl_noted_by_label, 'name' => $assessment?->tmrl_noted_by, 'position' => $assessment?->tmrl_noted_by_position],
         ]);
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc4-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc4-');
     }
 
     /**
@@ -568,18 +514,7 @@ class WordDocumentExporter
             ['label' => $assessment?->srl_noted_by_label, 'name' => $assessment?->srl_noted_by, 'position' => $assessment?->srl_noted_by_position],
         ]);
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc5-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc5-');
     }
 
     /**
@@ -627,18 +562,7 @@ class WordDocumentExporter
             ['label' => $assessment?->approved_by_label, 'name' => $assessment?->approved_by, 'position' => $assessment?->approved_by_position],
         ]);
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc9-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc9-');
     }
 
     /**
@@ -695,18 +619,7 @@ class WordDocumentExporter
             ['label' => $assessment?->mrl_noted_by_label, 'name' => $assessment?->mrl_noted_by, 'position' => $assessment?->mrl_noted_by_position],
         ]);
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc10-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc10-');
     }
 
     /**
@@ -757,18 +670,7 @@ class WordDocumentExporter
             ['label' => $assessment?->tmrl_noted_by_label, 'name' => $assessment?->tmrl_noted_by, 'position' => $assessment?->tmrl_noted_by_position],
         ]);
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc11-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc11-');
     }
 
     /**
@@ -817,18 +719,7 @@ class WordDocumentExporter
             ['label' => $assessment?->srl_noted_by_label, 'name' => $assessment?->srl_noted_by, 'position' => $assessment?->srl_noted_by_position],
         ]);
 
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        $filledDocxPath = $tempDir . '/' . uniqid('doc12-', true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
-
-        return $binary;
+        return $this->saveAndReadBinary($processor, 'doc12-');
     }
 
     /**
@@ -1186,23 +1077,30 @@ class WordDocumentExporter
     }
 
     /**
-     * Shared "save the filled template to a temp file, read it back as
-     * bytes, delete the temp file" tail every renderDocumentN() method
-     * repeats - Documents 1-5/9-12 inline this; pulled out here so the
-     * newer methods above don't have to repeat the four lines verbatim.
+     * Finishes the filled template and returns its bytes. Nothing is kept on
+     * the server: PhpWord already works on its own copy in PHP's local temp
+     * folder, save() just finalises that copy, and it is deleted as soon as
+     * it has been read - even if reading fails.
+     *
+     * Deliberately not storage_path(): on Azure that is the persistent
+     * network share behind /home, which is slow and keeps any file a
+     * failed request leaves behind.
      */
     protected function saveAndReadBinary(TemplateProcessor $processor, string $prefix): string
     {
-        $tempDir = storage_path('app/tmp-exports');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
+        $tempPath = $processor->save();
+
+        try {
+            $binary = file_get_contents($tempPath);
+        } finally {
+            if (is_file($tempPath)) {
+                unlink($tempPath);
+            }
         }
 
-        $filledDocxPath = $tempDir . '/' . uniqid($prefix, true) . '.docx';
-        $processor->saveAs($filledDocxPath);
-
-        $binary = file_get_contents($filledDocxPath);
-        @unlink($filledDocxPath);
+        if ($binary === false) {
+            throw new \RuntimeException("Could not read the filled {$prefix} Word document.");
+        }
 
         return $binary;
     }
@@ -1348,138 +1246,5 @@ class WordDocumentExporter
             'ci_dates' => array_fill_keys(['ci_dates', 'ci_area', 'ci_action', 'ci_feedback', 'ci_remarks'], true),
             default => [],
         };
-    }
-
-    protected function convertToPdf(string $docxPath, string $outDir): string
-    {
-        $soffice = $this->resolveSofficeBinary();
-
-        // LibreOffice normally figures out its own per-user profile folder
-        // from the environment (%APPDATA% on Windows). That works fine
-        // when you run soffice yourself in a terminal, but a process
-        // spawned by a web server (php artisan serve, PHP-FPM, etc.) often
-        // doesn't inherit the same environment - LibreOffice then fails to
-        // create/find a profile and exits without producing a PDF or any
-        // error text at all. Forcing a specific, app-owned profile
-        // directory via -env:UserInstallation sidesteps that entirely -
-        // this is the standard fix for "works in my terminal, silently
-        // fails from the web app" LibreOffice conversions.
-        $profileDir = storage_path('app/tmp-exports/loffice-profile');
-        if (! is_dir($profileDir)) {
-            mkdir($profileDir, 0755, true);
-        }
-        $profileUrl = 'file:///' . str_replace('\\', '/', $profileDir);
-
-        // Laravel's Process facade (and Symfony's underneath it) captures
-        // output through anonymous pipes. On this machine that makes
-        // soffice.bin crash immediately with STATUS_STACK_BUFFER_OVERRUN
-        // (0xC0000409) inside ucrtbase.dll - confirmed via Windows Event
-        // Viewer, not a guess - some Windows console apps' C runtime
-        // mishandles stdout/stderr being a pipe rather than a real console
-        // or a file. So this bypasses Process entirely and calls proc_open()
-        // directly, redirecting stdin from NUL and stdout/stderr straight to
-        // real log files instead of pipes - the combination that avoids
-        // whatever soffice.bin/ucrtbase.dll doesn't tolerate here.
-        $quote = fn(string $value) => '"' . $value . '"';
-        $command = sprintf(
-            '%s --headless --norestore -env:UserInstallation=%s --convert-to pdf --outdir %s %s',
-            $quote($soffice),
-            $quote($profileUrl),
-            $quote($outDir),
-            $quote($docxPath),
-        );
-
-        $stdoutPath = $outDir . '/' . uniqid('soffice-out-', true) . '.log';
-        $stderrPath = $outDir . '/' . uniqid('soffice-err-', true) . '.log';
-
-        $descriptors = [
-            0 => ['file', 'NUL', 'r'],
-            1 => ['file', $stdoutPath, 'w'],
-            2 => ['file', $stderrPath, 'w'],
-        ];
-
-        $process = proc_open($command, $descriptors, $pipes, null, null, ['bypass_shell' => true]);
-
-        if (! is_resource($process)) {
-            throw new \RuntimeException('Could not start the LibreOffice conversion process at all (proc_open failed).');
-        }
-
-        // proc_open() has no built-in timeout, unlike Process::timeout() -
-        // poll proc_get_status() instead and kill it if it runs too long.
-        $deadline = microtime(true) + 180;
-        do {
-            $status = proc_get_status($process);
-            if (! $status['running']) {
-                break;
-            }
-            usleep(200_000);
-        } while (microtime(true) < $deadline);
-
-        if ($status['running']) {
-            proc_terminate($process);
-            proc_close($process);
-
-            throw new \RuntimeException('LibreOffice conversion timed out after 180 seconds.');
-        }
-
-        $exitCode = proc_close($process);
-        $stdout = @file_get_contents($stdoutPath) ?: '';
-        $stderr = @file_get_contents($stderrPath) ?: '';
-        @unlink($stdoutPath);
-        @unlink($stderrPath);
-
-        if ($exitCode !== 0) {
-            Log::error('LibreOffice conversion failed', [
-                'exit_code' => $exitCode,
-                'error_output' => $stderr,
-                'output' => $stdout,
-            ]);
-
-            throw new \RuntimeException(
-                'Could not convert the filled Word document to PDF (exit code ' . $exitCode . '). '
-                    . 'stderr: ' . $stderr . ' | stdout: ' . $stdout
-            );
-        }
-
-        $pdfPath = $outDir . '/' . pathinfo($docxPath, PATHINFO_FILENAME) . '.pdf';
-
-        if (! is_file($pdfPath)) {
-            throw new \RuntimeException("LibreOffice reported success but {$pdfPath} wasn't created.");
-        }
-
-        $binary = file_get_contents($pdfPath);
-        @unlink($pdfPath);
-
-        return $binary;
-    }
-
-    /**
-     * LibreOffice's binary name/path differs by OS and isn't always on
-     * PATH (Windows in particular almost never adds it). Checked in
-     * order: an explicit .env override, then the common install locations
-     * for Windows/macOS/Linux, then a bare "soffice" as a last resort in
-     * case it IS on PATH after all.
-     */
-    protected function resolveSofficeBinary(): string
-    {
-        $candidates = array_filter([
-            env('LIBREOFFICE_PATH'),
-            'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
-            'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
-            '/Applications/LibreOffice.app/Contents/MacOS/soffice',
-            '/usr/bin/soffice',
-            '/usr/local/bin/soffice',
-        ]);
-
-        foreach ($candidates as $path) {
-            if (is_file($path)) {
-                return $path;
-            }
-        }
-
-        // Fall back to bare "soffice" - works if it's genuinely on PATH,
-        // and gives a clearer "command not found"-style error otherwise
-        // than silently trying a made-up path.
-        return 'soffice';
     }
 }

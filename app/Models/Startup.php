@@ -104,6 +104,46 @@ class Startup extends Model
         return 'APP-'.$year.'-'.str_pad((string) $this->startup_id, 5, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Deleting a startup cascades its information sheet, roadblocks and
+     * their file rows in the database, but not the files themselves in
+     * storage. Remove those here so nothing is left orphaned.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(fn (self $startup) => $startup->deleteStoredFiles());
+    }
+
+    /**
+     * Deletes every file this startup uploaded: its photo, its information
+     * sheet's supporting documents and its roadblock attachments. Called on
+     * delete (also from User::deleting, since deleting a user removes the
+     * startup through a database cascade that skips model events).
+     */
+    public function deleteStoredFiles(): void
+    {
+        $disk = Storage::disk('public');
+
+        $directories = collect([$this->informationSheet?->info_sheet_id])
+            ->filter()
+            ->map(fn ($id) => "information-sheets/{$id}")
+            ->merge($this->roadblocks()->pluck('roadblock_id')->map(fn ($id) => "roadblocks/{$id}"));
+
+        try {
+            if ($this->startup_photo_path) {
+                $disk->delete($this->startup_photo_path);
+            }
+
+            foreach ($directories as $directory) {
+                $disk->deleteDirectory($directory);
+            }
+        } catch (\Throwable $e) {
+            // A storage hiccup must not block the delete itself; log it so the
+            // files can be cleaned up with `php artisan storage:purge-orphans`.
+            report($e);
+        }
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

@@ -526,27 +526,36 @@ class ExportController extends Controller
         // archive on PHP's own local temp path sidesteps that entirely.
         $localPath = sys_get_temp_dir() . '/' . uniqid('export-zip-', true) . '.zip';
 
-        $zip = new ZipArchive();
-        $opened = $zip->open($localPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        // finally: a document that fails to render must not leave a
+        // half-built archive behind in the temp folder.
+        try {
+            $zip = new ZipArchive();
+            $opened = $zip->open($localPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
-        if ($opened !== true) {
-            throw new \RuntimeException("Could not create the ZIP archive (error code {$opened}).");
+            if ($opened !== true) {
+                throw new \RuntimeException("Could not create the ZIP archive (error code {$opened}).");
+            }
+
+            foreach ($documentNumbers as $num) {
+                $extension = $this->extensionFor($num);
+                $label = self::DOCUMENTS[$num]['label'];
+                $individualFileName = $this->sanitizeFileName("{$startup->company_name} - {$label}") . ".{$extension}";
+
+                $zip->addFromString($individualFileName, $this->renderDocumentPdf($num, $startup));
+            }
+
+            $zip->close();
+
+            $binary = file_get_contents($localPath);
+        } finally {
+            // An archive left open by an error is written out when the
+            // object is freed, so free it first, then delete the file.
+            unset($zip);
+
+            if (is_file($localPath)) {
+                unlink($localPath);
+            }
         }
-
-        foreach ($documentNumbers as $num) {
-            $binary = $this->renderDocumentPdf($num, $startup);
-            $extension = $this->extensionFor($num);
-
-            $label = self::DOCUMENTS[$num]['label'];
-            $individualFileName = $this->sanitizeFileName("{$startup->company_name} - {$label}") . ".{$extension}";
-
-            $zip->addFromString($individualFileName, $binary);
-        }
-
-        $zip->close();
-
-        $binary = file_get_contents($localPath);
-        @unlink($localPath);
 
         return [
             'file_name' => "{$baseName}.zip",

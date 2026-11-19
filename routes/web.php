@@ -52,14 +52,14 @@ Route::get('/privacy-policy', function () {
     return view('legal.privacy');
 })->name('legal.privacy');
 
-// Fallback for machines where `php artisan storage:link` hasn't been run
-// (e.g. Windows testers — creating a symlink there needs Developer Mode or
-// an elevated shell). Every image URL in the app already resolves to
-// "/storage/{path}" via Storage::url(). Where the symlink exists, the
-// webserver serves that path as a static file and this route is never
-// reached; where it doesn't, this route streams the same file straight out
-// of storage/app/public instead, so the symlink step is no longer required
-// for images to show up. See app/Http/Controllers/StorageController.php.
+// Every uploaded file is served here at "/storage/{path}" (Storage::url()).
+// Profile photos are public; founders' documents and roadblock files need
+// the owning founder or an active admin. See StorageController.
+//
+// Do NOT run `php artisan storage:link` on a server that keeps files on
+// local disk: the webserver would then serve /storage/... as static files
+// and skip these access checks. Production uses Supabase Storage, so there
+// is nothing to link there anyway.
 Route::get('/storage/{path}', [StorageController::class, 'show'])
     ->where('path', '.*')
     ->name('storage.show');

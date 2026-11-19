@@ -40,14 +40,21 @@ class PurgeStoredExports extends Command
             $bytes += (int) $disk->size($file);
         }
 
+        // Word exports used to be filled in storage/app/tmp-exports (on Azure,
+        // the persistent /home share); a failed export could leave its file
+        // there. Exports now use PHP's local temp folder, so all of it is leftover.
+        $tempDir = storage_path('app/tmp-exports');
+        $tempFiles = is_dir($tempDir) ? \Illuminate\Support\Facades\File::allFiles($tempDir) : [];
+
         $this->info(sprintf(
-            'Found %d stored export file(s) (%.1f MB); %d saved report(s) still point at a stored file.',
+            'Found %d stored export file(s) (%.1f MB); %d saved report(s) still point at a stored file; %d leftover temp file(s).',
             count($files),
             $bytes / 1048576,
-            $rows
+            $rows,
+            count($tempFiles)
         ));
 
-        if (count($files) === 0 && $rows === 0) {
+        if (count($files) === 0 && $rows === 0 && ! is_dir($tempDir)) {
             return self::SUCCESS;
         }
 
@@ -56,6 +63,8 @@ class PurgeStoredExports extends Command
 
             return self::SUCCESS;
         }
+
+        \Illuminate\Support\Facades\File::deleteDirectory($tempDir);
 
         $disk->deleteDirectory('exports');
         foreach ($disk->allFiles('exports') as $leftover) {

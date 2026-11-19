@@ -39,6 +39,15 @@ class User extends Authenticatable implements MustVerifyEmail
         'invitation_token',
     ];
 
+    /**
+     * Deleting a user removes their startup through a database cascade,
+     * which skips Startup's own deleting hook - so clean its files up here.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(fn (self $user) => $user->startup?->deleteStoredFiles());
+    }
+
     protected function casts(): array
     {
         return [

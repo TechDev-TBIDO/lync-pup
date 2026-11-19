@@ -44,7 +44,7 @@ class VentureExitAiGenerator
         // this request rather than touching php.ini globally. Bumped up
         // from 90s to cover the retry below's worst case (two 75s attempts
         // plus the sleep between them) without PHP cutting it off first.
-        if (function_exists('set_time_limit')) {
+        if (function_exists('set_time_limit') && ! app()->runningInConsole()) {
             set_time_limit(180);
         }
 

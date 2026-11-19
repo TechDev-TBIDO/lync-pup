@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InformationSheet;
+use App\Models\Roadblock;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\HeaderUtils;
@@ -11,22 +14,28 @@ use Symfony\Component\Mime\MimeTypes;
 class StorageController extends Controller
 {
     /**
-     * Stream a file straight out of the "public" disk (storage/app/public)
-     * as a fallback for machines where `php artisan storage:link` hasn't
-     * been run. This is the fix for testers reporting images not loading
-     * because "the location of the images cannot be found" on their
-     * device — most commonly Windows, where creating a symlink requires
-     * Developer Mode or an elevated shell, a privilege testers often don't
-     * have or know how to grant themselves.
+     * Folders whose files are meant to be seen by anyone: profile photos,
+     * including the startup photos shown on the public landing page.
+     */
+    private const PUBLIC_FOLDERS = ['startups', 'mentors', 'coordinators'];
+
+    /** Photos never change at a given path (random file names), so cache them hard. */
+    private const PUBLIC_CACHE = 'public, max-age=604800, immutable';
+
+    /**
+     * Founders' documents: cached only in the viewer's own browser, and only
+     * briefly, so a revoked account stops seeing them soon after.
+     */
+    private const PRIVATE_CACHE = 'private, max-age=3600';
+
+    /**
+     * Serves a file from the "public" disk (Supabase Storage in production,
+     * storage/app/public locally) at its "/storage/{path}" URL.
      *
-     * Every image URL in the app is already generated via Storage::url()
-     * or a disk's ->url() accessor, both of which resolve to
-     * "/storage/{path}" regardless of whether the symlink actually
-     * exists. When it does exist, the webserver (or PHP's built-in dev
-     * server) serves the physical file directly and this route is never
-     * even reached. When it doesn't, this route transparently serves the
-     * same bytes instead — so running storage:link becomes unnecessary
-     * rather than a required setup step testers can forget or fail to do.
+     * Despite the disk's name, only profile photos are public. Founders'
+     * supporting documents (information-sheets/) and roadblock attachments
+     * (roadblocks/) need a logged-in user who is either an active admin or
+     * the founder who owns them. Anything else on the disk is admin-only.
      */
     public function show(string $path, Request $request): Response
     {
@@ -37,14 +46,22 @@ class StorageController extends Controller
             abort(404);
         }
 
-        // Performance: on Azure the "public" disk is Cloudflare R2, so every
-        // call below is a network round trip. The old exists() + response()
-        // pair made four of them per file (exists, mimeType, size, read)
-        // and sent "no-cache", so every tab switch re-downloaded every
-        // image through PHP. Now: one read, MIME type from the extension,
-        // and a browser cache header so repeat visits cost nothing.
-        // Uploaded files get random names (img_xxxx / hashed store()
-        // names), so a path never points at different bytes later.
+        $isPublic = $this->isPublicPath($path);
+
+        if (! $isPublic) {
+            $user = $request->user();
+
+            if (! $user) {
+                // A founder whose session expired lands back on the file after logging in.
+                return redirect()->guest(route('login'));
+            }
+
+            // 404 rather than 403, so a logged-in user can't probe which paths exist.
+            abort_unless($this->canView($user, $path), 404);
+        }
+
+        // One read, MIME type from the extension: every extra Storage call
+        // is a network round trip to Supabase.
         $stream = Storage::disk('public')->readStream($path);
 
         if (! is_resource($stream)) {
@@ -66,8 +83,39 @@ class StorageController extends Controller
         }, 200, [
             'Content-Type' => $mimeType,
             'Content-Disposition' => HeaderUtils::makeDisposition('inline', $filename, $fallback),
-            'Cache-Control' => 'private, max-age=604800',
+            'Cache-Control' => $isPublic ? self::PUBLIC_CACHE : self::PRIVATE_CACHE,
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    private function isPublicPath(string $path): bool
+    {
+        return in_array(strtok($path, '/'), self::PUBLIC_FOLDERS, true);
+    }
+
+    private function canView(User $user, string $path): bool
+    {
+        if ($user->isAdmin()) {
+            return ! $user->isDisabledAdmin() && ! $user->isPendingInvitation();
+        }
+
+        if (! $user->isStartup() || ! $user->startup) {
+            return false;
+        }
+
+        $segments = explode('/', $path);
+        $ownerId = isset($segments[1]) && ctype_digit($segments[1]) ? (int) $segments[1] : null;
+
+        if ($ownerId === null) {
+            return false;
+        }
+
+        $startupId = $user->startup->startup_id;
+
+        return match ($segments[0]) {
+            'information-sheets' => InformationSheet::whereKey($ownerId)->where('startup_id', $startupId)->exists(),
+            'roadblocks' => Roadblock::whereKey($ownerId)->where('startup_id', $startupId)->exists(),
+            default => false,
+        };
     }
 }

@@ -32,6 +32,24 @@ return Application::configure(basePath: dirname(__DIR__))
         // command itself stays dry-run-by-default for safe manual use;
         // --force here is what makes the schedule actually delete.
         $schedule->command('founders:purge-expired-rejections --force')->daily();
+
+        // Housekeeping so these tables don't grow forever (each row lives in
+        // Supabase). version_histories is deliberately left alone: it is
+        // the append-only audit trail.
+        $schedule->call(fn () => \Illuminate\Support\Facades\DB::table('notifications')
+            ->whereNotNull('read_at')
+            ->where('read_at', '<', now()->subDays(90))
+            ->delete()
+        )->name('prune-read-notifications')->dailyAt('02:00');
+
+        // The database cache store never removes an entry nobody reads again.
+        $schedule->call(fn () => \Illuminate\Support\Facades\DB::table('cache')
+            ->where('expiration', '<', now()->getTimestamp())
+            ->delete()
+        )->name('prune-expired-cache')->dailyAt('02:10');
+
+        $schedule->command('auth:clear-resets')->dailyAt('02:20');
+        $schedule->command('queue:prune-failed --hours=720')->weekly();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // The only signed route in the app is the emailed verification

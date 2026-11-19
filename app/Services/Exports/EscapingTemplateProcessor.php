@@ -30,6 +30,20 @@ class EscapingTemplateProcessor extends TemplateProcessor
     }
 
     /**
+     * PhpWord copies the template into PHP's temp folder when the processor
+     * is created. If filling the template throws before save() is reached,
+     * that copy would be left behind; delete it once the processor is done.
+     */
+    public function __destruct()
+    {
+        parent::__destruct();
+
+        if (is_string($this->tempDocumentFilename) && is_file($this->tempDocumentFilename)) {
+            @unlink($this->tempDocumentFilename);
+        }
+    }
+
+    /**
      * Insert raw WordprocessingML - the caller is responsible for escaping.
      */
     public function setXmlValue($search, $replace, $limit = self::MAXIMUM_REPLACEMENTS_DEFAULT): void

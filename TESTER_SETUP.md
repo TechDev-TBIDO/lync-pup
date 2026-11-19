@@ -43,7 +43,7 @@ DB_PASSWORD=your_local_mysql_password
 
 (Create the `lync` database in MySQL first if it doesn't exist yet.)
 
-**Mail** — nothing to do here. The `MAIL_*` block already has real, working credentials filled in (a shared sending account), so registration/verification emails send immediately, to whatever address you actually register with. Leave that block as-is.
+**Mail** — ask the team lead for the SMTP username and password and fill in `MAIL_USERNAME`, `MAIL_PASSWORD` and `MAIL_FROM_ADDRESS` in your `.env`. They are deliberately not in `.env.example`, which is committed to git. To test without sending real email, set `MAIL_MAILER=log` instead: messages are written to `storage/logs/laravel.log`.
 
 ## 4. Set up the database
 
@@ -63,13 +63,7 @@ Plus sample startups, coordinators, mentors, and roadblocks across every status/
 
 ## 5. Link storage
 
-Uploaded files (signatures, photos, roadblock attachments, exported PDFs) live under `storage/app/public` and need this symlink to be reachable by the browser:
-
-```bash
-php artisan storage:link
-```
-
-Easy to forget, and the symptom is usually "images/downloads are broken" everywhere.
+**Skip this step.** Uploaded files (photos, information-sheet documents, roadblock attachments) live under `storage/app/public` and are served by the app itself at `/storage/...`, which checks who is allowed to see each file. Running `php artisan storage:link` would let the web server hand those files out directly and skip the checks. If you ran it before, delete the `public/storage` link.
 
 ## 6. Word document templates
 
@@ -135,7 +129,7 @@ Register a new Founder account through the app using any real email address you 
 
 - Forgot to `cp .env.example .env` at all → app won't boot, or uses stale settings.
 - Copied `.env.example` but never edited the DB values → migrations fail.
-- Skipped `php artisan storage:link` → uploaded/exported files 404 or show as broken images.
+- A founder document or roadblock file shows "not found" → you're logged out, or logged in as a different founder. Only the owning founder and admins can open those files.
 - Document exports fail or error out → check `resources/document-templates/` actually has all 13 `.docx` files (see step 6); if it's empty something went wrong with the clone.
 - Skipped `php artisan key:generate` → "no application encryption key has been specified" error.
 - MySQL not actually running, or `lync` database doesn't exist yet → migration errors on step 4.

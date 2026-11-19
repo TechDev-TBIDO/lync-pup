@@ -12,6 +12,39 @@ server {
 
     index index.php index.html index.htm hostingstart.html;
 
+    # Compress text responses (HTML pages, CSS, JS, JSON, SVG) before
+    # sending them: roughly 70-80% less traffic for those files.
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_vary on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    # Vite's built CSS/JS have a content hash in their file names, so a
+    # changed file always gets a new URL: browsers can keep them for a year
+    # without asking the server again.
+    location ^~ /build/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff";
+        try_files $uri =404;
+    }
+
+    location ^~ /fonts/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Images, landing-page CSS and icons keep their names when edited, so a
+    # shorter cache: a change shows up within a week at most.
+    location ~* ^/(images|css|js)/|^/(favicon\.(ico|png)|apple-touch-icon\.png)$ {
+        expires 7d;
+        add_header Cache-Control "public";
+        try_files $uri =404;
+    }
+
     location / {
         index index.php index.html index.htm hostingstart.html;
         try_files $uri $uri/ /index.php?$args;

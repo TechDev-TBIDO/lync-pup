@@ -137,7 +137,7 @@ class AiAssigneeMatcher
             throw new RuntimeException('GEMINI_API_KEY is not set.');
         }
 
-        if (function_exists('set_time_limit')) {
+        if (function_exists('set_time_limit') && ! app()->runningInConsole()) {
             set_time_limit(60);
         }
 
