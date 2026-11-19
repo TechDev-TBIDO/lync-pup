@@ -275,15 +275,15 @@ class SignatoryBlocksTest extends TestCase
         $rl = fn (string $t) => ["{$t}_evaluated_by", "{$t}_reviewed_by", "{$t}_noted_by"];
 
         return [
-            'Pre TRL (doc 2)' => [2, 'Pre-Assessment', ['prepared_by', 'trl_noted_by', 'approved_by'], 'w:left="3600"'],
-            'Pre MRL (doc 3)' => [3, 'Pre-Assessment', $rl('mrl'), 'w:left="5760"'],
-            'Pre TMRL (doc 4)' => [4, 'Pre-Assessment', $rl('tmrl'), 'w:left="5760"'],
-            'Pre SRL (doc 5)' => [5, 'Pre-Assessment', $rl('srl'), 'w:left="5760"'],
-            // The Post TRL template indents Approved by less than the Pre one.
-            'Post TRL (doc 9)' => [9, 'Post-Assessment', ['prepared_by', 'trl_noted_by', 'approved_by'], 'w:left="2880"'],
-            'Post MRL (doc 10)' => [10, 'Post-Assessment', $rl('mrl'), 'w:left="5760"'],
-            'Post TMRL (doc 11)' => [11, 'Post-Assessment', $rl('tmrl'), 'w:left="5760"'],
-            'Post SRL (doc 12)' => [12, 'Post-Assessment', $rl('srl'), 'w:left="5760"'],
+            'Pre TRL (doc 2)' => [2, 'Pre-Assessment', ['prepared_by', 'trl_noted_by', 'approved_by'], 'w:left="3270"'],
+            // The Pre MRL template sets its last signatory a little further right than the rest.
+            'Pre MRL (doc 3)' => [3, 'Pre-Assessment', $rl('mrl'), 'w:left="3990"'],
+            'Pre TMRL (doc 4)' => [4, 'Pre-Assessment', $rl('tmrl'), 'w:left="3270"'],
+            'Pre SRL (doc 5)' => [5, 'Pre-Assessment', $rl('srl'), 'w:left="3270"'],
+            'Post TRL (doc 9)' => [9, 'Post-Assessment', ['prepared_by', 'trl_noted_by', 'approved_by'], 'w:left="3270"'],
+            'Post MRL (doc 10)' => [10, 'Post-Assessment', $rl('mrl'), 'w:left="3270"'],
+            'Post TMRL (doc 11)' => [11, 'Post-Assessment', $rl('tmrl'), 'w:left="3270"'],
+            'Post SRL (doc 12)' => [12, 'Post-Assessment', $rl('srl'), 'w:left="3270"'],
         ];
     }
 
@@ -295,9 +295,9 @@ class SignatoryBlocksTest extends TestCase
     public static function jsonDocuments(): array
     {
         return [
-            'Document 7' => [7, 'Active-Assessment', ['prepared_by', 'noted_by'], 'w:left="4320"', false],
-            'Document 8' => [8, 'Active-Assessment', ['noted_by', 'approved_by'], 'w:left="2880"', false],
-            'Venture Exit (doc 13)' => [13, 'Venture Exit', ['evaluated_by', 'reviewed_by', 'noted_by'], 'w:left="5040"', true],
+            'Document 7' => [7, 'Active-Assessment', ['prepared_by', 'noted_by'], 'w:left="3270"', false],
+            'Document 8' => [8, 'Active-Assessment', ['noted_by', 'approved_by'], 'w:left="4130"', false],
+            'Venture Exit (doc 13)' => [13, 'Venture Exit', ['evaluated_by', 'reviewed_by', 'noted_by'], 'w:left="3270"', true],
         ];
     }
 
@@ -375,8 +375,20 @@ class SignatoryBlocksTest extends TestCase
         $this->assertStringNotContainsString('w:type="page"', substr($xml, strrpos($xml, '</w:tbl>')), 'A page break after the signatories adds a blank page.');
     }
 
-    /** Asserts exactly $count blank lines between the last table and the first signatory. */
-    protected function assertBlankLinesAfterTable(string $xml, int $count): void
+    /**
+     * The re-laid-out templates (Oct 2026) space their signatory blocks with
+     * one or two blank lines depending on the document, so spacing checks
+     * accept either; what matters is that a removed signatory leaves none of
+     * its own lines behind, which would show up as three or more.
+     */
+    protected function assertSignatoryGap(int $blanks, string $where): void
+    {
+        $this->assertGreaterThanOrEqual(1, $blanks, "Expected a blank line {$where}.");
+        $this->assertLessThanOrEqual(2, $blanks, "Expected at most 2 blank lines {$where}.");
+    }
+
+    /** Asserts 1-2 blank lines between the last table and the first signatory. */
+    protected function assertBlankLinesAfterTable(string $xml): void
     {
         $all = array_column($this->signatoryParagraphs($xml), 0);
         $blanks = 0;
@@ -386,7 +398,7 @@ class SignatoryBlocksTest extends TestCase
             }
             $blanks++;
         }
-        $this->assertSame($count, $blanks, "Expected {$count} blank lines between the table and the first signatory.");
+        $this->assertSignatoryGap($blanks, 'between the table and the first signatory');
     }
 
     /** The nearest non-blank paragraph text above the paragraph reading $text. */
@@ -397,8 +409,7 @@ class SignatoryBlocksTest extends TestCase
         $this->assertNotFalse($at);
         for ($i = $at - 1; $i >= 0; $i--) {
             if ($all[$i] !== '') {
-                // Blank lines between must number exactly 2.
-                $this->assertSame(2, $at - $i - 1, "Expected exactly 2 blank lines before '{$text}'.");
+                $this->assertSignatoryGap($at - $i - 1, "before '{$text}'");
 
                 return $all[$i];
             }
@@ -406,13 +417,10 @@ class SignatoryBlocksTest extends TestCase
         $this->fail("Nothing above '{$text}'.");
     }
 
-    /** Asserts exactly two blank lines right before the paragraph reading $text. */
-    protected function assertTwoBlankLinesBefore(string $xml, string $text): void
+    /** Asserts 1-2 blank lines right before the paragraph reading $text. */
+    protected function assertBlankLinesBefore(string $xml, string $text): void
     {
-        $all = array_column($this->signatoryParagraphs($xml), 0);
-        $at = array_search($text, $all, true);
-        $this->assertNotFalse($at);
-        $this->assertSame(['', ''], array_slice($all, $at - 2, 2), "Expected 2 blank lines before '{$text}'.");
+        $this->nonBlankBefore($xml, $text);
     }
 
     #[DataProvider('assessmentDocuments')]
@@ -423,8 +431,8 @@ class SignatoryBlocksTest extends TestCase
         $xml = $this->renderXml($doc, $startup);
 
         $this->assertSignatoryText($xml, $this->expected([1, 2, 3]));
-        $this->assertBlankLinesAfterTable($xml, 2);
-        $this->assertTwoBlankLinesBefore($xml, 'Label 2:');
+        $this->assertBlankLinesAfterTable($xml);
+        $this->assertBlankLinesBefore($xml, 'Label 2:');
         $this->assertStringContainsString($rightIndent, $this->paragraphContaining($xml, 'Label 3:'));
         $this->assertNothingAfterSignatories($xml, 'Title 3');
     }
@@ -449,8 +457,8 @@ class SignatoryBlocksTest extends TestCase
         $xml = $this->renderXml($doc, $startup);
 
         $this->assertSignatoryText($xml, $this->expected([1, 3]));
-        $this->assertTwoBlankLinesBefore($xml, 'Label 3:');
-        $this->assertSame('Title 1', $this->nonBlankBefore($xml, 'Label 3:'), 'Only 2 blank lines should separate the two signatories.');
+        $this->assertBlankLinesBefore($xml, 'Label 3:');
+        $this->assertSame('Title 1', $this->nonBlankBefore($xml, 'Label 3:'), 'The blank middle signatory must leave no gap behind.');
         $this->assertStringContainsString($rightIndent, $this->paragraphContaining($xml, 'Label 3:'));
     }
 
@@ -492,7 +500,7 @@ class SignatoryBlocksTest extends TestCase
 
         $this->assertSignatoryText($xml, $this->expected($all, $upper));
         if ($doc !== 8) {
-            $this->assertBlankLinesAfterTable($xml, 2);
+            $this->assertBlankLinesAfterTable($xml);
         }
         $this->assertNothingAfterSignatories($xml, 'Title '.count($roles));
         $this->assertStringContainsString($rightIndent, $this->paragraphContaining($xml, 'Label '.count($roles).':'));
@@ -514,20 +522,20 @@ class SignatoryBlocksTest extends TestCase
         }
     }
 
-    public function test_venture_exit_middle_blank_closes_the_gap_with_two_blank_lines(): void
+    public function test_venture_exit_middle_blank_closes_the_gap(): void
     {
         $startup = $this->approvedStartup();
         $this->makeDocument($startup, 13, 'Venture Exit', ['evaluated_by', 'reviewed_by', 'noted_by'], [1, 3]);
         $xml = $this->renderXml(13, $startup);
 
         $this->assertSignatoryText($xml, $this->expected([1, 3]));
-        $this->assertTwoBlankLinesBefore($xml, 'Label 3:');
+        $this->assertBlankLinesBefore($xml, 'Label 3:');
         $this->assertSame('Title 1', $this->nonBlankBefore($xml, 'Label 3:'));
 
-        // All filled: two blank lines between Evaluated by and Reviewed by.
+        // All filled: the normal gap between Evaluated by and Reviewed by.
         AssessmentDocument::query()->delete();
         $this->makeDocument($startup, 13, 'Venture Exit', ['evaluated_by', 'reviewed_by', 'noted_by'], [1, 2, 3]);
-        $this->assertTwoBlankLinesBefore($this->renderXml(13, $startup), 'Label 2:');
+        $this->assertBlankLinesBefore($this->renderXml(13, $startup), 'Label 2:');
     }
 
     public function test_document_6_prepared_by_signers_close_up_gaps(): void
@@ -557,6 +565,6 @@ class SignatoryBlocksTest extends TestCase
             ['Prepared By:', 'SECOND SIGNER', 'Chief', 'Noted By:', 'CARA', 'Director'],
             array_slice($this->texts($xml), -6)
         );
-        $this->assertStringContainsString('w:left="6480"', $this->paragraphContaining($xml, 'Noted By:'));
+        $this->assertStringContainsString('w:left="3270"', $this->paragraphContaining($xml, 'Noted By:'));
     }
 }

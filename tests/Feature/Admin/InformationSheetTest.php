@@ -470,6 +470,12 @@ class InformationSheetTest extends TestCase
         $this->assertSame(0, $startup->teamMembers()->count());
     }
 
+    /**
+     * Items 25, 26 and 35 are optional tables whose cells may each be left
+     * blank (see migration 0001_01_01_000066 and SheetRowRules::optionalText()),
+     * so the admin gets the same leeway as the founder: the only cross-column
+     * rule left is Incubation's program/focus once an organization is named.
+     */
     public function test_the_other_row_tables_are_held_to_the_founders_rules_too(): void
     {
         $admin = $this->adminUser();
@@ -478,17 +484,19 @@ class InformationSheetTest extends TestCase
         $this->actingAs($admin)
             ->postJson(route('admin.information-sheet.incubation.store', $startup), ['organization_name_address' => 'PUP Technology Business Incubator, Manila'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['date_from', 'date_to', 'number_of_hours', 'incubation_program_focus']);
+            ->assertJsonValidationErrors(['incubation_program_focus'])
+            ->assertJsonMissingValidationErrors(['date_from', 'date_to', 'number_of_hours']);
+
+        // Anything typed must still be valid, exactly as on the founder side.
+        $this->actingAs($admin)
+            ->postJson(route('admin.information-sheet.ld.store', $startup), ['title' => 'Pitching Bootcamp', 'number_of_hours' => '0', 'conducted_sponsored_by' => 'g1'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['number_of_hours', 'conducted_sponsored_by']);
 
         $this->actingAs($admin)
-            ->postJson(route('admin.information-sheet.ld.store', $startup), ['title' => 'Pitching Bootcamp'])
+            ->postJson(route('admin.information-sheet.references.store', $startup), ['name' => 'Reyes, Ana', 'contact' => '091712345', 'email' => 'anareyes'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['date_from', 'date_to', 'number_of_hours', 'conducted_sponsored_by']);
-
-        $this->actingAs($admin)
-            ->postJson(route('admin.information-sheet.references.store', $startup), ['name' => 'Reyes, Ana'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['contact', 'email', 'address']);
+            ->assertJsonValidationErrors(['contact', 'email']);
     }
 
     // ---- Save-all dry run ---------------------------------------------------

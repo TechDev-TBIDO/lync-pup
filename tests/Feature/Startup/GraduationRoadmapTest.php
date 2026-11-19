@@ -68,12 +68,20 @@ class GraduationRoadmapTest extends TestCase
 
     protected function activeDocs(Startup $startup): void
     {
-        foreach ([6, 7, 8] as $number) {
+        // Only documents with real content count toward the roadmap (see
+        // ActiveAssessmentForms::isDocumentFilled()), so each gets one real field.
+        $content = [
+            6 => ['noted_by' => 'Cara Reyes'],
+            7 => ['prepared_by_name' => 'Ana Cruz'],
+            8 => ['prototype_name' => 'Smart Irrigation Kit'],
+        ];
+
+        foreach ($content as $number => $data) {
             AssessmentDocument::create([
                 'startup_id' => $startup->startup_id,
                 'stage' => 'Active-Assessment',
                 'document_number' => $number,
-                'data' => ['x' => 'y'],
+                'data' => $data,
             ]);
         }
     }

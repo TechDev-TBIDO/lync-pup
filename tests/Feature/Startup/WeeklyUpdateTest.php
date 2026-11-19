@@ -37,7 +37,8 @@ class WeeklyUpdateTest extends TestCase
 
         $response->assertOk();
         $this->assertCount(0, $response->viewData('weeklyUpdates'));
-        $response->assertSee('No weekly updates yet.');
+        // Empty-state card copy (x-empty-state, redesigned in 3bc78f2).
+        $response->assertSeeText('No Weekly Updates Yet.');
     }
 
     public function test_only_filled_in_check_in_rows_reach_the_founder(): void

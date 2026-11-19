@@ -945,9 +945,12 @@ class RoadblockTest extends TestCase
         // Close button's revert script + Clear Form's own reset, both flip
         // the flag back off.
         $this->assertSame(2, substr_count($html, 'showFailedState = false'));
-        // One data-original attribute per revertible field: assignee,
-        // meeting_date, start time, end time, platform, link, notes.
-        $this->assertSame(7, substr_count($html, 'data-original='));
+        // One data-original attribute per revertible plain field: assignee,
+        // start time, end time, platform, link, notes. The meeting date is
+        // an <x-date-picker> (since b91171c) and is reverted from Alpine
+        // state instead.
+        $this->assertSame(6, substr_count($html, 'data-original='));
+        $this->assertStringContainsString('this.meetingDate = this.initialMeetingDate', $html);
     }
 
     /**

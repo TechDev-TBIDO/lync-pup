@@ -24,7 +24,7 @@ class RoleAccessTest extends TestCase
             'role' => 'Admin',
         ]);
 
-        Route::middleware(['auth', 'role:Admin'])
+        Route::middleware(['web', 'auth', 'role:Admin'])
             ->get('/test-admin-route', fn () => 'ok');
 
         $response = $this->actingAs($admin)
@@ -47,7 +47,7 @@ class RoleAccessTest extends TestCase
             'role' => 'Startup',
         ]);
 
-        Route::middleware(['auth', 'role:Admin'])
+        Route::middleware(['web', 'auth', 'role:Admin'])
             ->get('/test-admin-route', fn () => 'ok');
 
         $response = $this->actingAs($startup)
@@ -96,7 +96,11 @@ class RoleAccessTest extends TestCase
             ->get('/test-admin-cache-route');
 
         $response->assertOk();
-        $response->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        // Symfony normalises the directive order, so check each one rather than the raw string.
+        $cacheControl = $response->headers->get('Cache-Control');
+        foreach (['no-store', 'no-cache', 'must-revalidate', 'private'] as $directive) {
+            $this->assertStringContainsString($directive, $cacheControl);
+        }
     }
 
     public function test_startup_can_access_startup_routes(): void
@@ -105,7 +109,7 @@ class RoleAccessTest extends TestCase
             'role' => 'Startup',
         ]);
 
-        Route::middleware(['auth', 'role:Startup'])
+        Route::middleware(['web', 'auth', 'role:Startup'])
             ->get('/test-startup-route', fn () => 'ok');
 
         $response = $this->actingAs($startup)
@@ -120,7 +124,7 @@ class RoleAccessTest extends TestCase
             'role' => 'Admin',
         ]);
 
-        Route::middleware(['auth', 'role:Startup'])
+        Route::middleware(['web', 'auth', 'role:Startup'])
             ->get('/test-startup-route', fn () => 'ok');
 
         $response = $this->actingAs($admin)

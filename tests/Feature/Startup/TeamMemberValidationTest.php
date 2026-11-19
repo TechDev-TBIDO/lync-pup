@@ -115,9 +115,9 @@ class TeamMemberValidationTest extends TestCase
             'sex rejects an unlisted option' => [['sex' => 'OTHER'], ['sex']],
             'civil_status rejects an unlisted option' => [['civil_status' => 'COMPLICATED'], ['civil_status']],
 
-            // date_of_birth: must be a real past date, before 2010
+            // date_of_birth: required real date; the old before-2010 floor was dropped on purpose (7d82cbf)
             'date_of_birth rejects a blank value' => [['date_of_birth' => ''], ['date_of_birth']],
-            'date_of_birth rejects an underage date' => [['date_of_birth' => '2015-01-01'], ['date_of_birth']],
+            'date_of_birth accepts a younger member' => [['date_of_birth' => '2015-01-01'], []],
         ];
     }
 

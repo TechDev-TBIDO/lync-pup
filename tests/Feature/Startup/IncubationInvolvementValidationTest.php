@@ -42,7 +42,7 @@ class IncubationInvolvementValidationTest extends TestCase
             'organization_name_address' => 'PUP Technology Business Incubator, Sta. Mesa, Manila',
             'date_from' => '2023-01-01',
             'date_to' => '2023-06-01',
-            'number_of_hours' => 120,
+            'number_of_hours' => '120',
             'incubation_program_focus' => 'Technology Business Incubation',
         ];
     }
@@ -91,9 +91,9 @@ class IncubationInvolvementValidationTest extends TestCase
                 ['date_from' => '2023-06-01', 'date_to' => '2023-01-01'], ['date_to'],
             ],
 
-            'number_of_hours rejects zero' => [['number_of_hours' => 0], ['number_of_hours']],
+            'number_of_hours rejects zero' => [['number_of_hours' => '0'], ['number_of_hours']],
             'number_of_hours rejects a decimal' => [['number_of_hours' => '12.5'], ['number_of_hours']],
-            'number_of_hours accepts a whole positive number' => [['number_of_hours' => 40], []],
+            'number_of_hours accepts a whole positive number' => [['number_of_hours' => '40'], []],
         ];
     }
 }

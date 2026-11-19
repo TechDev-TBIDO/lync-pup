@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class VerifyEmailController extends Controller
 {
@@ -29,7 +29,7 @@ class VerifyEmailController extends Controller
      * this link is legitimate for this user; the 'signed' route middleware
      * already validated the signature/expiry before this method ever runs.
      */
-    public function __invoke(Request $request, string $id, string $hash): RedirectResponse
+    public function __invoke(Request $request, string $id, string $hash): Response
     {
         $user = User::findOrFail($id);
 

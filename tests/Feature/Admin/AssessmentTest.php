@@ -634,12 +634,25 @@ class AssessmentTest extends TestCase
 
         $this->assertFalse($venturePill()['completed']);
 
-        // A real entry does.
+        // Other entries without an Exit Status are still in progress
+        // (see ActiveAssessmentForms::isVentureExitCompleted()).
         $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update-documents', $startup), [
             'stage' => 'Venture Exit',
             'document_13' => json_encode([
                 'startup_name' => $startup->company_name,
                 'summary_of_progress' => 'Strong traction in pilot markets.',
+            ]),
+        ]);
+
+        $this->assertFalse($venturePill()['completed']);
+
+        // Ticking an Exit Status completes it.
+        $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update-documents', $startup), [
+            'stage' => 'Venture Exit',
+            'document_13' => json_encode([
+                'startup_name' => $startup->company_name,
+                'summary_of_progress' => 'Strong traction in pilot markets.',
+                'exit_status' => 'Graduated',
             ]),
         ]);
 
