@@ -43,7 +43,7 @@ class LdInterventionValidationTest extends TestCase
             'title' => 'Startup Bootcamp on Financial Literacy',
             'date_from' => '2023-02-01',
             'date_to' => '2023-02-03',
-            'number_of_hours' => 8,
+            'number_of_hours' => '8',
             'conducted_sponsored_by' => 'PUP-TBIDO',
         ];
     }
@@ -82,9 +82,9 @@ class LdInterventionValidationTest extends TestCase
                 ['date_from' => '2023-06-01', 'date_to' => '2023-01-01'], ['date_to'],
             ],
 
-            'number_of_hours rejects zero' => [['number_of_hours' => 0], ['number_of_hours']],
+            'number_of_hours rejects zero' => [['number_of_hours' => '0'], ['number_of_hours']],
             'number_of_hours rejects a decimal' => [['number_of_hours' => '4.5'], ['number_of_hours']],
-            'number_of_hours accepts a whole positive number' => [['number_of_hours' => 16], []],
+            'number_of_hours accepts a whole positive number' => [['number_of_hours' => '16'], []],
         ];
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Cohort;
+use App\Models\InformationSheet;
 use App\Models\Startup;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -86,8 +87,12 @@ class CohortTest extends TestCase
         $cohort2 = Cohort::where('number', 2)->firstOrFail();
         $cohort3 = Cohort::where('number', 3)->firstOrFail();
 
-        Startup::factory()->create(['cohort_id' => $cohort2->cohort_id, 'cohort_number' => 2]);
-        Startup::factory()->create(['cohort_id' => $cohort3->cohort_id, 'cohort_number' => 3]);
+        // Accepted startups: the Startup Profile's cohort breakdown leaves
+        // Applicants out and lists them on their own line instead.
+        foreach ([$cohort2, $cohort3] as $cohort) {
+            $startup = Startup::factory()->create(['cohort_id' => $cohort->cohort_id, 'cohort_number' => $cohort->number]);
+            InformationSheet::factory()->create(['startup_id' => $startup->startup_id, 'approval_status' => 'Approved']);
+        }
 
         // Select Cohort 2 on the Dashboard.
         $this->actingAs($admin)->get(route('dashboard', ['cohort' => $cohort2->cohort_id]));

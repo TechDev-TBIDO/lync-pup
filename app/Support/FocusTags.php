@@ -18,16 +18,23 @@ class FocusTags
 {
     public const ROADBLOCK_TYPES = ['Business Development', 'Technical Support', 'Market Research', 'Strategy Consultant'];
 
-    /** @return list<string> Every field on offer, alphabetically, without duplicates. */
+    /**
+     * @return list<string> Every field on offer, alphabetically, without duplicates.
+     *
+     * When the same field is spelled several ways, the first one entered is
+     * the one shown, so every query reads oldest-first. (SELECT DISTINCT has
+     * no defined order, so it could surface any spelling; unique() below
+     * already drops the repeats.)
+     */
     public static function options(): array
     {
         return once(fn () => self::unique([
             ...self::ROADBLOCK_TYPES,
-            ...Roadblock::where('problem_category', 'Others')->whereNotNull('problem_category_other')->distinct()->pluck('problem_category_other'),
+            ...Roadblock::where('problem_category', 'Others')->whereNotNull('problem_category_other')->orderBy('roadblock_id')->pluck('problem_category_other'),
             ...TrlOverviewForm::INDUSTRY_FOCUS,
-            ...Startup::whereNotNull('industry_sector')->distinct()->pluck('industry_sector'),
-            ...Mentor::whereNotNull('focus_tags')->pluck('focus_tags')->flatten(),
-            ...Coordinator::whereNotNull('focus_tags')->pluck('focus_tags')->flatten(),
+            ...Startup::whereNotNull('industry_sector')->orderBy('startup_id')->pluck('industry_sector'),
+            ...Mentor::whereNotNull('focus_tags')->orderBy('mentor_id')->pluck('focus_tags')->flatten(),
+            ...Coordinator::whereNotNull('focus_tags')->orderBy('coordinator_id')->pluck('focus_tags')->flatten(),
         ]));
     }
 

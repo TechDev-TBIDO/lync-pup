@@ -505,126 +505,48 @@ class InformationSheetTest extends TestCase
     // Section V: registration numbers (28-31)
     // --------------------------------------------------------------
 
-    public function test_sec_registration_rejects_short_junk(): void
+    /**
+     * Items 8-12 and 28-31 have been optional free text since b0a26a5
+     * ("Infosheet changes"): no format or digit-count check, only the
+     * column's own length limit. Short, repeated or oddly formatted values
+     * all save; only an overlong one is rejected.
+     */
+    public function test_id_and_registration_numbers_are_free_text(): void
     {
         [$user] = $this->makeFounder();
 
-        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'sec_registration' => '1',
-        ]);
-
-        $response->assertSessionHasErrors(['sec_registration']);
-    }
-
-    public function test_sec_registration_rejects_repeated_character(): void
-    {
-        [$user] = $this->makeFounder();
-
-        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'sec_registration' => 'AAAAAAAAAAAAA',
-        ]);
-
-        $response->assertSessionHasErrors(['sec_registration']);
-    }
-
-    public function test_sec_registration_accepts_valid_alphanumeric_code(): void
-    {
-        [$user] = $this->makeFounder();
-
-        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'sec_registration' => 'CS202412345',
-        ]);
-
-        $response->assertSessionDoesntHaveErrors(['sec_registration']);
-    }
-
-    public function test_business_id_number_accepts_numeric_only(): void
-    {
-        [$user] = $this->makeFounder();
-
-        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'business_id_number' => '123456789',
-        ]);
-
-        $response->assertSessionDoesntHaveErrors(['business_id_number']);
-    }
-
-    public function test_business_id_number_rejects_repeated_digit_junk(): void
-    {
-        [$user] = $this->makeFounder();
-
-        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'business_id_number' => '11111111111111111',
-        ]);
-
-        $response->assertSessionHasErrors(['business_id_number']);
-    }
-
-    public function test_dti_registration_number_requires_exactly_twelve_digits(): void
-    {
-        [$user] = $this->makeFounder();
-
-        $tooShort = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'dti_registration_number' => '11111',
-        ]);
-        $tooShort->assertSessionHasErrors(['dti_registration_number']);
-
-        $valid = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'dti_registration_number' => '123456789012',
-        ]);
-        $valid->assertSessionDoesntHaveErrors(['dti_registration_number']);
-    }
-
-    public function test_business_tin_requires_exactly_twelve_digits(): void
-    {
-        [$user] = $this->makeFounder();
-
-        $tooShort = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'business_tin' => '1111111111',
-        ]);
-        $tooShort->assertSessionHasErrors(['business_tin']);
-
-        $valid = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
-            'business_tin' => '123-456-789-000',
-        ]);
-        $valid->assertSessionDoesntHaveErrors(['business_tin']);
-    }
-
-    public function test_tin_requires_exactly_twelve_digits(): void
-    {
-        [$user] = $this->makeFounder();
-
-        $tooShort = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
-            'surname' => 'Santos',
-            'first_name' => 'Maria',
+        $freeText = [
+            'gsis_no' => '123',
+            'pagibig_no' => '123',
+            'philhealth_no' => '12-3456789-0',
+            'sss_no' => '123',
             'tin' => '1111111111',
-        ]);
-        $tooShort->assertSessionHasErrors(['tin']);
+            'sec_registration' => '1',
+            'business_id_number' => '11111111111111111',
+            'dti_registration_number' => '11111',
+            'business_tin' => '123-456-789-000',
+        ];
 
-        $valid = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
             'surname' => 'Santos',
             'first_name' => 'Maria',
-            'tin' => '123-456-789-000',
+        ] + $freeText);
+
+        $response->assertSessionDoesntHaveErrors(array_keys($freeText));
+    }
+
+    public function test_id_and_registration_numbers_keep_their_length_limit(): void
+    {
+        [$user] = $this->makeFounder();
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'tin' => str_repeat('1', 51),
+            'sec_registration' => str_repeat('A', 101),
         ]);
-        $valid->assertSessionDoesntHaveErrors(['tin']);
+
+        $response->assertSessionHasErrors(['tin', 'sec_registration']);
     }
 
     public function test_tin_accepts_na(): void
@@ -673,17 +595,24 @@ class InformationSheetTest extends TestCase
     // Startup overview
     // --------------------------------------------------------------
 
-    public function test_startup_overview_requires_fifty_characters(): void
+    // The minimum was lowered from 50 to 10 characters in 120d65e.
+    public function test_startup_overview_requires_ten_characters(): void
     {
         [$user] = $this->makeFounder();
 
-        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+        $tooShort = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
             'surname' => 'Santos',
             'first_name' => 'Maria',
-            'startup_overview' => 'Too short to count as a real overview.',
+            'startup_overview' => 'Too short',
         ]);
+        $tooShort->assertSessionHasErrors(['startup_overview']);
 
-        $response->assertSessionHasErrors(['startup_overview']);
+        $longEnough = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'startup_overview' => 'A short but real overview of the startup.',
+        ]);
+        $longEnough->assertSessionDoesntHaveErrors(['startup_overview']);
     }
 
     public function test_startup_overview_rejects_na(): void
@@ -771,13 +700,13 @@ class InformationSheetTest extends TestCase
             'founder_email rejects missing @' => ['email invalid', ['founder_email' => 'juandelacruz'], ['founder_email']],
             'founder_email accepts a real address' => ['email valid', ['founder_email' => 'juan.delacruz@gmail.com'], []],
 
-            'gsis_no rejects wrong digit count' => ['gsis short', ['gsis_no' => '123'], ['gsis_no']],
+            'gsis_no accepts any digit count' => ['gsis short', ['gsis_no' => '123'], []],
             'gsis_no accepts exactly 11 digits' => ['gsis valid', ['gsis_no' => '12345678901'], []],
-            'pagibig_no rejects wrong digit count' => ['pagibig short', ['pagibig_no' => '123'], ['pagibig_no']],
+            'pagibig_no accepts any digit count' => ['pagibig short', ['pagibig_no' => '123'], []],
             'pagibig_no accepts exactly 12 digits' => ['pagibig valid', ['pagibig_no' => '123456789012'], []],
-            'philhealth_no rejects wrong digit count' => ['philhealth short', ['philhealth_no' => '123'], ['philhealth_no']],
+            'philhealth_no accepts any digit count' => ['philhealth short', ['philhealth_no' => '123'], []],
             'philhealth_no accepts exactly 12 digits' => ['philhealth valid', ['philhealth_no' => '123456789012'], []],
-            'sss_no rejects wrong digit count' => ['sss short', ['sss_no' => '123'], ['sss_no']],
+            'sss_no accepts any digit count' => ['sss short', ['sss_no' => '123'], []],
             'sss_no accepts exactly 10 digits' => ['sss valid', ['sss_no' => '1234567890'], []],
 
             'blood_type rejects an unknown type' => ['blood type invalid', ['blood_type' => 'XYZ+'], ['blood_type']],

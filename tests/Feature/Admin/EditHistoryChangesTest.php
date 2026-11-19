@@ -317,6 +317,9 @@ class EditHistoryChangesTest extends TestCase
 
     public function test_roadblock_assign_and_status_moves_record_what_changed(): void
     {
+        // The meeting date below is fixed; pin "today" before it.
+        $this->travelTo('2026-10-01 08:00:00');
+
         $admin = $this->admin();
         $startup = Startup::factory()->create(['cohort_number' => 1]);
         $roadblock = Roadblock::factory()->create(['startup_id' => $startup->startup_id, 'status' => 'Pending']);
@@ -580,6 +583,10 @@ class EditHistoryChangesTest extends TestCase
 
     public function test_evaluation_set_reschedule_and_delete_are_described(): void
     {
+        // The dates below are fixed, and past dates can't be booked, so pin
+        // "today" to just before them.
+        $this->travelTo('2026-10-01 08:00:00');
+
         $admin = $this->admin();
         $startup = $this->sheetStartup();
 

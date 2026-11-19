@@ -69,7 +69,8 @@ class StartupReferenceValidationTest extends TestCase
             'valid row saves clean' => [[], []],
 
             'name rejects digits' => [['name' => 'Reyes2, Ana'], ['name']],
-            'name rejects N/A' => [['name' => 'N/A'], ['name']],
+            // Item 35 is optional: N/A is an accepted answer for name and address (see StoreStartupReferenceRequest).
+            'name accepts N/A' => [['name' => 'N/A'], []],
             'name accepts a name without a comma' => [['name' => 'Ana Reyes'], []],
 
             'contact rejects the wrong length' => [['contact' => '091712345'], ['contact']],
@@ -78,7 +79,7 @@ class StartupReferenceValidationTest extends TestCase
             'email rejects a missing @' => [['email' => 'anareyes'], ['email']],
             'email accepts a real address' => [['email' => 'ana.reyes@outlook.com'], []],
 
-            'address rejects N/A' => [['address' => 'N/A'], ['address']],
+            'address accepts N/A' => [['address' => 'N/A'], []],
             'address rejects digit-only junk' => [['address' => '1234567890'], ['address']],
             'address rejects a too-short entry' => [['address' => 'Makati'], ['address']],
         ];
