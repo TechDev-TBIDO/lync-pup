@@ -19,49 +19,63 @@
     </style>
 </head>
 <body class="antialiased font-['Poppins'] bg-white">
+    {{-- Drafted for the Cohort 3 launch. Have the PUP Data Protection Officer
+         review this page, and update it whenever the processing it describes changes. --}}
     <div class="max-w-2xl mx-auto px-6 py-12">
         <h1 class="text-2xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
-        <p class="text-sm text-gray-400 mb-8">Placeholder text — to be replaced with PUP TBIDO's final Privacy Policy.</p>
+        <p class="text-sm text-gray-400 mb-8">Last updated: November 2026</p>
 
         <div class="space-y-6 text-sm text-gray-600 leading-relaxed">
             <p>
-                This Privacy Policy describes how the PUP Technology Business Incubator (PUP TBIDO)
-                collects, uses, and protects information submitted through the LYNC PUP Startup
-                Incubation Management System ("LYNC", "the Platform").
+                In compliance with Republic Act No. 10173, the Data Privacy Act of 2012, and its Implementing Rules and Regulations, this Privacy Policy explains how the Innovation Commercialization Office (ICO) of the Polytechnic University of the Philippines (PUP), together with DOST-PUP PYLON, collects, uses, and protects the personal information you submit through LYNC.
             </p>
 
             <div>
                 <h2 class="font-semibold text-gray-900 mb-1">1. Information We Collect</h2>
-                <p>We collect information you provide directly, such as your name, email address, and
-                    startup/venture details, as well as information generated through your use of the
-                    Platform (e.g. roadblocks submitted, mentorship schedules, readiness assessments).</p>
+                <p>Depending on how far your application goes, we collect:</p>
+                <ul class="list-disc pl-5 mt-2 space-y-1">
+                    <li><strong>Account details:</strong> your name, email address, and password (stored encrypted).</li>
+                    <li><strong>Startup Profile:</strong> startup name, industry, contact number, location, photo or logo, website, business description, and team members.</li>
+                    <li><strong>Information Sheet:</strong> personal details such as your full name, sex, civil status, citizenship, date and place of birth, height, weight, blood type, addresses, contact details, and educational background; government-issued numbers such as TIN, SSS, GSIS, PhilHealth, and Pag-IBIG; business registration details; previous incubation and training involvement; references; and any documents you upload.</li>
+                    <li><strong>Program records:</strong> evaluation schedules and results, readiness assessments, mentoring and coordinator assignments, roadblocks you report, and related notes and files.</li>
+                </ul>
             </div>
 
             <div>
-                <h2 class="font-semibold text-gray-900 mb-1">2. How We Use Information</h2>
-                <p>Information is used to administer the incubation program, evaluate startup readiness,
-                    coordinate mentorship, and communicate important updates about your account and
-                    participation.</p>
+                <h2 class="font-semibold text-gray-900 mb-1">2. How We Use It</h2>
+                <p>We use your information only to process and evaluate your application, run the incubation program (including assessments, mentoring, and meetings), contact you about your application and the program, and prepare reports and statistics for PUP and our partner agencies. Published reports and statistics do not identify you individually.</p>
             </div>
 
             <div>
-                <h2 class="font-semibold text-gray-900 mb-1">3. Data Sharing</h2>
-                <p>Information is shared only with PUP TBIDO staff, coordinators, and mentors directly
-                    involved in supporting your startup, and is not sold or shared with third parties for
-                    marketing purposes.</p>
+                <h2 class="font-semibold text-gray-900 mb-1">3. Who Can See It</h2>
+                <p>Your information can be accessed only by:</p>
+                <ul class="list-disc pl-5 mt-2 space-y-1">
+                    <li>Authorized ICO staff and administrators, and the coordinators and mentors assigned to your startup.</li>
+                    <li>Service providers that run LYNC for us, under appropriate safeguards: Microsoft Azure (hosting), Supabase (database and file storage), our email delivery provider (account and program emails), and Google Gemini (used by ICO staff to help draft venture-exit summaries from program records).</li>
+                </ul>
+                <p class="mt-2">We do not sell your information or share it for marketing. We disclose it to anyone else only with your consent or when required by law.</p>
             </div>
 
             <div>
-                <h2 class="font-semibold text-gray-900 mb-1">4. Data Retention</h2>
-                <p>We retain account and program information for as long as needed to support your
-                    participation in the incubation program and for institutional record-keeping
-                    purposes.</p>
+                <h2 class="font-semibold text-gray-900 mb-1">4. How Long We Keep It</h2>
+                <p>We keep your information while you are an applicant or incubatee, and afterwards only as long as needed for institutional records and reporting. A declined application that is not resubmitted within 10 days is permanently deleted, together with its uploaded files.</p>
             </div>
 
-            <p class="text-gray-400">
-                This is placeholder content generated during development. Please replace it with PUP
-                TBIDO's official, legally reviewed Privacy Policy before this feature goes live.
-            </p>
+            <div>
+                <h2 class="font-semibold text-gray-900 mb-1">5. How We Protect It</h2>
+                <p>Access to LYNC requires an account, and uploaded documents can be opened only by you and authorized ICO staff. Data travels over encrypted connections, and access is limited to people who need it for the program.</p>
+            </div>
+
+            <div>
+                <h2 class="font-semibold text-gray-900 mb-1">6. Your Rights</h2>
+                <p>Under the Data Privacy Act, you have the right to be informed, to access, to correct, to object to, and to request the deletion of your personal information, and to file a complaint with the National Privacy Commission. To exercise these rights, contact the Innovation Commercialization Office at <a href="mailto:tbido@pup.edu.ph" class="text-[#810e13] underline">tbido@pup.edu.ph</a>.</p>
+            </div>
+
+            <div>
+                <h2 class="font-semibold text-gray-900 mb-1">7. Changes to This Policy</h2>
+                <p>We may update this policy. We will post the updated version on this page with a new date.</p>
+            </div>
+
         </div>
     </div>
 </body>

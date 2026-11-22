@@ -19,47 +19,63 @@
     </style>
 </head>
 <body class="antialiased font-['Poppins'] bg-white">
+    {{-- Drafted for the Cohort 3 launch. Have the PUP Data Protection Officer
+         review this page, and update it whenever the processing it describes changes. --}}
     <div class="max-w-2xl mx-auto px-6 py-12">
         <h1 class="text-2xl font-bold text-gray-900 mb-2">Terms of Service</h1>
-        <p class="text-sm text-gray-400 mb-8">Placeholder text — to be replaced with PUP TBIDO's final Terms of Service.</p>
+        <p class="text-sm text-gray-400 mb-8">Last updated: November 2026</p>
 
         <div class="space-y-6 text-sm text-gray-600 leading-relaxed">
             <p>
-                These Terms of Service ("Terms") govern your access to and use of the LYNC PUP Startup
-                Incubation Management System ("LYNC", "the Platform"), operated by the PUP Technology
-                Business Incubator (PUP TBIDO). By creating an account, you agree to be bound by these
-                Terms.
+                These Terms of Service ("Terms") govern your use of LYNC, the startup incubation portal ("LYNC", "the Platform") of the Innovation Commercialization Office (ICO) of the Polytechnic University of the Philippines (PUP), together with DOST-PUP PYLON. By creating an account, you agree to these Terms and to our <a href="{{ route('legal.privacy') }}" class="text-[#810e13] underline">Privacy Policy</a>.
             </p>
 
             <div>
-                <h2 class="font-semibold text-gray-900 mb-1">1. Eligibility</h2>
-                <p>Access to LYNC is limited to founders and startups formally admitted into a PUP TBIDO
-                    incubation cohort, and to authorized PUP TBIDO staff and mentors.</p>
+                <h2 class="font-semibold text-gray-900 mb-1">1. Who Can Use LYNC</h2>
+                <p>Founders applying to, or already part of, an ICO incubation cohort may register a founder account. Accounts for ICO staff, coordinators, and administrators are created by the ICO.</p>
             </div>
 
             <div>
-                <h2 class="font-semibold text-gray-900 mb-1">2. Account Approval</h2>
-                <p>Registrations submitted through this Platform are subject to review and approval by
-                    PUP TBIDO before full access is granted. PUP TBIDO reserves the right to approve,
-                    reject, or suspend any account at its discretion.</p>
+                <h2 class="font-semibold text-gray-900 mb-1">2. Applying Through LYNC</h2>
+                <p>Registering an account starts your application. It does not mean you have been accepted into the incubation program. After you verify your email, you will complete your Startup Profile and Information Sheet and attend an evaluation scheduled by the ICO.</p>
+                <p class="mt-2">The ICO decides whether to accept or decline each application. A declined application may be revised and resubmitted within 10 days of the decision. If it is not resubmitted within that period, the application and its uploaded files are permanently deleted from LYNC.</p>
             </div>
 
             <div>
-                <h2 class="font-semibold text-gray-900 mb-1">3. Acceptable Use</h2>
-                <p>You agree to provide accurate information and to use the Platform only for legitimate
-                    purposes related to your participation in the PUP TBIDO incubation program.</p>
+                <h2 class="font-semibold text-gray-900 mb-1">3. Your Account</h2>
+                <p>You are responsible for keeping your password confidential and for all activity under your account. Register only once per startup, use an email address you can access, and tell us right away if you think someone else has used your account.</p>
             </div>
 
             <div>
-                <h2 class="font-semibold text-gray-900 mb-1">4. Changes to These Terms</h2>
-                <p>PUP TBIDO may update these Terms from time to time. Continued use of the Platform
-                    after changes take effect constitutes acceptance of the revised Terms.</p>
+                <h2 class="font-semibold text-gray-900 mb-1">4. Accurate Information</h2>
+                <p>You agree that the information and documents you submit are true, complete, and yours to share. Submitting false or misleading information may lead to your application being declined or your participation in the program being ended.</p>
             </div>
 
-            <p class="text-gray-400">
-                This is placeholder content generated during development. Please replace it with PUP
-                TBIDO's official, legally reviewed Terms of Service before this feature goes live.
-            </p>
+            <div>
+                <h2 class="font-semibold text-gray-900 mb-1">5. Acceptable Use</h2>
+                <p>Use LYNC only for your participation in the ICO incubation program. Do not attempt to access other users&rsquo; accounts or data, interfere with the Platform&rsquo;s operation, or upload files that are harmful, unlawful, or that you have no right to share.</p>
+            </div>
+
+            <div>
+                <h2 class="font-semibold text-gray-900 mb-1">6. Your Startup&rsquo;s Ideas and Materials</h2>
+                <p>You keep ownership of your startup&rsquo;s ideas, intellectual property, and materials. You allow the ICO to use the information you submit to evaluate your application, run the incubation program, and prepare institutional reports. Your materials will not be published or shared outside the program without your consent, except as described in our Privacy Policy or as required by law.</p>
+            </div>
+
+            <div>
+                <h2 class="font-semibold text-gray-900 mb-1">7. Suspension and Removal</h2>
+                <p>The ICO may suspend or remove accounts that break these Terms or that are no longer part of the program.</p>
+            </div>
+
+            <div>
+                <h2 class="font-semibold text-gray-900 mb-1">8. Changes to These Terms</h2>
+                <p>The ICO may update these Terms. We will post the updated version on this page with a new date. Continuing to use LYNC after a change means you accept the updated Terms.</p>
+            </div>
+
+            <div>
+                <h2 class="font-semibold text-gray-900 mb-1">9. Contact</h2>
+                <p>Questions about these Terms can be sent to the Innovation Commercialization Office at <a href="mailto:tbido@pup.edu.ph" class="text-[#810e13] underline">tbido@pup.edu.ph</a>.</p>
+            </div>
+
         </div>
     </div>
 </body>
