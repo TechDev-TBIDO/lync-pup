@@ -31,8 +31,13 @@ jobs:
 
       - name: Run composer install if composer.json exists
         if: steps.check_files.outputs.files_exists == 'true'
-        run: composer validate --no-check-publish && composer install --prefer-dist --no-progress
+        run: composer validate --no-check-publish && composer install --no-dev --optimize-autoloader --classmap-authoritative --prefer-dist --no-progress
 
+      # Keep the deploy package small: thousands of extra files (git history,
+      # tests, dev-only notes/archives) make Azure's OneDeploy unpack step slow.
+      # public/build is committed, so no Node build is needed here.
+      - name: Remove files the server doesn't need
+        run: rm -rf node_modules .git tests _to_delete "Claude outputs"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
