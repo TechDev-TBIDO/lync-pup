@@ -17,6 +17,15 @@ APP=/home/site/wwwroot
 cp "$APP/deploy/default" /etc/nginx/sites-available/default
 service nginx reload
 
+# 1b. Make sure Laravel's writable folders exist. In git they only hold a
+#     hidden .gitignore, and GitHub's upload-artifact skips hidden files, so
+#     a fresh deploy can arrive without them - Laravel then 500s on every
+#     request ("Please provide a valid cache path").
+mkdir -p "$APP/storage/framework/cache/data" "$APP/storage/framework/sessions" \
+         "$APP/storage/framework/views" "$APP/storage/logs" \
+         "$APP/storage/app/public" "$APP/storage/app/private" "$APP/bootstrap/cache"
+chmod -R ug+rwX "$APP/storage" "$APP/bootstrap/cache" || true
+
 # 2. Run Laravel's scheduler (bootstrap/app.php -> withSchedule) in the
 #    background. App Service has no cron; without this, scheduled jobs such
 #    as the expired-rejection purge and table pruning never run.
