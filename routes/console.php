@@ -16,8 +16,8 @@ Artisan::command('mail:test {to}', function (string $to) {
 
     try {
         \Illuminate\Support\Facades\Mail::raw(
-            "This is a test email from LYNC, sent via the '{$mailer}' mailer.",
-            fn ($m) => $m->to($to)->subject('LYNC test email')
+            "This is a test email from the ICO LYNC Portal, sent via the '{$mailer}' mailer.",
+            fn ($m) => $m->to($to)->subject('ICO LYNC Portal test email')
         );
     } catch (\Throwable $e) {
         $this->error('Failed: '.$e->getMessage());

@@ -109,7 +109,7 @@ class LoginLockoutTest extends TestCase
         $this->freezeTime();
         $this->failUntilLocked();
 
-        $this->get('/login')
+        $this->get('/')
             ->assertOk()
             ->assertSee('lockoutSeconds: 60', false);
     }

@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\StorageController;
-use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\StartupProfileController;
 use App\Http\Controllers\Admin\CoordinatorAssignmentController;
 use App\Http\Controllers\Admin\InformationSheetController;
@@ -39,9 +39,10 @@ Route::post('/page-seen', \App\Http\Controllers\PageSeenController::class)
     ->middleware('auth')
     ->name('page-seen');
 
-// Public marketing landing page — meant to be linked from/embedded in the
-// incubation's own public website, not part of the app's internal nav.
-Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
+// Home: sign in and founder sign-up on one page (the public website's
+// Apply Now and Sign In buttons link here). GET /login and GET /register
+// redirect to it; their POST routes are unchanged (routes/auth.php).
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Placeholder legal pages linked from the Founder registration form.
 Route::get('/terms-of-service', function () {
@@ -191,6 +192,8 @@ Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->pref
         ->except(['index', 'create', 'edit', 'show'])
         ->names('cohorts');
     Route::patch('cohorts/{cohort}/archive', [CohortController::class, 'archive'])->name('cohorts.archive');
+    // Opens/closes this cohort's call for applications (home page sign-up).
+    Route::patch('cohorts/{cohort}/applications', [CohortController::class, 'toggleApplications'])->name('cohorts.applications');
 
     Route::get('/risk-monitoring', [RiskMonitoringController::class, 'index'])->name('risk-monitoring.index');
 

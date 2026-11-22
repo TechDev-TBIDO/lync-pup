@@ -79,6 +79,8 @@ class VersionHistory extends Model
         'update_cohort' => 'Edited Cohort',
         'archive_cohort' => 'Archived Cohort',
         'delete_cohort' => 'Deleted Cohort',
+        'open_applications' => 'Opened Call for Applications',
+        'close_applications' => 'Closed Call for Applications',
 
         // Startup Profile (context 'Startup Profile' — page-wide feed
         // across every startup, even though each entry does have one).

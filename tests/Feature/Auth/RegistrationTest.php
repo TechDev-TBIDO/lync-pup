@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Cohort;
 use App\Models\Startup;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,11 +12,24 @@ class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Sign-up only works while a cohort's call for applications is open.
+        Cohort::updateOrCreate(['number' => 3], ['status' => 'Active', 'accepting_applications' => true]);
+    }
+
     public function test_registration_screen_can_be_rendered(): void
     {
-        $response = $this->get('/register');
+        // Sign-up lives on the home page; /register opens it on the sign-up tab.
+        $this->get('/register')->assertRedirect(route('home', ['mode' => 'signup']));
 
-        $response->assertStatus(200);
+        $this->get(route('home', ['mode' => 'signup']))
+            ->assertOk()
+            ->assertSee('Create your Founder Account')
+            ->assertSee("mode: 'signup'", false)
+            ->assertSee('action="'.route('register').'"', false);
     }
 
     /**

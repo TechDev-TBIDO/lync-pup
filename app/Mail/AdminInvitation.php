@@ -28,7 +28,7 @@ class AdminInvitation extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'You\'re Invited as a LYNC PUP Admin - PUP TBIDO',
+            subject: 'You\'re Invited as an ICO LYNC Portal Admin',
         );
     }
 

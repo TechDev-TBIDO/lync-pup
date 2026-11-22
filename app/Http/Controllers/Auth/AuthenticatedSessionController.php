@@ -7,16 +7,20 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
     /**
      * Display the login view.
      */
-    public function create(): View
+    public function create(Request $request): RedirectResponse
     {
-        return view('auth.login');
+        // Sign in lives on the home page now. Keep this URL working (old
+        // links, emails, the auth middleware's redirects) and carry along
+        // anything flashed for the sign-in form plus the ?role= hint.
+        $request->session()->reflash();
+
+        return redirect()->route('home', $request->only('role'));
     }
 
     /**

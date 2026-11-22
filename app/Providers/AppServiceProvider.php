@@ -64,7 +64,7 @@ class AppServiceProvider extends ServiceProvider
         // registration flow, replacing Laravel's default plain-text one.
         VerifyEmail::toMailUsing(function ($notifiable, string $url) {
             return (new MailMessage)
-                ->subject('Verify Your Email - LYNC PUP')
+                ->subject('Verify Your Email - ICO LYNC Portal')
                 ->view('emails.verify-email', ['url' => $url]);
         });
 
@@ -87,7 +87,7 @@ class AppServiceProvider extends ServiceProvider
             ], false));
 
             return (new MailMessage)
-                ->subject('Reset Your Password - LYNC PUP')
+                ->subject('Reset Your Password - ICO LYNC Portal')
                 ->view('emails.reset-password', ['url' => $url]);
         });
 

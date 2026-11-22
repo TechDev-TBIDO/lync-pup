@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ?? 'Admin' }} - PUP TBIDO</title>
+    <title>{{ $title ?? 'Admin' }} - ICO LYNC Portal</title>
     <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('favicon.png') }}">
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
@@ -110,12 +110,10 @@
                     <div>
                         {{-- Logo / header --}}
                         <div class="flex items-center gap-3 px-5 pt-6 pb-5">
-                            <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                <img src="/images/logo/logo-sidebar.png" alt="PUP TBIDO" class="w-8 h-8 object-contain">
-                            </div>
+                            <x-brand-marks size="md" />
 
                             <div class="min-w-0">
-                                <p class="font-bold text-sm leading-tight tracking-wide">PUP TBIDO</p>
+                                <p class="font-bold text-sm leading-tight tracking-wide">ICO LYNC Portal</p>
                                 <p class="text-[11px] text-white/60 leading-tight tracking-wide">ADMIN CONSOLE</p>
                             </div>
 
@@ -293,12 +291,10 @@
                             </svg>
                         </button>
 
-                        <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                            <img src="/images/logo/logo-sidebar.png" alt="PUP TBIDO" class="w-7 h-7 object-contain">
-                        </div>
+                        <x-brand-marks size="sm" />
 
                         <div class="min-w-0">
-                            <p class="font-bold text-sm leading-tight tracking-wide">PUP TBIDO</p>
+                            <p class="font-bold text-sm leading-tight tracking-wide">ICO LYNC Portal</p>
                             <p class="text-[11px] text-white/60 leading-tight tracking-wide">ADMIN CONSOLE</p>
                         </div>
                     </div>

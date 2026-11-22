@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Verify Your Email - LYNC PUP</title>
+<title>Verify Your Email - ICO LYNC Portal</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f4f5; font-family: Helvetica, Arial, sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5; padding: 32px 16px;">
@@ -19,7 +19,7 @@
                                     </td>
                                 </tr>
                             </table>
-                            <p style="margin:0; font-size:20px; font-weight:800; color:#6D0D23; letter-spacing:0.5px;">LYNC PUP</p>
+                            <p style="margin:0; font-size:20px; font-weight:800; color:#6D0D23; letter-spacing:0.5px;">ICO LYNC Portal</p>
                             <p style="margin:4px 0 0 0; font-size:13px; color:#6b7280;">Startup Incubation Management System</p>
                         </td>
                     </tr>
@@ -27,7 +27,7 @@
                         <td style="padding: 0 32px 32px 32px; text-align:center;">
                             <h1 style="margin:0 0 16px 0; font-size:22px; color:#111827;">Verify your email</h1>
                             <p style="margin:0 0 24px 0; font-size:14px; line-height:22px; color:#4b5563;">
-                                Thank you for registering with LYNC PUP. To complete your registration, please verify your email address by clicking the button below.
+                                Thank you for registering with ICO LYNC Portal. To complete your registration, please verify your email address by clicking the button below.
                             </p>
 
                             <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 24px auto;">
@@ -52,7 +52,7 @@
                     </tr>
                     <tr>
                         <td style="padding: 20px 32px; background-color:#f9fafb; text-align:center; border-top:1px solid #e5e7eb;">
-                            <p style="margin:0; font-size:12px; color:#9ca3af;">© {{ now()->year }} LYNC PUP. All rights reserved.</p>
+                            <p style="margin:0; font-size:12px; color:#9ca3af;">© {{ now()->year }} ICO LYNC Portal. All rights reserved.</p>
                             <p style="margin:4px 0 0 0; font-size:12px; color:#9ca3af;">PUP Technology Business Incubator</p>
                         </td>
                     </tr>

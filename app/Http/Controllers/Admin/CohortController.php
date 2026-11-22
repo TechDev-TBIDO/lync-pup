@@ -10,6 +10,7 @@ use App\Models\VersionHistory;
 use App\Support\ChangeLog;
 use App\Support\HistoryFields;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 
 // No index() here — cohort management is now handled entirely through the
 // admin Dashboard's cohort selector + 3-dot menu (see resources/views/dashboard.blade.php),
@@ -79,11 +80,46 @@ class CohortController extends Controller
             return redirect()->back();
         }
 
-        $changes = ChangeLog::track($cohort, HistoryFields::cohort(), fn () => $cohort->update(['status' => 'Inactive']));
+        // An ended cohort can't keep taking applications.
+        $changes = ChangeLog::track($cohort, HistoryFields::cohort(), fn () => $cohort->update(['status' => 'Inactive', 'accepting_applications' => false]));
 
         VersionHistory::record(null, 'Cohort Management', 'archive_cohort', $cohort->display_label, changes: $changes, cohortNumber: $cohort->number);
 
         return redirect()->back()->with('cohortAction', 'archived');
+    }
+
+    /**
+     * Opens or closes this cohort's call for applications. Opening it closes
+     * any other cohort's call, so there is never more than one open call:
+     * that's the cohort new founders are placed into when they sign up.
+     */
+    public function toggleApplications(Cohort $cohort): RedirectResponse
+    {
+        $open = ! $cohort->accepting_applications;
+
+        if ($open && $cohort->isArchived()) {
+            return redirect()->back();
+        }
+
+        DB::transaction(function () use ($cohort, $open) {
+            if ($open) {
+                Cohort::where('cohort_id', '!=', $cohort->cohort_id)
+                    ->where('accepting_applications', true)
+                    ->update(['accepting_applications' => false]);
+            }
+
+            $cohort->update(['accepting_applications' => $open]);
+        });
+
+        VersionHistory::record(
+            null,
+            'Cohort Management',
+            $open ? 'open_applications' : 'close_applications',
+            $cohort->display_label,
+            cohortNumber: $cohort->number,
+        );
+
+        return redirect()->back()->with('cohortAction', $open ? 'applications_opened' : 'applications_closed');
     }
 
     public function destroy(Cohort $cohort): RedirectResponse

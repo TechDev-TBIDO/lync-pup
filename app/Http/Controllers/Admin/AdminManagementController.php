@@ -74,7 +74,7 @@ class AdminManagementController extends Controller
             // lets whoever holds it set the password — to the wrong person.
             'email' => ['required', 'string', 'email', 'max:255', 'confirmed', Rule::unique('users', 'email')],
         ], [
-            'email.unique' => 'This email already belongs to an account in LYNC PUP.',
+            'email.unique' => 'This email already belongs to an account in ICO LYNC Portal.',
             'email.confirmed' => 'The email addresses do not match.',
         ]);
 

@@ -11,13 +11,14 @@ class Cohort extends Model
 
     protected $primaryKey = 'cohort_id';
 
-    protected $fillable = ['number', 'label', 'start_date', 'end_date', 'description', 'status'];
+    protected $fillable = ['number', 'label', 'start_date', 'end_date', 'description', 'status', 'accepting_applications'];
 
     protected function casts(): array
     {
         return [
             'start_date' => 'date',
             'end_date' => 'date',
+            'accepting_applications' => 'boolean',
         ];
     }
 
@@ -71,6 +72,21 @@ class Cohort extends Model
     public function getStatusLabelAttribute(): string
     {
         return $this->status === 'Inactive' ? 'Archived' : 'Active';
+    }
+
+    /**
+     * The cohort whose call for applications is open, or null when sign-up
+     * is closed. Only an Active cohort counts, and only one is ever switched
+     * on (see CohortController::toggleApplications()); newest wins just in
+     * case.
+     */
+    public static function openCall(): ?self
+    {
+        return static::where('accepting_applications', true)
+            ->where('status', 'Active')
+            ->orderByDesc('created_at')
+            ->orderByDesc('cohort_id')
+            ->first();
     }
 
     public function isArchived(): bool

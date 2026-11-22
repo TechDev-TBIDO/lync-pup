@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Privacy Policy - LYNC PUP</title>
+    <title>Privacy Policy - ICO LYNC Portal</title>
     <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('favicon.png') }}">
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
@@ -27,7 +27,7 @@
 
         <div class="space-y-6 text-sm text-gray-600 leading-relaxed">
             <p>
-                In compliance with Republic Act No. 10173, the Data Privacy Act of 2012, and its Implementing Rules and Regulations, this Privacy Policy explains how the Innovation Commercialization Office (ICO) of the Polytechnic University of the Philippines (PUP), together with DOST-PUP PYLON, collects, uses, and protects the personal information you submit through LYNC.
+                In compliance with Republic Act No. 10173, the Data Privacy Act of 2012, and its Implementing Rules and Regulations, this Privacy Policy explains how the Innovation Commercialization Office (ICO) of the Polytechnic University of the Philippines (PUP), together with DOST-PUP PYLON, collects, uses, and protects the personal information you submit through the ICO LYNC Portal.
             </p>
 
             <div>
@@ -51,7 +51,7 @@
                 <p>Your information can be accessed only by:</p>
                 <ul class="list-disc pl-5 mt-2 space-y-1">
                     <li>Authorized ICO staff and administrators, and the coordinators and mentors assigned to your startup.</li>
-                    <li>Service providers that run LYNC for us, under appropriate safeguards: Microsoft Azure (hosting), Supabase (database and file storage), our email delivery provider (account and program emails), and Google Gemini (used by ICO staff to help draft venture-exit summaries from program records).</li>
+                    <li>Service providers that run the Portal for us, under appropriate safeguards: Microsoft Azure (hosting), Supabase (database and file storage), our email delivery provider (account and program emails), and Google Gemini (used by ICO staff to help draft venture-exit summaries from program records).</li>
                 </ul>
                 <p class="mt-2">We do not sell your information or share it for marketing. We disclose it to anyone else only with your consent or when required by law.</p>
             </div>
@@ -63,7 +63,7 @@
 
             <div>
                 <h2 class="font-semibold text-gray-900 mb-1">5. How We Protect It</h2>
-                <p>Access to LYNC requires an account, and uploaded documents can be opened only by you and authorized ICO staff. Data travels over encrypted connections, and access is limited to people who need it for the program.</p>
+                <p>Access to the Portal requires an account, and uploaded documents can be opened only by you and authorized ICO staff. Data travels over encrypted connections, and access is limited to people who need it for the program.</p>
             </div>
 
             <div>

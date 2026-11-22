@@ -12,9 +12,14 @@ class AuthenticationTest extends TestCase
 
     public function test_login_screen_can_be_rendered(): void
     {
-        $response = $this->get('/login');
+        // Sign in lives on the home page; /login just sends people there.
+        $this->get('/login')->assertRedirect(route('home'));
+        $this->get('/login?role=Admin')->assertRedirect(route('home', ['role' => 'Admin']));
 
-        $response->assertStatus(200);
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Welcome back!')
+            ->assertSee('action="'.route('login').'"', false);
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Cohort;
 use App\Models\Startup;
 use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
@@ -49,6 +50,7 @@ class EmailVerificationTest extends TestCase
     public function test_registering_immediately_sends_a_verification_email_via_the_redirect_to_the_prompt(): void
     {
         Notification::fake();
+        Cohort::updateOrCreate(['number' => 3], ['status' => 'Active', 'accepting_applications' => true]);
 
         $this->post('/register', [
             'name' => 'Test Founder',
@@ -221,7 +223,7 @@ class EmailVerificationTest extends TestCase
         $response = $this->actingAs($user)->post(route('verification.change-email'));
 
         $this->assertGuest();
-        $response->assertRedirect(route('register', absolute: false));
+        $response->assertRedirect(route('home', ['mode' => 'signup']));
 
         // The Back arrow uses this same action: the registration form comes
         // back pre-filled (never the password).

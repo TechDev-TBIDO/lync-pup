@@ -30,7 +30,7 @@
                                 Dear {{ $inviteeName }},
                             </p>
                             <p style="margin:0 0 16px 0; font-size:14px; line-height:22px; color:#4b5563;">
-                                <strong>{{ $inviterName }}</strong> has invited you to join the LYNC PUP Admin Console
+                                <strong>{{ $inviterName }}</strong> has invited you to join the ICO LYNC Portal Admin Console
                                 of the PUP TBIDO Startup Incubation Program. Click the button below to set your password
                                 and activate your account.
                             </p>

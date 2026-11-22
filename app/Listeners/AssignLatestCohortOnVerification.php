@@ -45,7 +45,10 @@ class AssignLatestCohortOnVerification
             return;
         }
 
-        $latestCohort = Cohort::where('status', 'Active')
+        // The cohort whose call is open is the one they applied to; fall back
+        // to the newest Active cohort (e.g. the call closed before they
+        // clicked their verification link).
+        $latestCohort = Cohort::openCall() ?? Cohort::where('status', 'Active')
             ->orderByDesc('created_at')
             ->orderByDesc('cohort_id')
             ->first();

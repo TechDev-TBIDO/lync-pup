@@ -34,6 +34,13 @@ $hasCohort = (bool) $selected;
 $isArchivedCohort = $selected?->isArchived() ?? false;
 $canArchive = $hasCohort && ! $isArchivedCohort;
 
+// Call for applications: at most one cohort has it on (see
+// CohortController::toggleApplications()). The menu toggles the selected
+// cohort; opening a call on an archived cohort isn't allowed.
+$openCallCohort = $cohorts->first(fn ($c) => $c->accepting_applications && ! $c->isArchived());
+$selectedCallOpen = (bool) ($selected?->accepting_applications);
+$canToggleCall = $hasCohort && ($selectedCallOpen || ! $isArchivedCohort);
+
 // Cohort naming is strictly sequential now (Cohort 1, 2, 3, ...) -- a
 // free-text name field used to let admins type anything ("Batch Alpha",
 // a typo'd number, one admin's "Cohort 6" next to another's "Cohort
@@ -205,6 +212,14 @@ $reopenModal = old('_cohort_form');
                         </svg>
                         View Cohort Details
                     </button>
+                    <button type="button" @click="if (({{ $canToggleCall ? 'true' : 'false' }})) { modal = 'call'; actionsMenuOpen = false }"
+                        {{ $canToggleCall ? '' : 'disabled' }}
+                        class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium transition-colors {{ $canToggleCall ? 'text-gray-700 hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white' : 'text-gray-300 cursor-not-allowed' }}">
+                        <svg class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M3 9.5a1 1 0 011-1h1.6l5.2-3.9A1 1 0 0112.4 5.4v9.2a1 1 0 01-1.6.8L5.6 11.5H4a1 1 0 01-1-1v-1zM14.5 7.2a.75.75 0 011.05.13 4.5 4.5 0 010 5.34.75.75 0 11-1.18-.92 3 3 0 000-3.5.75.75 0 01.13-1.05z" />
+                        </svg>
+                        {{ $selectedCallOpen ? 'Close Call for Applications' : 'Open Call for Applications' }}
+                    </button>
                     <button type="button" @click="if (({{ $canArchive ? 'true' : 'false' }})) { modal = 'archive'; actionsMenuOpen = false }"
                         {{ $canArchive ? '' : 'disabled' }}
                         class="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium transition-colors {{ $canArchive ? 'text-gray-700 hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white' : 'text-gray-300 cursor-not-allowed' }}">
@@ -224,6 +239,16 @@ $reopenModal = old('_cohort_form');
                 </div>
             </div>
         </div>
+    </div>
+
+    {{-- Call for applications status, always visible to admins --}}
+    <div class="mt-2 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-medium {{ $openCallCohort ? 'bg-emerald-400/15 text-emerald-100' : 'bg-white/5 text-white/60' }}">
+        <span class="relative inline-flex h-2 w-2 shrink-0 rounded-full {{ $openCallCohort ? 'bg-emerald-400' : 'bg-white/40' }}"></span>
+        @if ($openCallCohort)
+        <span class="truncate">Applications open &middot; {{ $openCallCohort->display_label }}</span>
+        @else
+        <span class="truncate">Applications closed</span>
+        @endif
     </div>
 
     {{-- Modals — teleported to body: the sidebar <aside> carries a
@@ -429,6 +454,66 @@ $reopenModal = old('_cohort_form');
                 </div>
             </div>
 
+            {{-- Open / Close Call for Applications modal --}}
+            <div x-show="modal === 'call'" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl">
+                    <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
+                        <h3 class="text-white font-semibold">
+                            {{ $selectedCallOpen ? 'Close' : 'Open' }} Call for Applications
+                        </h3>
+                        <button type="button"
+                            class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                            @click="modal = null" aria-label="Close">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        @if ($selectedCallOpen)
+                        <p class="text-sm text-gray-600 mb-4">Closing the call for <span class="font-semibold text-gray-800">{{ $selected->display_label }}</span> will:</p>
+                        @php
+                        $callEffects = [
+                        'Stop new founders from creating accounts on the portal',
+                        'Show "Applications are closed" on the portal home page',
+                        'Keep every founder who already applied, and let them keep signing in',
+                        ];
+                        @endphp
+                        @else
+                        <p class="text-sm text-gray-600 mb-4">Opening the call for <span class="font-semibold text-gray-800">{{ $selected->display_label }}</span> will:</p>
+                        @php
+                        $callEffects = [
+                        'Let founders create accounts from the portal home page',
+                        'Show "'.$selected->display_label.' · Now accepting applications" on the home page',
+                        'Place every new founder into '.$selected->display_label,
+                        ];
+                        if ($openCallCohort && $openCallCohort->cohort_id !== $selected->cohort_id) {
+                        $callEffects[] = 'Close the call that is currently open for '.$openCallCohort->display_label;
+                        }
+                        @endphp
+                        @endif
+                        <ul class="space-y-2.5 mb-6">
+                            @foreach ($callEffects as $effect)
+                            <li class="flex items-start gap-2 text-sm text-gray-700">
+                                <svg class="h-4 w-4 text-green-600 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" />
+                                </svg>
+                                {{ $effect }}
+                            </li>
+                            @endforeach
+                        </ul>
+                        <form method="POST" action="{{ route('admin.cohorts.applications', $selected) }}" class="flex gap-3">
+                            @csrf
+                            @method('PATCH')
+                            <button type="button" @click="modal = null" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
+                            <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">
+                                {{ $selectedCallOpen ? 'Close Call' : 'Open Call' }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             {{-- Delete Cohort modal --}}
             <div x-show="modal === 'delete'" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
                 <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-xl">
@@ -479,6 +564,8 @@ $reopenModal = old('_cohort_form');
     'updated' => ['title' => 'Cohort Edited', 'desc' => 'The cohort details have been updated successfully.'],
     'archived' => ['title' => 'Cohort Ended', 'desc' => 'The cohort has been archived. Its startups and history remain intact.'],
     'deleted' => ['title' => 'Cohort Deleted', 'desc' => 'The cohort has been permanently removed.'],
+    'applications_opened' => ['title' => 'Call for Applications Open', 'desc' => 'Founders can now apply from the portal home page.'],
+    'applications_closed' => ['title' => 'Call for Applications Closed', 'desc' => 'New founder sign-ups are now closed.'],
     ] as $key => $copy)
     <div x-init="if (successModal === '{{ $key }}') { Alpine.store('toast').success(@js($copy['title']), @js($copy['desc'])); successModal = null; }"></div>
     @endforeach

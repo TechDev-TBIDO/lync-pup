@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterFounderRequest;
+use App\Models\Cohort;
 use App\Models\Startup;
 use App\Models\User;
 use App\Models\VersionHistory;
@@ -13,16 +14,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
     /**
      * Display the registration view.
      */
-    public function create(): View
+    public function create(Request $request): RedirectResponse
     {
-        return view('auth.register');
+        // Sign-up lives on the home page now; keep any flashed input (see
+        // cancel() below) for the form there.
+        $request->session()->reflash();
+
+        return redirect()->route('home', ['mode' => 'signup']);
     }
 
     /**
@@ -35,6 +39,13 @@ class RegisteredUserController extends Controller
      */
     public function store(RegisterFounderRequest $request): RedirectResponse
     {
+        // Sign-up only works while a cohort's call for applications is open
+        // (Admin > cohort menu). The home page hides the form when it's
+        // closed; this also stops an old tab or a direct POST.
+        if (! Cohort::openCall()) {
+            return redirect()->route('home', ['mode' => 'signup']);
+        }
+
         $validated = $request->validated();
 
         $user = DB::transaction(function () use ($validated) {
@@ -106,7 +117,8 @@ class RegisteredUserController extends Controller
         // Back to the form they just filled in, with what they typed still
         // there (never the password) so this reads as "going back" rather
         // than starting over.
-        return redirect()->route('register')->withInput([
+        return redirect()->route('home', ['mode' => 'signup'])->withInput([
+            'form' => 'register',
             'name' => $user?->name,
             'email' => $user?->email,
             'company_name' => $user?->startup?->company_name,
