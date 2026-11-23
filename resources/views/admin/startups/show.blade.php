@@ -377,7 +377,28 @@ default => null,
                             Portfolio Coordinator
                         </h2>
 
-                        <x-coordinator-assign-modal :startup="$startup" />
+                        {{-- Read-only here: assigning / changing happens in
+                             Management -> Incubatee (Portfolio Coordinator column). --}}
+                        @php $currentCoordinator = $startup->activeCoordinatorAssignment?->coordinator; @endphp
+                        @if ($currentCoordinator)
+                        <div class="mt-3 flex items-center gap-2">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
+                                @if ($currentCoordinator->coordinator_photo_path)
+                                <img src="{{ Storage::url($currentCoordinator->coordinator_photo_path) }}" alt="" class="h-full w-full object-cover">
+                                @else
+                                {!! $icon('mentorProfile.svg', 'w-4 h-4') !!}
+                                @endif
+                            </span>
+                            <p class="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800" title="{{ $currentCoordinator->name }}">{{ $currentCoordinator->name ?: $currentCoordinator->display_name }}</p>
+                        </div>
+                        @else
+                        <p class="mt-3 text-sm text-gray-500">No Portfolio Coordinator assigned yet.</p>
+                        @endif
+                        @if ($startup->informationSheet?->approval_status === 'Approved')
+                        <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment']) }}" class="mt-2 inline-block text-xs font-semibold text-rose-900 hover:underline">
+                            {{ $currentCoordinator ? 'Change' : 'Assign' }} in Management &rarr; Incubatee
+                        </a>
+                        @endif
                     </div>
                 </div>
 

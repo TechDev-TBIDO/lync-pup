@@ -262,11 +262,12 @@ for ($i = 0; $i < $count; $i++) {
         @else
         <div class="overflow-hidden rounded-xl border border-gray-200">
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[820px] table-fixed text-sm">
+                <table class="w-full min-w-[1040px] table-fixed text-sm">
                     <thead>
                         <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-center text-white">
                             <th class="w-14 px-4 py-3 font-semibold whitespace-nowrap">#</th>
                             <th class="w-64 px-4 py-3 font-semibold whitespace-nowrap">Startup</th>
+                            <th class="w-56 px-4 py-3 font-semibold whitespace-nowrap">Portfolio Coordinator</th>
                             <th class="w-32 px-4 py-3 font-semibold whitespace-nowrap">Not Started</th>
                             <th class="w-32 px-4 py-3 font-semibold whitespace-nowrap">Completed</th>
                             <th class="px-4 py-3 font-semibold whitespace-nowrap">Documents</th>
@@ -297,6 +298,29 @@ for ($i = 0; $i < $count; $i++) {
                                         <span class="min-w-0 flex-1 truncate" title="{{ $row['startup']->company_name }}">{{ $row['startup']->company_name }}</span>
                                     </span>
                                 </a>
+                            </td>
+                            {{-- Assigning / changing the Portfolio Coordinator lives here
+                                 (Management), not on Startup Profile. Same modal as before,
+                                 opened by its per-startup window event; after saving it
+                                 returns to this page. --}}
+                            @php $rowCoordinator = $row['startup']->activeCoordinatorAssignment?->coordinator; @endphp
+                            <td class="px-4 py-4 text-center">
+                                @if ($rowCoordinator)
+                                <button type="button" @click="$dispatch('open-coordinator-modal-{{ $row['startup']->startup_id }}')"
+                                    class="group inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-gray-900 transition hover:bg-rose-50 hover:text-rose-900"
+                                    title="Change Portfolio Coordinator">
+                                    <span class="truncate">{{ $rowCoordinator->name ?: $rowCoordinator->display_name }}</span>
+                                    <svg class="h-3.5 w-3.5 shrink-0 text-gray-400 group-hover:text-rose-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
+                                @else
+                                <button type="button" @click="$dispatch('open-coordinator-modal-{{ $row['startup']->startup_id }}')"
+                                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90">
+                                    Assign Portfolio Coordinator
+                                </button>
+                                @endif
+                                <x-coordinator-assign-modal :startup="$row['startup']" :hide-trigger="true" />
                             </td>
                             <td class="px-4 py-4 text-center font-semibold text-gray-700">{{ $row['not_started_count'] }}</td>
                             <td class="px-4 py-4 text-center font-semibold text-gray-700">{{ $row['completed_count'] }}</td>

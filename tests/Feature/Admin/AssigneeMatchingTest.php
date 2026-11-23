@@ -182,7 +182,18 @@ class AssigneeMatchingTest extends TestCase
         $this->actingAs($this->admin())->get(route('admin.roadblocks.index'))
             ->assertOk()->assertSee('Suggested Matches')->assertSee('assignee-suggestions');
 
+        // The Portfolio Coordinator modal lives on Management -> Incubatee
+        // (the overview lists approved startups), not on Startup Profile.
+        \App\Models\InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+            'submission_date' => now()->subWeek(),
+        ]);
+
+        $this->actingAs($this->admin())->get(route('admin.assessment-hub.index', ['main' => 'assessment']))
+            ->assertOk()->assertSee('coordinator-suggestions')->assertSee('Assign Portfolio Coordinator');
+
         $this->actingAs($this->admin())->get(route('admin.startups.show', $startup))
-            ->assertOk()->assertSee('coordinator-suggestions');
+            ->assertOk()->assertDontSee('coordinator-suggestions');
     }
 }

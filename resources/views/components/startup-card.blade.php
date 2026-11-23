@@ -50,12 +50,10 @@ $icons = [
 $iconMarkup = $icons[$startup->startup_id % count($icons)];
 $iconTone = $bgClass === 'bg-gray-100' ? 'text-blue-600' : 'text-white';
 
-$hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending']);
-
-// Drives which 3-dot menu items show — a startup with no coordinator yet
-// already has the big "Assign Coordinator" button below for that job, so
-// the menu itself only offers Delete until one exists.
-$hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
+// Assigning / changing the Portfolio Coordinator moved to Management ->
+// Incubatee (the overview's Portfolio Coordinator column), so a card only
+// has View (+ View Information Sheet while Pending) and Delete.
+$hasSecondAction = $startup->status === 'Pending';
 @endphp
 
 <div
@@ -109,18 +107,8 @@ $hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
                 <div x-show="menuOpen" x-cloak x-transition
                     class="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl"
                     style="display: none;">
-                    @if ($hasCoordinator)
-                    <button type="button"
-                        @click="menuOpen = false; $dispatch('open-coordinator-modal-{{ $startup->startup_id }}')"
-                        class="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-gray-800 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
-                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Edit Coordinator
-                    </button>
-                    @endif
                     <button type="button" @click="menuOpen = false; confirmingDelete = true"
-                        class="flex w-full items-center gap-2.5 border-t border-gray-100 px-4 py-2.5 text-left text-sm font-semibold text-rose-800 transition hover:border-transparent hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                        class="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-rose-800 transition hover:border-transparent hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                         <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7h12z" />
                         </svg>
@@ -167,19 +155,7 @@ $hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
             </a>
             @endif
 
-            @if ($startup->status === 'Assign Coordinator')
-            {{-- Opens the modal right on this card via the same namespaced
-                 window event the 3-dot menu's "Edit Coordinator" already
-                 uses (see <x-coordinator-assign-modal> below, now always
-                 rendered) — instead of navigating to the View Profile page
-                 first and relying on its ?assign_coordinator=1 auto-open. --}}
-            <button type="button"
-                @click="$dispatch('open-coordinator-modal-{{ $startup->startup_id }}')"
-                class="flex min-h-[2rem] items-center justify-center rounded-lg bg-gradient-to-r from-[#6D0D23] via-[#43306A] to-[#11386A] px-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-all duration-300 hover:brightness-110 hover:shadow-md">
-                Assign Coordinator
-            </button>
-
-            @elseif ($startup->status === 'Pending')
+            @if ($startup->status === 'Pending')
             <a href="{{ route('admin.information-sheet.show', array_merge(['startup' => $startup, 'from' => 'startups-list'], request()->only('tab'))) }}"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg border border-blue-800 px-2 text-center text-xs font-semibold leading-tight text-blue-900 transition-colors hover:bg-blue-50">
                 View Information Sheet
@@ -188,16 +164,6 @@ $hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
         </div>
     </div>
 
-    {{-- Own isolated x-data scope (see the component itself) — opened
-         externally, either by the 3-dot menu's "Edit Coordinator" button
-         (when a coordinator is already assigned) or by this card's own
-         "Assign Coordinator" action button above (when one isn't yet),
-         via a namespaced window event, since neither trigger has room for
-         the component's own inline button on a card this size. Always
-         rendered now (not just when $hasCoordinator) so the "Assign
-         Coordinator" button can open it without first navigating to the
-         View Profile page. --}}
-    <x-coordinator-assign-modal :startup="$startup" :hide-trigger="true" />
 
     {{-- ============ DELETE STARTUP MODAL ============ --}}
     <div x-show="confirmingDelete" x-cloak x-data="{ reason: '', confirmText: '' }"

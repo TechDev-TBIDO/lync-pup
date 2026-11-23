@@ -179,7 +179,9 @@ class AssessmentHubController extends Controller
             ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
             ->exists();
 
-        $approvedStartups = Startup::with('informationSheet')
+        // activeCoordinatorAssignment.coordinator: the Incubatee overview's
+        // Portfolio Coordinator column (assign / change happens there).
+        $approvedStartups = Startup::with(['informationSheet', 'activeCoordinatorAssignment.coordinator'])
             ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
             ->when($cohortNumber, fn ($q) => $q->where('cohort_number', $cohortNumber))
             ->orderBy('company_name')
