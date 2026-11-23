@@ -241,8 +241,8 @@ class CoordinatorTest extends TestCase
 
         // The stale "Mentorship session scheduled" card for the reset
         // roadblock is gone; the unrelated one stays.
-        $this->assertSame(0, $founder->notifications()->where('data->roadblock_id', $roadblock->roadblock_id)->count());
-        $this->assertSame(1, $founder->notifications()->where('data->roadblock_id', $otherRoadblock->roadblock_id)->count());
+        $this->assertSame(0, $founder->notifications()->whereJsonId('data->roadblock_id', $roadblock->roadblock_id)->count());
+        $this->assertSame(1, $founder->notifications()->whereJsonId('data->roadblock_id', $otherRoadblock->roadblock_id)->count());
 
         $this->assertDatabaseHas('roadblocks', [
             'roadblock_id' => $roadblock->roadblock_id,

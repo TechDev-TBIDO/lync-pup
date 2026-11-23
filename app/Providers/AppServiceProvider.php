@@ -28,6 +28,17 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // where('data->roadblock_id', $id) on a JSON field: Postgres reads
+        // `data->>'roadblock_id'` as text, so the id must be compared as text.
+        // With DB_EMULATE_PREPARES on, a plain int is written into the SQL
+        // as a number and Postgres rejects it ("operator does not exist:
+        // text = integer"). SQLite stores the value as a number, so it keeps
+        // getting one. Usable on any query, Eloquent query or relation.
+        \Illuminate\Database\Query\Builder::macro('whereJsonId', function (string $column, $value) {
+            /** @var \Illuminate\Database\Query\Builder $this */
+            return $this->where($column, $this->getConnection()->getDriverName() === 'pgsql' ? (string) $value : $value);
+        });
+
         // No cron runs the scheduler on the server, so overdue rejected
         // startups are also removed after ordinary requests (throttled).
         if (! $this->app->runningInConsole()) {

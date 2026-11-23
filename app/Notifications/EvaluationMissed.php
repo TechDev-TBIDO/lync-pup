@@ -57,7 +57,7 @@ class EvaluationMissed extends FounderNotification
         foreach ($missed as $schedule) {
             $alreadySent = $user->notifications()
                 ->where('type', self::class)
-                ->where('data->evaluation_schedule_id', $schedule->evaluation_schedule_id)
+                ->whereJsonId('data->evaluation_schedule_id', $schedule->evaluation_schedule_id)
                 ->where('data->evaluation_date', $schedule->evaluation_date->toDateString())
                 ->exists();
 

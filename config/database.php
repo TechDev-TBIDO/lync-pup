@@ -103,8 +103,16 @@ return [
             // Supabase session pooler (port 5432). If Supabase ever reports
             // "max clients reached", set DB_PERSISTENT=false in Azure to turn
             // this off without a code change.
+            //
+            // DB_EMULATE_PREPARES=true sends each query to Postgres in one
+            // round trip instead of three (prepare, execute, close): measured
+            // ~28ms -> ~8.5ms per query between Azure and Supabase. Off by
+            // default; set it to false in Azure to switch back without a
+            // code change. (Laravel adjusts boolean bindings for this mode
+            // itself - see PostgresConnection::prepareBindings().)
             'options' => extension_loaded('pdo_pgsql') ? [
                 PDO::ATTR_PERSISTENT => (bool) env('DB_PERSISTENT', true),
+                PDO::ATTR_EMULATE_PREPARES => filter_var(env('DB_EMULATE_PREPARES', false), FILTER_VALIDATE_BOOLEAN),
             ] : [],
         ],
 

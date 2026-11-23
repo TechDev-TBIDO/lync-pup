@@ -97,7 +97,7 @@ class EvaluationScheduleController extends Controller
         if ($user = $startup?->user) {
             $user->unreadNotifications()
                 ->where('type', EvaluationScheduled::class)
-                ->where('data->evaluation_schedule_id', $evaluationSchedule->evaluation_schedule_id)
+                ->whereJsonId('data->evaluation_schedule_id', $evaluationSchedule->evaluation_schedule_id)
                 ->delete();
 
             if ($wasVisibleToFounder) {
@@ -139,7 +139,7 @@ class EvaluationScheduleController extends Controller
 
         $existing = $user->unreadNotifications()
             ->where('type', EvaluationScheduled::class)
-            ->where('data->evaluation_schedule_id', $schedule->evaluation_schedule_id)
+            ->whereJsonId('data->evaluation_schedule_id', $schedule->evaluation_schedule_id)
             ->first();
 
         if ($existing) {

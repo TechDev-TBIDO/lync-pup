@@ -243,7 +243,7 @@ class RoadblockController extends Controller
 
             $existing = $user->unreadNotifications()
                 ->where('type', MentorshipScheduled::class)
-                ->where('data->roadblock_id', $roadblock->roadblock_id)
+                ->whereJsonId('data->roadblock_id', $roadblock->roadblock_id)
                 ->first();
 
             if ($existing) {
@@ -331,7 +331,7 @@ class RoadblockController extends Controller
 
         $user->unreadNotifications()
             ->where('type', MentorshipScheduled::class)
-            ->where('data->roadblock_id', $roadblock->roadblock_id)
+            ->whereJsonId('data->roadblock_id', $roadblock->roadblock_id)
             ->delete();
 
         if ($notifyFounder) {

@@ -248,7 +248,7 @@ class AssessmentMeetingController extends Controller
 
         $existing = $user->unreadNotifications()
             ->where('type', AssessmentMeetingScheduled::class)
-            ->where('data->assessment_meeting_id', $meeting->assessment_meeting_id)
+            ->whereJsonId('data->assessment_meeting_id', $meeting->assessment_meeting_id)
             ->first();
 
         if ($existing) {
@@ -277,7 +277,7 @@ class AssessmentMeetingController extends Controller
 
         $user->unreadNotifications()
             ->where('type', AssessmentMeetingScheduled::class)
-            ->where('data->assessment_meeting_id', $meeting->assessment_meeting_id)
+            ->whereJsonId('data->assessment_meeting_id', $meeting->assessment_meeting_id)
             ->delete();
 
         if ($cancelled) {

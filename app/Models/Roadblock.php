@@ -134,7 +134,7 @@ class Roadblock extends Model
 
         $this->startup?->user?->notifications()
             ->where('type', \App\Notifications\MentorshipScheduled::class)
-            ->where('data->roadblock_id', $this->roadblock_id)
+            ->whereJsonId('data->roadblock_id', $this->roadblock_id)
             ->delete();
     }
 
