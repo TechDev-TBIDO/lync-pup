@@ -21,9 +21,12 @@ class RoadblockSidebarBadgeTest extends TestCase
     {
         Cache::flush();
         $html = $this->actingAs($admin)->get(route('admin.startups.index'))->assertOk()->getContent();
-        $i = strpos($html, 'Roadblock Management');
-        $chunk = substr($html, $i, 400);
-        return str_contains($chunk, 'New since your last visit');
+        // The sidebar's Roadblocks link (found by its URL, not its label).
+        if (! preg_match('#<a[^>]*href="'.preg_quote(route('admin.roadblocks.index'), '#').'"[^>]*>(.*?)</a>#s', $html, $m)) {
+            return false;
+        }
+
+        return str_contains($m[1], 'New since your last visit');
     }
 
     public function test_dot_lights_for_new_submission_and_clears_after_opening_manage(): void

@@ -51,10 +51,10 @@
             return $svg;
             };
 
-            // Sidebar: plain links plus two dropdown groups. A group entry has
-            // 'children'; each child is an ordinary link. Assessment's two
-            // children are the same page (Assessment Hub) on its New
-            // Applicants / Incubatee tab ('main' query parameter).
+            // Sidebar: Dashboard plus three categories, always shown open (a
+            // heading with its links under it). New Applicants and Incubatee
+            // are the same page (Assessment Hub) on its New Applicants /
+            // Incubatee tab ('main' query parameter).
             $hubMain = in_array(request('main'), ['information-sheet', 'assessment'], true) ? request('main') : 'information-sheet';
             $onHub = request()->routeIs('admin.assessment-hub.index*');
 
@@ -71,14 +71,16 @@
 
             $navItems = [
             ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg'],
-            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Registrations', 'icon' => 'founderApplication.svg'],
             ['key' => 'profiles', 'label' => 'Manage Profile', 'icon' => '3person.svg', 'children' => $profileChildren],
             ['key' => 'assessment', 'label' => 'Assessment', 'icon' => 'assessmentHub.svg', 'children' => [
+            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Registrations', 'icon' => 'founderApplication.svg'],
             ['route' => 'admin.assessment-hub.index', 'label' => 'New Applicants', 'icon' => 'info-sheet.svg', 'main' => 'information-sheet'],
-            ['route' => 'admin.assessment-hub.index', 'label' => 'Incubatee', 'icon' => 'rocket.svg', 'main' => 'assessment'],
             ]],
-            ['route' => 'admin.roadblocks.index', 'label' => 'Roadblock Management', 'icon' => 'roadblock.svg'],
+            ['key' => 'management', 'label' => 'Management', 'icon' => 'stairs.svg', 'children' => [
+            ['route' => 'admin.assessment-hub.index', 'label' => 'Incubatee', 'icon' => 'rocket.svg', 'main' => 'assessment'],
+            ['route' => 'admin.roadblocks.index', 'label' => 'Roadblocks', 'icon' => 'roadblock.svg'],
             ['route' => 'admin.risk-monitoring.index', 'label' => 'Risk Monitoring', 'icon' => 'riskMon.svg'],
+            ]],
             ];
 
             // "Anything new here since I last looked" per nav item — shared
@@ -166,29 +168,16 @@
                         <nav class="mt-4 space-y-1.5 px-3">
                             @foreach ($navItems as $item)
                             @if (isset($item['children']))
-                            @php
-                            $groupActive = collect($item['children'])->contains(fn ($c) => $navLinkActive($c));
-                            $groupBadge = collect($item['children'])->contains(fn ($c) => $navLinkBadge($c));
-                            @endphp
-                            {{-- Dropdown group: opens on click; starts open while
-                                 one of its pages is the one being shown. --}}
-                            <div x-data="{ open: @js($groupActive) }">
-                                <button type="button" @click="open = ! open" :aria-expanded="open.toString()"
-                                    class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-white/10 hover:text-white {{ $groupActive ? 'text-white' : 'text-white/85' }}">
+                            {{-- Category: a plain heading (not clickable) with its
+                                 links always listed under it. --}}
+                            <div class="pt-2">
+                                <div class="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-white">
                                     <span class="w-5 h-5 flex items-center justify-center flex-shrink-0">
                                         {!! $icon($item['icon']) !!}
                                     </span>
-                                    <span class="flex-1 text-left">{{ $item['label'] }}</span>
-                                    @if ($groupBadge)
-                                    <span x-show="! open" class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New since your last visit" aria-label="New since your last visit"></span>
-                                    @endif
-                                    <svg class="h-4 w-4 flex-shrink-0 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </button>
-                                <div x-show="open" @if (! $groupActive) x-cloak @endif
-                                    x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
-                                    class="mt-1 ml-5 space-y-1 border-l border-white/15 pl-2">
+                                    <span class="flex-1">{{ $item['label'] }}</span>
+                                </div>
+                                <div class="ml-5 space-y-1 border-l border-white/15 pl-2">
                                     @foreach ($item['children'] as $child)
                                     <x-admin-nav-link
                                         :href="Route::has($child['route']) ? route($child['route'], ($child['main'] ?? 'information-sheet') !== 'information-sheet' ? ['main' => $child['main']] : []) : '#'"
