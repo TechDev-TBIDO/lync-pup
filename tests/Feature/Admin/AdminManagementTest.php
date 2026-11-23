@@ -54,7 +54,7 @@ class AdminManagementTest extends TestCase
         $this->actingAs($this->superAdmin())
             ->get(route('admin.admins.index'))
             ->assertOk()
-            ->assertSee('Manage Admins');
+            ->assertSee('Admin Profile');
     }
 
     public function test_regular_admin_gets_403_and_no_sidebar_link(): void

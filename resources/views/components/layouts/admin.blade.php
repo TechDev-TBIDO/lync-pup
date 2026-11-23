@@ -51,23 +51,35 @@
             return $svg;
             };
 
-            $navItems = [
-            ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg'],
-            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Registrations', 'icon' => 'founderApplication.svg'],
+            // Sidebar: plain links plus two dropdown groups. A group entry has
+            // 'children'; each child is an ordinary link. Assessment's two
+            // children are the same page (Assessment Hub) on its New
+            // Applicants / Incubatee tab ('main' query parameter).
+            $hubMain = in_array(request('main'), ['information-sheet', 'assessment'], true) ? request('main') : 'information-sheet';
+            $onHub = request()->routeIs('admin.assessment-hub.index*');
+
+            $profileChildren = [
             ['route' => 'admin.startups.index', 'label' => 'Startup Profile', 'icon' => 'startupProfile.svg'],
             ['route' => 'admin.mentors.index', 'label' => 'Mentor Profile', 'icon' => 'mentorProfile.svg'],
             ['route' => 'admin.coordinators.index', 'label' => 'Coordinator Profile', 'icon' => 'coordProfile.svg'],
-            ['route' => 'admin.assessment-hub.index', 'label' => 'Assessment Hub', 'icon' => 'assessmentHub.svg'],
+            ];
+            // Super Admin only - every other admin never sees this link (and
+            // gets a 403 from 'can:manage-admins' if they type the URL).
+            if (auth()->user()?->can('manage-admins')) {
+            $profileChildren[] = ['route' => 'admin.admins.index', 'label' => 'Admin Profile', 'icon' => 'check-shield.svg'];
+            }
+
+            $navItems = [
+            ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg'],
+            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Registrations', 'icon' => 'founderApplication.svg'],
+            ['key' => 'profiles', 'label' => 'Manage Profile', 'icon' => '3person.svg', 'children' => $profileChildren],
+            ['key' => 'assessment', 'label' => 'Assessment', 'icon' => 'assessmentHub.svg', 'children' => [
+            ['route' => 'admin.assessment-hub.index', 'label' => 'New Applicants', 'icon' => 'info-sheet.svg', 'main' => 'information-sheet'],
+            ['route' => 'admin.assessment-hub.index', 'label' => 'Incubatee', 'icon' => 'rocket.svg', 'main' => 'assessment'],
+            ]],
             ['route' => 'admin.roadblocks.index', 'label' => 'Roadblock Management', 'icon' => 'roadblock.svg'],
             ['route' => 'admin.risk-monitoring.index', 'label' => 'Risk Monitoring', 'icon' => 'riskMon.svg'],
             ];
-
-            // Super Admin only, placed right under Dashboard — every other
-            // admin never sees this link (and gets a 403 from
-            // 'can:manage-admins' if they type the URL).
-            if (auth()->user()?->can('manage-admins')) {
-            array_splice($navItems, 1, 0, [['route' => 'admin.admins.index', 'label' => 'Manage Admins', 'icon' => 'check-shield.svg']]);
-            }
 
             // "Anything new here since I last looked" per nav item — shared
             // by a global view composer (AppServiceProvider::boot()) rather
@@ -75,6 +87,14 @@
             // logged-in admin and changes without this file re-rendering
             // any differently.
             $adminSidebarBadges = $adminSidebarBadges ?? [];
+
+            // Every Assessment Hub red dot is about new applicants (Schedule /
+            // Evaluation), so the hub's dot sits on New Applicants only.
+            $navLinkActive = fn (array $item) => isset($item['main'])
+            ? $onHub && $hubMain === $item['main']
+            : request()->routeIs($item['route'] . '*');
+            $navLinkBadge = fn (array $item) => ! empty($adminSidebarBadges[$item['route']] ?? false)
+            && (($item['main'] ?? 'information-sheet') === 'information-sheet');
             @endphp
 
             <div
@@ -145,50 +165,54 @@
                         {{-- Nav --}}
                         <nav class="mt-4 space-y-1.5 px-3">
                             @foreach ($navItems as $item)
-                            @php $isActive = request()->routeIs($item['route'] . '*'); @endphp
-
-                            <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
-                                @click="
-                                if ({{ $isActive ? 'true' : 'false' }}) {
-                                    // Already on this page - clicking it again is not a
-                                    // navigation, so it must never trigger the unsaved-
-                                    // changes prompt (or silently reload and lose the draft).
-                                    $event.preventDefault();
-                                } else if ($store.navigation.hasUnsavedChanges) {
-                                    $event.preventDefault();
-                                    $store.navigation.pendingAction = null;
-                                    $store.navigation.nextUrl = $el.href;
-                                    $store.navigation.showLeaveModal = true;
-                                } else {
-                                    sidebarOpen = false;
-                                }
-                            "
-                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                        {{ $isActive
-                            ? 'bg-white text-[#6D0D23] shadow-sm'
-                            : 'text-white/85 hover:bg-white/10 hover:text-white' }}">
-
-                                <span class="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                                    {!! $icon($item['icon']) !!}
-                                </span>
-
-                                <span class="flex-1">
-                                    {{ $item['label'] }}
-                                </span>
-
-                                @if (!empty($adminSidebarBadges[$item['route']] ?? false))
-                                @if (!empty(($adminSidebarPendingTabs ?? [])[$item['route']] ?? []))
-                                {{-- Open page, new item on another tab/stage: goes out
-                                     once every such view has been opened (no reload). --}}
-                                <span x-data="{ pending: @js($adminSidebarPendingTabs[$item['route']]) }"
-                                    x-show="pending.length"
-                                    @page-tab-seen.window="if ($event.detail.route === @js($item['route'])) pending = pending.filter(t => t !== $event.detail.tab)"
-                                    class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New since your last visit" aria-label="New since your last visit"></span>
-                                @else
-                                <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New since your last visit" aria-label="New since your last visit"></span>
-                                @endif
-                                @endif
-                            </a>
+                            @if (isset($item['children']))
+                            @php
+                            $groupActive = collect($item['children'])->contains(fn ($c) => $navLinkActive($c));
+                            $groupBadge = collect($item['children'])->contains(fn ($c) => $navLinkBadge($c));
+                            @endphp
+                            {{-- Dropdown group: opens on click; starts open while
+                                 one of its pages is the one being shown. --}}
+                            <div x-data="{ open: @js($groupActive) }">
+                                <button type="button" @click="open = ! open" :aria-expanded="open.toString()"
+                                    class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-white/10 hover:text-white {{ $groupActive ? 'text-white' : 'text-white/85' }}">
+                                    <span class="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                        {!! $icon($item['icon']) !!}
+                                    </span>
+                                    <span class="flex-1 text-left">{{ $item['label'] }}</span>
+                                    @if ($groupBadge)
+                                    <span x-show="! open" class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New since your last visit" aria-label="New since your last visit"></span>
+                                    @endif
+                                    <svg class="h-4 w-4 flex-shrink-0 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                <div x-show="open" @if (! $groupActive) x-cloak @endif
+                                    x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
+                                    class="mt-1 ml-5 space-y-1 border-l border-white/15 pl-2">
+                                    @foreach ($item['children'] as $child)
+                                    <x-admin-nav-link
+                                        :href="Route::has($child['route']) ? route($child['route'], ($child['main'] ?? 'information-sheet') !== 'information-sheet' ? ['main' => $child['main']] : []) : '#'"
+                                        :label="$child['label']"
+                                        :icon-html="$icon($child['icon'], 'w-4 h-4')"
+                                        :active="$navLinkActive($child)"
+                                        :child="true"
+                                        :badge="$navLinkBadge($child)"
+                                        :pending-tabs="($adminSidebarPendingTabs ?? [])[$child['route']] ?? []"
+                                        :badge-route="$child['route']"
+                                        :hub-main="$child['main'] ?? null" />
+                                    @endforeach
+                                </div>
+                            </div>
+                            @else
+                            <x-admin-nav-link
+                                :href="Route::has($item['route']) ? route($item['route']) : '#'"
+                                :label="$item['label']"
+                                :icon-html="$icon($item['icon'])"
+                                :active="$navLinkActive($item)"
+                                :badge="$navLinkBadge($item)"
+                                :pending-tabs="($adminSidebarPendingTabs ?? [])[$item['route']] ?? []"
+                                :badge-route="$item['route']" />
+                            @endif
                             @endforeach
                         </nav>
                     </div>

@@ -387,7 +387,7 @@
                                                                             <a href="{{ $item['url'] }}"
                                                                                 class="inline-flex items-center gap-1 rounded-full font-semibold transition hover:opacity-80"
                                                                                 style="padding: .15rem .55rem; font-size: 11px; {{ $item['done'] ? 'background:#F0FDF7;color:#047857;box-shadow:inset 0 0 0 1px #A7F3D0' : 'background:#FFFFFF;color:#BE123C;box-shadow:inset 0 0 0 1px #FECDD3' }}"
-                                                                                title="{{ $item['done'] ? 'Done' : 'Still missing' }} - open in Assessment Hub">
+                                                                                title="{{ $item['done'] ? 'Done' : 'Still missing' }} - open in Assessment">
                                                                                 @if ($item['done'])
                                                                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                                                                                 @else

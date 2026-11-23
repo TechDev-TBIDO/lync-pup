@@ -1,4 +1,4 @@
-<x-layouts.admin title="Assessment Hub">
+<x-layouts.admin title="Assessment">
     @php
         $initialMainTab = in_array(request('main'), ['information-sheet', 'assessment']) ? request('main') : 'information-sheet';
         // $selectedStage is already passed into this view by
@@ -19,11 +19,11 @@
         $hubDot = fn (array $views) => 'x-data="{ pending: '.e(Js::from(array_values(array_intersect($hubMissedViews, $views)))).' }" @page-tab-seen.window="if ($event.detail.route === \'admin.assessment-hub.index\') pending = pending.filter(t => t !== $event.detail.tab)"';
     @endphp
     <div x-data="{ mainTab: @js($initialMainTab) }"
-        x-init="$watch('mainTab', value => setQueryParam('main', value))">
+        x-init="$watch('mainTab', value => { setQueryParam('main', value); $dispatch('hub-main-changed', value) })">
         <div class="mb-6 flex items-start justify-between gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Assessment Hub</h1>
-                <p class="mt-1 text-sm text-gray-500 sm:text-base">Manage Startup Information Sheets from submission to approval and the Assessment Documents</p>
+                <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Assessment</h1>
+                <p class="mt-1 text-sm text-gray-500 sm:text-base">Evaluate new applicants' Information Sheets, then track each incubatee's assessment documents</p>
             </div>
 
             <div class="ml-auto flex shrink-0 items-center gap-3">
@@ -94,7 +94,7 @@
                 "
                 :class="mainTab === 'information-sheet' ? 'border-rose-900 text-rose-900 font-bold' : 'border-transparent text-gray-400 font-medium'"
                 class="-mb-px shrink-0 whitespace-nowrap border-b-2 pb-3 text-base sm:text-lg">
-                Information Sheet
+                New Applicants
                 @if ($hubMissedViews)
                 <span {!! $hubDot($hubMissedViews) !!} x-show="pending.length" class="ml-1 inline-flex align-middle">
                     <x-new-dot />
@@ -105,7 +105,7 @@
             <button type="button" @click="mainTab = 'assessment'"
                 :class="mainTab === 'assessment' ? 'border-rose-900 text-rose-900 font-bold' : 'border-transparent text-gray-400 font-medium'"
                 class="-mb-px shrink-0 whitespace-nowrap border-b-2 pb-3 text-base sm:text-lg">
-                Assessment
+                Incubatee
             </button>
         </div>
 

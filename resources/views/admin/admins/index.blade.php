@@ -1,4 +1,4 @@
-<x-layouts.admin title="Manage Admins">
+<x-layouts.admin title="Admin Profile">
 
     @php
     // One class string so both Invite triggers stay identical (mirrors
@@ -26,7 +26,7 @@
         {{-- Page header --}}
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Manage Admins</h1>
+                <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Admin Profile</h1>
                 <p class="mt-1 text-sm text-gray-500 sm:text-base">Invite TBI staff to the Admin Console and control who can sign in. Only you, as Super Admin, can see this page.</p>
             </div>
 
@@ -239,7 +239,7 @@
 
                                 <p class="mt-1.5 text-xs leading-5 text-gray-600">
                                     <span class="font-semibold text-gray-900">{{ $admin->name }}</span> will become the Super Admin.
-                                    You'll become a regular admin and will no longer see Manage Admins. There is only one Super Admin at a time.
+                                    You'll become a regular admin and will no longer see Admin Profile. There is only one Super Admin at a time.
                                 </p>
 
                                 <form method="POST" action="{{ route('admin.admins.transfer', $admin) }}" class="mt-4 text-left">
