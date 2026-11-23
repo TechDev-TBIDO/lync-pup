@@ -50,6 +50,11 @@ class Coordinator extends Model
      */
     public function getActiveCasesCountAttribute(): int
     {
+        // Pre-counted by withCount() on list pages (one query for all rows).
+        if (array_key_exists('active_cases_count', $this->attributes)) {
+            return (int) $this->attributes['active_cases_count'];
+        }
+
         return $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review'])->count();
     }
 
@@ -58,6 +63,11 @@ class Coordinator extends Model
      */
     public function getCompletedCasesCountAttribute(): int
     {
+        // Pre-counted by withCount() on list pages (one query for all rows).
+        if (array_key_exists('completed_cases_count', $this->attributes)) {
+            return (int) $this->attributes['completed_cases_count'];
+        }
+
         return $this->roadblocks()->whereIn('status', ['Resolved', 'Failed'])->count();
     }
 

@@ -84,7 +84,7 @@ class RoadblockController extends Controller
         // cohort_number.
         $cohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
 
-        $pending = Roadblock::with(['startup', 'files'])
+        $pending = Roadblock::with(['startup.teamMembers', 'files'])
             ->where('status', 'Pending')
             ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->latest()
@@ -94,7 +94,7 @@ class RoadblockController extends Controller
         // (upcoming) plus anything already promoted to Pending Review. The
         // isInAssessment() split below still catches the rare in-between row
         // whose meeting just ended but hasn't been swept yet.
-        $scheduled = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
+        $scheduled = Roadblock::with(['startup.teamMembers', 'mentor', 'coordinator', 'files'])
             ->whereIn('status', ['Scheduled', 'Pending Review'])
             ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->get();
@@ -121,19 +121,24 @@ class RoadblockController extends Controller
         // without it every row here still worked via Eloquent's normal lazy
         // loading, but only firing one query per row instead of one query
         // total.
-        $resolved = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
+        $resolved = Roadblock::with(['startup.teamMembers', 'mentor', 'coordinator', 'files'])
             ->where('status', 'Resolved')
             ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->orderByDesc('resolved_at')
             ->get();
 
-        $failed = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
+        $failed = Roadblock::with(['startup.teamMembers', 'mentor', 'coordinator', 'files'])
             ->where('status', 'Failed')
             ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
             ->orderByDesc('failed_at')
             ->get();
 
-        $mentors = Mentor::orderBy('mentor_id')->get();
+        // Case counts for the Assign modal's mentor cards, counted once here
+        // instead of per mentor per modal.
+        $mentors = Mentor::withCount([
+            'roadblocks as active_cases_count' => fn ($q) => $q->whereIn('status', Roadblock::ACTIVE_STATUSES),
+            'roadblocks as completed_cases_count' => fn ($q) => $q->whereIn('status', ['Resolved', 'Failed']),
+        ])->orderBy('mentor_id')->get();
 
         // 'assignments' eager-loaded (scoped to Active, matching
         // CoordinatorProfileController::index()) so the Assign modal's
@@ -144,6 +149,10 @@ class RoadblockController extends Controller
         // column here instead and drifted from the accurate count shown on
         // the Coordinator Profile page.
         $coordinators = Coordinator::with(['assignments' => fn ($q) => $q->where('assignment_status', 'Active')])
+            ->withCount([
+                'roadblocks as active_cases_count' => fn ($q) => $q->whereIn('status', Roadblock::ACTIVE_STATUSES),
+                'roadblocks as completed_cases_count' => fn ($q) => $q->whereIn('status', ['Resolved', 'Failed']),
+            ])
             ->orderBy('coordinator_id')
             ->get();
 

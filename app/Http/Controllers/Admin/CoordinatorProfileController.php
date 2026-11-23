@@ -50,7 +50,14 @@ class CoordinatorProfileController extends Controller
                 ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
                 ->with('startup')
                 ->latest();
-        }])->latest()->get();
+        }])
+            // Case counts for every card in one query (see
+            // Coordinator::getActiveCasesCountAttribute()).
+            ->withCount([
+                'roadblocks as active_cases_count' => fn ($q) => $q->whereIn('status', \App\Models\Roadblock::ACTIVE_STATUSES),
+                'roadblocks as completed_cases_count' => fn ($q) => $q->whereIn('status', ['Resolved', 'Failed']),
+            ])
+            ->latest()->get();
 
         return view('admin.coordinators.index', [
             'coordinators' => $coordinators,
