@@ -24,6 +24,14 @@ service nginx reload
 mkdir -p "$APP/storage/framework/cache/data" "$APP/storage/framework/sessions" \
          "$APP/storage/framework/views" "$APP/storage/logs" \
          "$APP/storage/app/public" "$APP/storage/app/private" "$APP/bootstrap/cache"
+
+# 1c. Pre-build Laravel's config, route, event and view caches so requests
+#     don't re-read every config/route file (~80ms per request without).
+#     Runs on every start, so changed Azure environment variables still apply
+#     after a restart. If the build ever fails, clear any half-built cache and
+#     keep going uncached rather than taking the site down.
+(cd "$APP" && php artisan optimize) || (cd "$APP" && php artisan optimize:clear) || true
+
 chmod -R ug+rwX "$APP/storage" "$APP/bootstrap/cache" || true
 
 # 2. Run Laravel's scheduler (bootstrap/app.php -> withSchedule) in the
