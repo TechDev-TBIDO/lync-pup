@@ -73,7 +73,7 @@
 
             <div>
                 <h2 class="font-semibold text-gray-900 mb-1">9. Contact</h2>
-                <p>Questions about these Terms can be sent to the Innovation Commercialization Office at <a href="mailto:tbido@pup.edu.ph" class="text-[#810e13] underline">tbido@pup.edu.ph</a>.</p>
+                <p>Questions about these Terms can be sent to the Innovation Commercialization Office at <a href="mailto:ico@pup.edu.ph" class="text-[#810e13] underline">ico@pup.edu.ph</a>.</p>
             </div>
 
         </div>

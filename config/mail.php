@@ -115,4 +115,11 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    // Portal emails are sent from a no-reply address; a founder's, mentor's
+    // or coordinator's reply goes to the office inbox instead.
+    'reply_to' => [
+        'address' => env('MAIL_REPLY_TO_ADDRESS', 'ico@pup.edu.ph'),
+        'name' => env('MAIL_REPLY_TO_NAME', 'PUP Innovation Commercialization Office'),
+    ],
+
 ];

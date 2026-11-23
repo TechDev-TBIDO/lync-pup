@@ -68,7 +68,7 @@
 
             <div>
                 <h2 class="font-semibold text-gray-900 mb-1">6. Your Rights</h2>
-                <p>Under the Data Privacy Act, you have the right to be informed, to access, to correct, to object to, and to request the deletion of your personal information, and to file a complaint with the National Privacy Commission. To exercise these rights, contact the Innovation Commercialization Office at <a href="mailto:tbido@pup.edu.ph" class="text-[#810e13] underline">tbido@pup.edu.ph</a>.</p>
+                <p>Under the Data Privacy Act, you have the right to be informed, to access, to correct, to object to, and to request the deletion of your personal information, and to file a complaint with the National Privacy Commission. To exercise these rights, contact the Innovation Commercialization Office at <a href="mailto:ico@pup.edu.ph" class="text-[#810e13] underline">ico@pup.edu.ph</a>.</p>
             </div>
 
             <div>
