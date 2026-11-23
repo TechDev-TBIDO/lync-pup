@@ -84,20 +84,33 @@ class RoadblockController extends Controller
         // cohort_number.
         $cohortNumber = $cohortId ? Cohort::find($cohortId)?->number : null;
 
-        $pending = Roadblock::with(['startup.teamMembers', 'files'])
-            ->where('status', 'Pending')
+        // All four lists (Pending, Scheduled/Pending Review, Resolved,
+        // Failed) come from ONE query plus one eager load per relation, then
+        // are split in PHP - they used to be four separate queries each with
+        // their own eager loads. Each list keeps the order its own query used
+        // to have (see $byDesc below).
+        $allRoadblocks = Roadblock::with(['startup.teamMembers', 'mentor', 'coordinator', 'files'])
+            ->whereIn('status', ['Pending', 'Scheduled', 'Pending Review', 'Resolved', 'Failed'])
             ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
-            ->latest()
+            ->orderBy('roadblock_id')
             ->get();
+
+        // ORDER BY <column> DESC, matching Postgres: NULLs first, then newest
+        // first; ties keep roadblock_id order (stable sort).
+        $byDesc = fn (string $column) => fn ($a, $b) => match (true) {
+            $a->{$column} === null && $b->{$column} === null => 0,
+            $a->{$column} === null => -1,
+            $b->{$column} === null => 1,
+            default => $b->{$column} <=> $a->{$column},
+        };
+
+        $pending = $allRoadblocks->where('status', 'Pending')->sort($byDesc('created_at'))->values();
 
         // Pull both statuses here: Scheduled rows that haven't concluded yet
         // (upcoming) plus anything already promoted to Pending Review. The
         // isInAssessment() split below still catches the rare in-between row
         // whose meeting just ended but hasn't been swept yet.
-        $scheduled = Roadblock::with(['startup.teamMembers', 'mentor', 'coordinator', 'files'])
-            ->whereIn('status', ['Scheduled', 'Pending Review'])
-            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
-            ->get();
+        $scheduled = $allRoadblocks->whereIn('status', ['Scheduled', 'Pending Review'])->values();
 
         // sortBy('meeting_date') only compares the date part, so multiple
         // meetings on the same day kept whatever arbitrary order the query
@@ -121,17 +134,9 @@ class RoadblockController extends Controller
         // without it every row here still worked via Eloquent's normal lazy
         // loading, but only firing one query per row instead of one query
         // total.
-        $resolved = Roadblock::with(['startup.teamMembers', 'mentor', 'coordinator', 'files'])
-            ->where('status', 'Resolved')
-            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
-            ->orderByDesc('resolved_at')
-            ->get();
+        $resolved = $allRoadblocks->where('status', 'Resolved')->sort($byDesc('resolved_at'))->values();
 
-        $failed = Roadblock::with(['startup.teamMembers', 'mentor', 'coordinator', 'files'])
-            ->where('status', 'Failed')
-            ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
-            ->orderByDesc('failed_at')
-            ->get();
+        $failed = $allRoadblocks->where('status', 'Failed')->sort($byDesc('failed_at'))->values();
 
         // Case counts for the Assign modal's mentor cards, counted once here
         // instead of per mentor per modal.
