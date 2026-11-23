@@ -8,6 +8,7 @@ use App\Models\EvaluationSchedule;
 use App\Models\Roadblock;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Which tabs of the founder's Meeting and Submission pages hold something
@@ -20,10 +21,16 @@ use Illuminate\Support\Carbon;
  */
 class FounderTabDots
 {
-    /** Unread notification cards for $route, grouped by the tab they point at. */
-    public static function notificationTabs(User $user, string $route): array
+    /**
+     * Unread notification cards for $route, grouped by the tab they point at.
+     *
+     * $unread: the user's unread notifications, when the caller already has
+     * them for this request (the founder sidebar composer loads them once and
+     * passes them down) - same rows, one query instead of one per call.
+     */
+    public static function notificationTabs(User $user, string $route, ?Collection $unread = null): array
     {
-        return $user->unreadNotifications()->get(['id', 'type', 'data'])
+        return ($unread ?? $user->unreadNotifications()->get(['id', 'type', 'data', 'created_at']))
             ->filter(fn ($n) => ($n->data['route'] ?? null) === $route)
             ->map(fn ($n) => PageVisit::target($n)['tab'] ?? null)
             ->filter()
@@ -34,22 +41,22 @@ class FounderTabDots
 
     // ---------------------------------------------------------------- Meeting
 
-    public static function meetingsSeenAt(User $user): Carbon
+    public static function meetingsSeenAt(User $user, ?Collection $unread = null): Carbon
     {
         return isset(($user->module_seen_at ?? [])['founder_meetings_meetings'])
             ? $user->moduleSeenAt('founder_meetings_meetings')
-            : $user->founderSeenSince('founder_meetings', 'startup.meetings.index');
+            : $user->founderSeenSince('founder_meetings', 'startup.meetings.index', $unread);
     }
 
     /** ['meetings' => bool, 'archive' => bool] */
-    public static function meetings(User $user): array
+    public static function meetings(User $user, ?Collection $unread = null): array
     {
         $startup = $user->startup;
-        $cards = self::notificationTabs($user, 'startup.meetings.index');
+        $cards = self::notificationTabs($user, 'startup.meetings.index', $unread);
 
         $meetingsNew = false;
         if ($startup) {
-            $seen = self::meetingsSeenAt($user);
+            $seen = self::meetingsSeenAt($user, $unread);
             $isNew = fn ($model) => $model->updated_at?->gt($seen) ?? false;
 
             $meetingsNew = Roadblock::where('startup_id', $startup->startup_id)
@@ -70,9 +77,9 @@ class FounderTabDots
 
     // ------------------------------------------------------------- Submission
 
-    public static function submissionsSeenAt(User $user): Carbon
+    public static function submissionsSeenAt(User $user, ?Collection $unread = null): Carbon
     {
-        return $user->founderSeenSince('founder_submissions', 'startup.submissions.index');
+        return $user->founderSeenSince('founder_submissions', 'startup.submissions.index', $unread);
     }
 
     /**
@@ -83,11 +90,11 @@ class FounderTabDots
      *
      * @return array{newRoadblockIds: array, newUpdateKeys: array, tabs: array{roadblock: bool, update: bool, archive: bool}}
      */
-    public static function submissions(User $user): array
+    public static function submissions(User $user, ?Collection $unread = null): array
     {
         $startup = $user->startup;
-        $cards = self::notificationTabs($user, 'startup.submissions.index');
-        $seenAt = self::submissionsSeenAt($user);
+        $cards = self::notificationTabs($user, 'startup.submissions.index', $unread);
+        $seenAt = self::submissionsSeenAt($user, $unread);
 
         $newRoadblockIds = [];
         $newUpdateKeys = [];

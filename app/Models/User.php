@@ -96,14 +96,16 @@ class User extends Authenticatable implements MustVerifyEmail
      * whatever that notification announced still shows as new), else now
      * (nothing new).
      */
-    public function founderSeenSince(string $module, string $route): \Illuminate\Support\Carbon
+    public function founderSeenSince(string $module, string $route, ?\Illuminate\Support\Collection $unread = null): \Illuminate\Support\Carbon
     {
         $seen = $this->module_seen_at ?? [];
         if (isset($seen[$module]) && is_string($seen[$module])) {
             return $this->moduleSeenAt($module);
         }
 
-        $oldest = $this->unreadNotifications()->get()
+        // $unread: this request's unread notifications, if the caller already
+        // loaded them (needs created_at) - see FounderTabDots.
+        $oldest = ($unread ?? $this->unreadNotifications()->get())
             ->filter(fn ($n) => ($n->data['route'] ?? null) === $route)
             ->min('created_at');
 

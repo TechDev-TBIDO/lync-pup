@@ -125,7 +125,10 @@ class AppServiceProvider extends ServiceProvider
                     // Archive has nothing left to check - the dot below takes over.
                     \App\Support\FounderMeetingArchive::retractEnded($user);
 
-                    $unread = $user->unreadNotifications()->get(['id', 'type', 'data']);
+                    // Loaded once and shared with FounderTabDots below (which
+                    // used to re-fetch the same rows several times). Nothing
+                    // between here and there marks notifications read.
+                    $unread = $user->unreadNotifications()->get(['id', 'type', 'data', 'created_at']);
                     $unreadRoutes = $unread
                         ->map(fn ($n) => $n->data['route'] ?? null)
                         ->filter()
@@ -136,8 +139,8 @@ class AppServiceProvider extends ServiceProvider
                     // Meeting / Submission: red whenever any tab inside the page
                     // is red - read from the same source the tabs use
                     // (App\Support\FounderTabDots), so the two always agree.
-                    $meetingTabs = \App\Support\FounderTabDots::meetings($user);
-                    $submissionTabs = \App\Support\FounderTabDots::submissions($user)['tabs'];
+                    $meetingTabs = \App\Support\FounderTabDots::meetings($user, $unread);
+                    $submissionTabs = \App\Support\FounderTabDots::submissions($user, $unread)['tabs'];
 
                     // Pre and Post are "seen" separately (FounderReadinessController).
                     $readinessChanged = $startup && $startup->readinessAssessments()
