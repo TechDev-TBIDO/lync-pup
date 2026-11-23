@@ -315,6 +315,12 @@ class Startup extends Model
      */
     public function hasScheduledEvaluation(): bool
     {
+        // Use the eager-loaded schedules when a list page already has them,
+        // instead of one extra query per startup.
+        if ($this->relationLoaded('evaluationSchedules')) {
+            return $this->evaluationSchedules->contains(fn ($s) => $s->status !== 'Cancelled');
+        }
+
         return $this->evaluationSchedules()->where('status', '!=', 'Cancelled')->exists();
     }
 

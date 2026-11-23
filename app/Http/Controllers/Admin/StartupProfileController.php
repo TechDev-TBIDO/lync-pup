@@ -45,7 +45,16 @@ class StartupProfileController extends Controller
         // count here are scoped to applicationApproved() and never include
         // still-pending or rejected applicants.
         $query = $applyCohort(Startup::query()->applicationApproved())
-            ->with(['informationSheet', 'activeCoordinatorAssignment.coordinator', 'evaluationSchedules']);
+            // Everything each <x-startup-card> reads (status badge, RLS chip,
+            // coordinator), loaded once for the page instead of per card.
+            ->with([
+                'user',
+                'informationSheet',
+                'activeCoordinatorAssignment.coordinator',
+                'evaluationSchedules',
+                'ventureExitDocument',
+                'latestReadinessAssessment',
+            ]);
 
         $query = match ($request->query('tab', 'all')) {
             'active' => $query->active(),

@@ -23,8 +23,8 @@
     add/edit coordinator form writes. Resolved in PHP, since Storage::url() has no JS
     equivalent.
 
-    NOTE ON THE QUERY: this component loads all coordinators itself. Fine on a show page,
-    wasteful if it ever lands on a list — pass them in as a prop at that point.
+    NOTE ON THE QUERY: this component loads all coordinators itself, once per request
+    (cached on the request), so a list page with many modals still runs one query.
 --}}
 
 @php
@@ -60,9 +60,17 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
         $photoUrl = fn ($c) => $c->coordinator_photo_path ? Storage::url($c->coordinator_photo_path) : null;
 
-        $coordinatorList = \App\Models\Coordinator::orderBy('first_name')
-        ->when($current, fn ($q) => $q->where('coordinator_id', '!=', $current->coordinator_id))
-        ->get()->map(fn ($c) => [
+        // Loaded once per request and shared by every modal on the page (the
+        // Startups list renders one per card), then filtered in PHP.
+        $allCoordinators = request()->attributes->get('coordinator-assign-list');
+        if ($allCoordinators === null) {
+        $allCoordinators = \App\Models\Coordinator::orderBy('first_name')->get();
+        request()->attributes->set('coordinator-assign-list', $allCoordinators);
+        }
+
+        $coordinatorList = $allCoordinators
+        ->when($current, fn ($list) => $list->where('coordinator_id', '!=', $current->coordinator_id))
+        ->values()->map(fn ($c) => [
         'id' => $c->coordinator_id,
         'name' => $displayName($c),
         'role_title' => $c->role_title ?: 'Portfolio Coordinator',
