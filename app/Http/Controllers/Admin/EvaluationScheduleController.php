@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreEvaluationScheduleRequest;
 use App\Http\Requests\Admin\UpdateEvaluationScheduleRequest;
+use App\Mail\MeetingCancelledMail;
 use App\Mail\MeetingScheduleMail;
 use App\Models\EvaluationSchedule;
 use App\Models\VersionHistory;
@@ -94,6 +95,8 @@ class EvaluationScheduleController extends Controller
         // this booking, so it can't keep pointing the founder at a slot that
         // no longer exists — and, when they could see it, tell them why it's
         // gone.
+        $mailWarning = '';
+
         if ($user = $startup?->user) {
             $user->unreadNotifications()
                 ->where('type', EvaluationScheduled::class)
@@ -102,10 +105,11 @@ class EvaluationScheduleController extends Controller
 
             if ($wasVisibleToFounder) {
                 $user->notify(new EvaluationCancelled($evaluationSchedule));
+                $mailWarning = MeetingEmail::send($user, MeetingCancelledMail::forEvaluation($evaluationSchedule, $user));
             }
         }
 
-        return back()->with('status', 'Evaluation schedule deleted.');
+        return back()->with('status', 'Evaluation schedule deleted.'.$mailWarning);
     }
 
     private function endTimeFor(string $startTime): string

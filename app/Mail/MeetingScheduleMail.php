@@ -6,11 +6,6 @@ use App\Models\AssessmentMeeting;
 use App\Models\EvaluationSchedule;
 use App\Models\Roadblock;
 use App\Models\User;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 
 /**
@@ -22,23 +17,8 @@ use Illuminate\Support\Carbon;
  * The three meeting types store the same facts under different column names,
  * so each has a named constructor that maps them onto one shared layout.
  */
-class MeetingScheduleMail extends Mailable
+class MeetingScheduleMail extends PortalNoticeMail
 {
-    use Queueable, SerializesModels;
-
-    /**
-     * @param  list<array{label: string, value: string, href?: string}>  $details
-     */
-    public function __construct(
-        public string $recipientName,
-        public string $heading,
-        public string $intro,
-        public array $details,
-        public ?string $notes,
-        public string $meetingsUrl,
-    ) {
-    }
-
     public static function forEvaluation(EvaluationSchedule $schedule, User $founder, bool $rescheduled): self
     {
         return self::fromMeeting(
@@ -109,46 +89,13 @@ class MeetingScheduleMail extends Mailable
             ? "The schedule of your {$subject} has been updated. Please use the details below, which replace any you received earlier."
             : "Your {$subject} has been scheduled. Here are the details:";
 
-        $time = collect([$startTime, $endTime])
-            ->filter()
-            ->map(fn (string $value) => Carbon::parse($value)->format('g:i A'))
-            ->implode(' - ');
-
-        $details = [
-            ['label' => 'Date', 'value' => $date?->format('l, F j, Y')],
-            ['label' => 'Time', 'value' => $time],
-            ['label' => 'With', 'value' => $with],
-        ];
-
-        if ($platform === 'Location') {
-            $details[] = ['label' => 'Location', 'value' => $link];
-        } else {
-            $details[] = ['label' => 'Platform', 'value' => $platform];
-
-            // Only ever rendered as a clickable href when it is a web link.
-            $details[] = ['label' => 'Meeting Link', 'value' => $link]
-                + (preg_match('~^https?://~i', (string) $link) ? ['href' => $link] : []);
-        }
-
         return new self(
             $founder->name ?: 'Founder',
             $heading,
             $intro,
-            array_values(array_filter($details, fn (array $row) => filled($row['value']))),
+            self::meetingDetails($date, $startTime, $endTime, $platform, $link, $with),
             $notes,
             route('startup.meetings.index', ['highlight' => $highlight]),
         );
-    }
-
-    public function envelope(): Envelope
-    {
-        return new Envelope(
-            subject: "{$this->heading} - PUP TBIDO",
-        );
-    }
-
-    public function content(): Content
-    {
-        return new Content(view: 'emails.meeting-schedule');
     }
 }

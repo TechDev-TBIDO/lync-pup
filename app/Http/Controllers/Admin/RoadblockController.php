@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignRoadblockRequest;
+use App\Mail\MeetingCancelledMail;
 use App\Mail\MeetingScheduleMail;
+use App\Mail\MentorshipFacilitatorMail;
 use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\Mentor;
@@ -208,6 +210,10 @@ class RoadblockController extends Controller
         // still a reschedule as far as the founder is concerned.
         $hadASlotBefore = $roadblock->status !== 'Pending';
 
+        // The roadblock as it was before this save - who was assigned and
+        // when - for the mentor/coordinator emails below.
+        $before = (clone $roadblock)->unsetRelations();
+
         $validated = $request->validated();
 
         // What this save actually changed (assignee, date, time, platform, ...)
@@ -257,6 +263,25 @@ class RoadblockController extends Controller
             }
         }
 
+        // The mentor/coordinator gets the session details too (they have no
+        // portal login). Handed to someone else: the previous one is told
+        // they're off it. Same "nothing changed, no email" rule as above.
+        if ($changes !== []) {
+            $freshRoadblock = $roadblock->fresh(['mentor', 'coordinator', 'startup.user']);
+            $assignee = $freshRoadblock->assignee;
+            $previous = $before->assignee;
+            $sameAssignee = $previous && $assignee && $previous->is($assignee);
+
+            if ($wasAlreadyScheduled && $previous && ! $sameAssignee) {
+                $before->setRelation('startup', $freshRoadblock->startup);
+                $mailWarning .= MeetingEmail::sendToPerson($previous, MeetingCancelledMail::forFacilitator($before, $previous, reassigned: true));
+            }
+
+            if ($assignee) {
+                $mailWarning .= MeetingEmail::sendToPerson($assignee, MentorshipFacilitatorMail::make($freshRoadblock, $assignee, rescheduled: $hadASlotBefore && $sameAssignee));
+            }
+        }
+
         // An Edit that changes nothing isn't logged; an Assign & Schedule
         // always changes at least the status (Pending -> Scheduled).
         VersionHistory::recordChanges(
@@ -293,9 +318,9 @@ class RoadblockController extends Controller
         // assigned — tell them it's now off, and take that earlier card down
         // so a still-unread one can't keep advertising a meeting that no
         // longer exists.
-        $this->retireMentorshipCards($roadblock, notifyFounder: true);
+        $mailWarning = $this->retireMentorshipCards($roadblock, notifyFounder: true);
 
-        return back()->with('status', 'Roadblock deleted.');
+        return back()->with('status', 'Roadblock deleted.'.$mailWarning);
     }
 
     /** Shared by unassign() and destroy(): says which roadblock went and from what status. */
@@ -321,12 +346,21 @@ class RoadblockController extends Controller
      * "Mentorship session cancelled" card in its place. An already-read card
      * isn't on the dashboard any more, so it's left alone.
      */
-    protected function retireMentorshipCards(Roadblock $roadblock, bool $notifyFounder): void
+    protected function retireMentorshipCards(Roadblock $roadblock, bool $notifyFounder): string
     {
+        $mailWarning = '';
+        $fresh = $roadblock->fresh(['mentor', 'coordinator', 'startup.user']);
+
+        // A cancelled session: the mentor/coordinator is emailed too, even if
+        // the founder's account is somehow gone.
+        if ($notifyFounder && $fresh?->assignee) {
+            $mailWarning .= MeetingEmail::sendToPerson($fresh->assignee, MeetingCancelledMail::forFacilitator($fresh, $fresh->assignee));
+        }
+
         $user = $roadblock->startup?->user;
 
         if (! $user) {
-            return;
+            return $mailWarning;
         }
 
         $user->unreadNotifications()
@@ -335,8 +369,11 @@ class RoadblockController extends Controller
             ->delete();
 
         if ($notifyFounder) {
-            $user->notify(new MentorshipCancelled($roadblock->fresh(['mentor', 'coordinator'])));
+            $user->notify(new MentorshipCancelled($fresh));
+            $mailWarning = MeetingEmail::send($user, MeetingCancelledMail::forMentorship($fresh, $user)).$mailWarning;
         }
+
+        return $mailWarning;
     }
 
     public function resolve(Roadblock $roadblock)
@@ -411,8 +448,8 @@ class RoadblockController extends Controller
         // Same stale-card problem as unassign() when the roadblock still had
         // a scheduled session; for any other status there's no session to
         // announce as cancelled, but a leftover unread card is still cleared.
-        $this->retireMentorshipCards($roadblock, notifyFounder: $wasScheduled);
+        $mailWarning = $this->retireMentorshipCards($roadblock, notifyFounder: $wasScheduled);
 
-        return back()->with('status', 'Roadblock deleted.');
+        return back()->with('status', 'Roadblock deleted.'.$mailWarning);
     }
 }

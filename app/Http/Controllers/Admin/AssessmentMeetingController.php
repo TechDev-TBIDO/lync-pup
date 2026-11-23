@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreAssessmentMeetingRequest;
 use App\Http\Requests\Admin\UpdateAssessmentMeetingRequest;
+use App\Mail\MeetingCancelledMail;
 use App\Mail\MeetingScheduleMail;
 use App\Models\AssessmentMeeting;
 use App\Models\User;
@@ -56,6 +57,9 @@ class AssessmentMeetingController extends Controller
 
         $originalStartupId = $assessmentMeeting->startup_id;
         $wasScheduled = $assessmentMeeting->status === AssessmentMeeting::STATUS_SCHEDULED;
+        // As it was before this save, so a startup the meeting is moved away
+        // from is told about the slot it actually had.
+        $before = (clone $assessmentMeeting)->unsetRelations();
 
         $changes = ChangeLog::track($assessmentMeeting, self::FOUNDER_FACING_FIELDS, fn () => $assessmentMeeting->update([
             ...$request->validated(),
@@ -72,8 +76,8 @@ class AssessmentMeetingController extends Controller
         // they get the cancellation (and lose the old card); the new one
         // hears about it as a fresh meeting.
         if ((int) $assessmentMeeting->startup_id !== (int) $originalStartupId) {
-            $this->retireMeetingCards($assessmentMeeting, $originalStartupId, cancelled: true);
-            $mailWarning = $this->notifyScheduled($assessmentMeeting, rescheduled: false, sendEmail: true);
+            $cancelWarning = $this->retireMeetingCards($assessmentMeeting, $originalStartupId, cancelled: true, emailAbout: $before);
+            $mailWarning = $cancelWarning.$this->notifyScheduled($assessmentMeeting, rescheduled: false, sendEmail: true);
         } else {
             // Saving the form without changing anything shouldn't email the founder.
             $mailWarning = $this->notifyScheduled($assessmentMeeting, rescheduled: true, sendEmail: $changes !== [] || ! $wasScheduled);
@@ -221,11 +225,11 @@ class AssessmentMeetingController extends Controller
 
         $assessmentMeeting->delete();
 
-        $this->retireMeetingCards($assessmentMeeting, $assessmentMeeting->startup_id, cancelled: $wasVisibleToFounder);
+        $mailWarning = $this->retireMeetingCards($assessmentMeeting, $assessmentMeeting->startup_id, cancelled: $wasVisibleToFounder);
 
         return redirect()
             ->route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => 'Meetings'])
-            ->with('status', 'Meeting removed.');
+            ->with('status', 'Meeting removed.'.$mailWarning);
     }
 
     /**
@@ -267,12 +271,12 @@ class AssessmentMeetingController extends Controller
      * meeting (so it can't keep advertising a meeting that no longer exists
      * for them), and, when $cancelled, replaces it with a "cancelled" card.
      */
-    protected function retireMeetingCards(AssessmentMeeting $meeting, int|string|null $startupId, bool $cancelled): void
+    protected function retireMeetingCards(AssessmentMeeting $meeting, int|string|null $startupId, bool $cancelled, ?AssessmentMeeting $emailAbout = null): string
     {
         $user = $this->founderFor($startupId);
 
         if (! $user) {
-            return;
+            return '';
         }
 
         $user->unreadNotifications()
@@ -282,7 +286,11 @@ class AssessmentMeetingController extends Controller
 
         if ($cancelled) {
             $user->notify(new AssessmentMeetingCancelled($meeting));
+
+            return MeetingEmail::send($user, MeetingCancelledMail::forAssessmentMeeting($emailAbout ?? $meeting, $user));
         }
+
+        return '';
     }
 
     protected function founderFor(int|string|null $startupId): ?User
