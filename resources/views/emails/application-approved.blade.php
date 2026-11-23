@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Application Approved! - PUP TBIDO</title>
+<title>Application Approved! - ICO LYNC Portal</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f4f5; font-family: Helvetica, Arial, sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5; padding: 32px 16px;">
@@ -19,15 +19,15 @@
                                     </td>
                                 </tr>
                             </table>
-                            <p style="margin:0; font-size:20px; font-weight:800; color:#6D0D23; letter-spacing:0.5px;">PUP TBIDO</p>
-                            <p style="margin:4px 0 0 0; font-size:13px; color:#6b7280;">Technology Business Incubator</p>
+                            <p style="margin:0; font-size:20px; font-weight:800; color:#6D0D23; letter-spacing:0.5px;">ICO LYNC Portal</p>
+                            <p style="margin:4px 0 0 0; font-size:13px; color:#6b7280;">Innovation Commercialization Office</p>
                         </td>
                     </tr>
                     <tr>
                         <td style="padding: 0 32px 32px 32px; text-align:center;">
                             <h1 style="margin:0 0 16px 0; font-size:22px; color:#111827;">Application Approved!</h1>
                             <p style="margin:0 0 16px 0; font-size:14px; line-height:22px; color:#4b5563;">
-                                Great news! Your application to the <strong>PUP TBIDO</strong> Startup Incubation Program has been approved.
+                                Great news! Your application to the <strong>ICO LYNC Portal</strong> Startup Incubation Program has been approved.
                             </p>
                             <p style="margin:0 0 24px 0; font-size:14px; line-height:22px; color:#4b5563;">
                                 You can now log in to the Founder Portal using your registered email.
@@ -46,14 +46,14 @@
 
                             <p style="margin:0; font-size:13px; color:#9ca3af;">
                                 If you have any questions, feel free to contact us.<br>
-                                &mdash; PUP TBIDO Team
+                                &mdash; PUP ICO Team
                             </p>
                         </td>
                     </tr>
                     <tr>
                         <td style="padding: 20px 32px; background-color:#f9fafb; text-align:center; border-top:1px solid #e5e7eb;">
-                            <p style="margin:0; font-size:12px; color:#9ca3af;">© {{ now()->year }} PUP TBIDO. All rights reserved.</p>
-                            <p style="margin:4px 0 0 0; font-size:12px; color:#9ca3af;">Managed by PUP Technology Business Incubator</p>
+                            <p style="margin:0; font-size:12px; color:#9ca3af;">© {{ now()->year }} ICO LYNC Portal. All rights reserved.</p>
+                            <p style="margin:4px 0 0 0; font-size:12px; color:#9ca3af;">Managed by the PUP Innovation Commercialization Office</p>
                         </td>
                     </tr>
                 </table>

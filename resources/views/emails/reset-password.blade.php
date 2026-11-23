@@ -53,7 +53,7 @@
                     <tr>
                         <td style="padding: 20px 32px; background-color:#f9fafb; text-align:center; border-top:1px solid #e5e7eb;">
                             <p style="margin:0; font-size:12px; color:#9ca3af;">© {{ now()->year }} ICO LYNC Portal. All rights reserved.</p>
-                            <p style="margin:4px 0 0 0; font-size:12px; color:#9ca3af;">PUP Technology Business Incubator</p>
+                            <p style="margin:4px 0 0 0; font-size:12px; color:#9ca3af;">PUP Innovation Commercialization Office</p>
                         </td>
                     </tr>
                 </table>

@@ -20,7 +20,7 @@ class FounderApplicationRejected extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Application Update - PUP TBIDO',
+            subject: 'Application Update - ICO LYNC Portal',
         );
     }
 

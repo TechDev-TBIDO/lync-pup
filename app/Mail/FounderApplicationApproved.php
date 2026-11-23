@@ -20,7 +20,7 @@ class FounderApplicationApproved extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Application Approved! - PUP TBIDO',
+            subject: 'Application Approved! - ICO LYNC Portal',
         );
     }
 

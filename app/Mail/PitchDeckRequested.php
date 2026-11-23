@@ -20,7 +20,7 @@ class PitchDeckRequested extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Pitch Deck Requested — PUP TBIDO',
+            subject: 'Pitch Deck Requested — ICO LYNC Portal',
         );
     }
 

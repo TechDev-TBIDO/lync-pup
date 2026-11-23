@@ -30,7 +30,7 @@ class InformationSheetRejectedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Information Sheet Not Accepted - PUP TBIDO',
+            subject: 'Information Sheet Not Accepted - ICO LYNC Portal',
         );
     }
 

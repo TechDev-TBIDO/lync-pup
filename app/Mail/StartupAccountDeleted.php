@@ -31,7 +31,7 @@ class StartupAccountDeleted extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Startup Account Deleted - PUP TBIDO',
+            subject: 'Startup Account Deleted - ICO LYNC Portal',
         );
     }
 

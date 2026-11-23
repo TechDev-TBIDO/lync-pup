@@ -33,7 +33,7 @@ class RejectedFounderAutoDeleted extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Startup Account Removed - Resubmission Window Expired - PUP TBIDO',
+            subject: 'Startup Account Removed - Resubmission Window Expired - ICO LYNC Portal',
         );
     }
 

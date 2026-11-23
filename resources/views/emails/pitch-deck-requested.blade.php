@@ -3,10 +3,10 @@
 
 Hi {{ $startup->company_name }},
 
-The PUP TBIDO team is requesting your latest pitch deck as part of your incubation progress review.
+The PUP ICO team is requesting your latest pitch deck as part of your incubation progress review.
 
 Please reply to this email and submit your pitch deck at your earliest convenience.
 
 Thanks,<br>
-PUP TBIDO Team
+PUP ICO Team
 </x-mail::message>

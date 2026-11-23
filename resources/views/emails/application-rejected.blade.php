@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Application Update - PUP TBIDO</title>
+<title>Application Update - ICO LYNC Portal</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f4f5; font-family: Helvetica, Arial, sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5; padding: 32px 16px;">
@@ -19,8 +19,8 @@
                                     </td>
                                 </tr>
                             </table>
-                            <p style="margin:0; font-size:20px; font-weight:800; color:#6D0D23; letter-spacing:0.5px;">PUP TBIDO</p>
-                            <p style="margin:4px 0 0 0; font-size:13px; color:#6b7280;">Technology Business Incubator</p>
+                            <p style="margin:0; font-size:20px; font-weight:800; color:#6D0D23; letter-spacing:0.5px;">ICO LYNC Portal</p>
+                            <p style="margin:4px 0 0 0; font-size:13px; color:#6b7280;">Innovation Commercialization Office</p>
                         </td>
                     </tr>
                     <tr>
@@ -30,7 +30,7 @@
                                 Dear {{ $startup->user->name }},
                             </p>
                             <p style="margin:0 0 16px 0; font-size:14px; line-height:22px; color:#4b5563;">
-                                Thank you for your interest in the PUP TBIDO Startup Incubation Program. After careful review, we regret that we are unable to accept your application at this time.
+                                Thank you for your interest in the PUP ICO Startup Incubation Program. After careful review, we regret that we are unable to accept your application at this time.
                             </p>
                             <p style="margin:0 0 16px 0; font-size:14px; line-height:22px; color:#4b5563;">
                                 <strong>Reason:</strong> {{ $startup->rejection_reason }}
@@ -45,14 +45,14 @@
                             </p>
                             <p style="margin:0; font-size:14px; line-height:22px; color:#4b5563;">
                                 Sincerely,<br>
-                                <strong>PUP TBIDO Team</strong>
+                                <strong>PUP ICO Team</strong>
                             </p>
                         </td>
                     </tr>
                     <tr>
                         <td style="padding: 20px 32px; background-color:#f9fafb; text-align:center; border-top:1px solid #e5e7eb;">
-                            <p style="margin:0; font-size:12px; color:#9ca3af;">© {{ now()->year }} PUP TBIDO. All rights reserved.</p>
-                            <p style="margin:4px 0 0 0; font-size:12px; color:#9ca3af;">Managed by PUP Technology Business Incubator</p>
+                            <p style="margin:0; font-size:12px; color:#9ca3af;">© {{ now()->year }} ICO LYNC Portal. All rights reserved.</p>
+                            <p style="margin:4px 0 0 0; font-size:12px; color:#9ca3af;">Managed by the PUP Innovation Commercialization Office</p>
                         </td>
                     </tr>
                 </table>
