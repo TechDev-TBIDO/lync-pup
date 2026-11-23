@@ -57,8 +57,9 @@ class StartupProfileController extends Controller
             ]);
 
         $query = match ($request->query('tab', 'all')) {
-            'active' => $query->active(),
-            'assign-coordinator' => $query->needsCoordinator(),
+            // Active = every accepted startup still in the program, with or
+            // without a coordinator ('assign-coordinator' kept for old links).
+            'active', 'assign-coordinator' => $query->incubating(),
             'pending' => $query->awaitingEvaluation(),
             'onboarding' => $query->onboarding(),
             'graduated' => $query->graduated(),

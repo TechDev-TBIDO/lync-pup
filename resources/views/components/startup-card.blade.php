@@ -82,7 +82,9 @@ $hasSecondAction = $startup->status === 'Pending';
 
         {{-- Status badge --}}
         <span class="absolute right-2.5 top-2.5 rounded-full border bg-white px-2.5 py-1 text-[10px] font-semibold {{ $badgeClasses }}">
-            {{ $startup->status }}
+            {{-- Accepted but no coordinator yet still reads "Active" here:
+                 assigning one happens in Management -> Incubatee. --}}
+            {{ $startup->status === 'Assign Coordinator' ? 'Active' : $startup->status }}
         </span>
 
     </div>

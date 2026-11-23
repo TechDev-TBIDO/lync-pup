@@ -747,6 +747,18 @@ class Startup extends Model
     }
 
     /**
+     * Accepted and still in the program (not Graduated/Completed), with or
+     * without a Portfolio Coordinator yet - the Startup Profile page's
+     * "Active" tab. (Assigning a coordinator happens in Management ->
+     * Incubatee, so Startup Profile no longer splits these out.)
+     */
+    public function scopeIncubating(Builder $query): Builder
+    {
+        return $query->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
+            ->whereDoesntHave('ventureExitDocument', fn ($q) => $q->whereIn('data->exit_status', self::EXIT_STATUSES));
+    }
+
+    /**
      * Same exit exclusion as scopeActive() above — a startup that's already
      * Graduated/Completed doesn't belong on the "Assign Coordinator" tab
      * even if it happens to have no active assignment.

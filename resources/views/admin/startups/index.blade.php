@@ -50,9 +50,9 @@
                 ['count' => $totals['graduated'], 'label' => 'Graduated'],
                 ['count' => $totals['completed'], 'label' => 'Completed'],
             ])],
-            ['label' => 'Active / Assign Coordinator', 'value' => $totals['active'] + $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'breakdown' => collect([
-                ['count' => $totals['active'], 'label' => 'Active'],
-                ['count' => $totals['needsCoordinator'], 'label' => 'Assign Coordinator'],
+            ['label' => 'Active', 'value' => $totals['active'] + $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'breakdown' => collect([
+                ['count' => $totals['active'], 'label' => 'With Coordinator'],
+                ['count' => $totals['needsCoordinator'], 'label' => 'No Coordinator yet'],
             ])],
             ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'breakdown' => collect([
                 ['count' => $totals['pending'], 'label' => 'Pending'],
@@ -211,7 +211,6 @@
                     'graduated' => 'Graduated',
                     'completed' => 'Completed',
                     'active' => 'Active',
-                    'assign-coordinator' => 'Assign Coordinator',
                     'pending' => 'Pending',
                     'onboarding' => 'Applicant',
                     ] as $key => $label)
