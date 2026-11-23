@@ -39,12 +39,6 @@ class AppServiceProvider extends ServiceProvider
             return $this->where($column, $this->getConnection()->getDriverName() === 'pgsql' ? (string) $value : $value);
         });
 
-        // No cron runs the scheduler on the server, so overdue rejected
-        // startups are also removed after ordinary requests (throttled).
-        if (! $this->app->runningInConsole()) {
-            $this->app->terminating(fn () => \App\Support\ExpiredRejectionPurge::runIfDue());
-        }
-
         // The admin sidebar's red dots are cached for 60s (see the admin
         // composer below). Anything that can light one bumps this version,
         // which is part of the cache key - so a founder's new roadblock /

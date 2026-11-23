@@ -24,10 +24,6 @@ class AssessmentHubController extends Controller
         // so this is done lazily on load — same as Roadblock Management.
         AssessmentMeeting::promoteEndedMeetingsToPendingReview();
 
-        // Same reason: overdue rejected startups are removed before the
-        // Rejected list is built, instead of sitting there as "Overdue".
-        \App\Support\ExpiredRejectionPurge::run();
-
         // A newly MISSED evaluation only counts as seen once the stage that
         // shows it is opened - Evaluation > Today for today's slots,
         // Evaluation > Missed for earlier days - not merely the hub (it opens

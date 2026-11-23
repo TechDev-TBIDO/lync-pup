@@ -534,9 +534,9 @@ class Startup extends Model
     }
 
     /**
-     * The date-time by which a Rejected startup must resubmit before
-     * founders:purge-expired-rejections removes it — 10 days after the
-     * most recent rejection. Null once approved/resubmitted, or if
+     * The suggested date-time for a Rejected startup to resubmit by - 10
+     * days after the most recent rejection. Past it the startup is labelled
+     * Inactive (isInactiveRejection()); it is not removed. Null once approved/resubmitted, or if
      * rejected_at somehow was never stamped.
      */
     public function rejectionDeadline(): ?\Illuminate\Support\Carbon
@@ -546,6 +546,19 @@ class Startup extends Model
         }
 
         return $this->informationSheet->rejected_at->copy()->addDays(10);
+    }
+
+    /**
+     * Rejected and past the 10-day resubmission target without a
+     * resubmission: shown as "Inactive". Nothing is deleted - the founder can
+     * still revise and resubmit at any time, which puts the sheet back to
+     * Pending for a new evaluation.
+     */
+    public function isInactiveRejection(): bool
+    {
+        $deadline = $this->rejectionDeadline();
+
+        return $deadline !== null && now()->gt($deadline);
     }
 
     /**

@@ -58,7 +58,7 @@
 
             <div>
                 <h2 class="font-semibold text-gray-900 mb-1">4. How Long We Keep It</h2>
-                <p>We keep your information while you are an applicant or incubatee, and afterwards only as long as needed for institutional records and reporting. A declined application that is not resubmitted within 10 days is permanently deleted, together with its uploaded files.</p>
+                <p>We keep your information while you are an applicant or incubatee, and afterwards only as long as needed for institutional records and reporting. A declined application is kept, including its uploaded files, so it can still be revised and resubmitted; after 10 days without a resubmission it is marked inactive.</p>
             </div>
 
             <div>

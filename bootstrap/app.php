@@ -26,12 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
-        // Fully automatic — no admin action needed once a rejected
-        // startup's 10-day resubmission window has passed (see
-        // PurgeExpiredRejections / Startup::rejectionDeadline()). The
-        // command itself stays dry-run-by-default for safe manual use;
-        // --force here is what makes the schedule actually delete.
-        $schedule->command('founders:purge-expired-rejections --force')->daily();
+        // Rejected startups are no longer removed automatically: past the
+        // 10-day resubmission target they're labelled Inactive and can still
+        // resubmit (see Startup::isInactiveRejection()). The
+        // founders:purge-expired-rejections command remains for deliberate
+        // manual use only (dry-run unless --force).
 
         // Housekeeping so these tables don't grow forever (each row lives in
         // Supabase). version_histories is deliberately left alone: it is

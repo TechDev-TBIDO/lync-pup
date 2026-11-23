@@ -38,7 +38,7 @@
             <div>
                 <h2 class="font-semibold text-gray-900 mb-1">2. Applying Through the Portal</h2>
                 <p>Registering an account starts your application. It does not mean you have been accepted into the incubation program. After you verify your email, you will complete your Startup Profile and Information Sheet and attend an evaluation scheduled by the ICO.</p>
-                <p class="mt-2">The ICO decides whether to accept or decline each application. A declined application may be revised and resubmitted within 10 days of the decision. If it is not resubmitted within that period, the application and its uploaded files are permanently deleted from the Portal.</p>
+                <p class="mt-2">The ICO decides whether to accept or decline each application. A declined application may be revised and resubmitted. Applicants are asked to resubmit within 10 days of the decision; an application not resubmitted within that period is marked inactive but is kept, and may still be revised and resubmitted later.</p>
             </div>
 
             <div>

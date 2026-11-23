@@ -261,7 +261,7 @@ class InformationSheetController extends Controller
 
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'rejected'])
-            ->with('status', 'Information sheet rejected. The founder has 10 days to revise and resubmit it.'
+            ->with('status', 'Information sheet rejected. The founder is asked to resubmit within 10 days (after that it shows as Inactive, and they can still resubmit).'
                 .(! empty($mailFailed) ? " However, the email to the founder wasn't sent because {$mailFailed}. They will still see the rejection on their dashboard." : ''));
     }
 

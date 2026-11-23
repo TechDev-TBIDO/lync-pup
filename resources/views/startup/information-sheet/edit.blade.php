@@ -35,11 +35,15 @@
     <div data-highlight-id="sheet-status" class="mb-4 rounded-xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4">
         <p class="text-sm font-bold text-gray-900">Information Sheet Rejected — Resubmission Required</p>
         <p class="mt-1 text-xs text-gray-600">
+            @if ($rejectDaysLeft !== null && $rejectDaysLeft < 0)
+            Your application is marked <strong>Inactive</strong> because it wasn't resubmitted within 10 days. Take the time you need - you can still update and resubmit this Information Sheet whenever you're ready.
+            @else
             Please update and resubmit this Information Sheet by <strong>{{ $rejectionDeadline?->format('F j, Y') ?? '—' }}</strong>
             @if ($rejectDaysLeft !== null)
-            ({{ max(0, $rejectDaysLeft) }} day{{ $rejectDaysLeft === 1 ? '' : 's' }} left)
+            ({{ $rejectDaysLeft }} day{{ $rejectDaysLeft === 1 ? '' : 's' }} left)
             @endif
-            . Accounts not resubmitted by the deadline are automatically removed.
+            . If you need more time to rework your idea, you can still resubmit after this date; your application will be marked Inactive until you do.
+            @endif
         </p>
         @if ($sheet?->evaluator_remarks)
         <p class="mt-2 text-xs text-gray-600"><span class="font-semibold">Evaluator remarks:</span> {{ $sheet->evaluator_remarks }}</p>

@@ -49,11 +49,12 @@
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fffbeb; border-radius:8px; margin: 0 0 16px 0;">
                                 <tr>
                                     <td style="padding: 14px 16px;">
-                                        <p style="margin:0 0 4px 0; font-size:13px; font-weight:700; color:#92400e;">Resubmission Deadline</p>
+                                        <p style="margin:0 0 4px 0; font-size:13px; font-weight:700; color:#92400e;">Resubmission Target</p>
                                         <p style="margin:0; font-size:14px; line-height:20px; color:#4b5563;">
                                             Please revise and resubmit your Information Sheet by
-                                            <strong>{{ $deadline->format('F j, Y') }}</strong>. Accounts not
-                                            resubmitted by this date are automatically removed from the program.
+                                            <strong>{{ $deadline->format('F j, Y') }}</strong>. If you need more
+                                            time to rework your idea, you can still resubmit after this date; your
+                                            application will be marked inactive until you do.
                                         </p>
                                     </td>
                                 </tr>

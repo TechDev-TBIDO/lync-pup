@@ -53,18 +53,33 @@ class BugFixesNov18Test extends TestCase
         $this->assertFalse($startup->isInformationSheetLocked());
     }
 
-    // ---- (3) Overdue rejected startups are removed ----
+    // ---- (3) Rejected startups past 10 days are kept and labelled Inactive ----
 
-    public function test_opening_the_assessment_hub_removes_overdue_rejected_startups(): void
+    public function test_rejected_startups_past_ten_days_are_kept_and_shown_as_inactive(): void
     {
         [, $overdue] = $this->founder(['approval_status' => 'Rejected', 'submission_date' => now()->subDays(12), 'rejected_at' => now()->subDays(11)]);
         [, $stillInTime] = $this->founder(['approval_status' => 'Rejected', 'submission_date' => now()->subDays(4), 'rejected_at' => now()->subDays(3)]);
         $admin = User::factory()->create(['role' => 'Admin']);
 
-        $this->actingAs($admin)->get(route('admin.assessment-hub.index', ['tab' => 'rejected']))->assertOk();
+        $this->actingAs($admin)->get(route('admin.assessment-hub.index', ['tab' => 'rejected']))
+            ->assertOk()
+            ->assertSee('Inactive')
+            ->assertDontSee('Overdue');
 
-        $this->assertDatabaseMissing('startups', ['startup_id' => $overdue->startup_id]);
+        $this->assertDatabaseHas('startups', ['startup_id' => $overdue->startup_id]);
         $this->assertDatabaseHas('startups', ['startup_id' => $stillInTime->startup_id]);
+        $this->assertTrue($overdue->fresh()->isInactiveRejection());
+        $this->assertFalse($stillInTime->fresh()->isInactiveRejection());
+    }
+
+    public function test_an_inactive_founder_can_still_open_their_sheet_and_sees_they_can_resubmit(): void
+    {
+        [$user] = $this->founder(['approval_status' => 'Rejected', 'submission_date' => now()->subDays(12), 'rejected_at' => now()->subDays(11)]);
+
+        $this->actingAs($user)->get(route('startup.information-sheet.edit'))
+            ->assertOk()
+            ->assertSee('Inactive')
+            ->assertDontSee('automatically removed');
     }
 
     // ---- (4) Summary cards count every accepted startup ----

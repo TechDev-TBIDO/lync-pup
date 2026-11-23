@@ -57,11 +57,15 @@
             <div class="min-w-0">
                 <p class="text-sm font-bold text-gray-900">Information Sheet Rejected — Resubmission Required</p>
                 <p class="text-xs text-gray-600">
+                    @if ($rejectDaysLeft !== null && $rejectDaysLeft < 0)
+                    Marked <strong>Inactive</strong> - you can still resubmit whenever you're ready.
+                    @else
                     Resubmit by <strong>{{ $rejectionDeadline?->format('F j, Y') ?? '—' }}</strong>
                     @if ($rejectDaysLeft !== null)
-                    ({{ max(0, $rejectDaysLeft) }} day{{ $rejectDaysLeft === 1 ? '' : 's' }} left)
+                    ({{ $rejectDaysLeft }} day{{ $rejectDaysLeft === 1 ? '' : 's' }} left)
                     @endif
-                    — accounts not resubmitted by the deadline are automatically removed.
+                    - need more time? You can still resubmit later; your application is marked Inactive until then.
+                    @endif
                 </p>
             </div>
         </div>

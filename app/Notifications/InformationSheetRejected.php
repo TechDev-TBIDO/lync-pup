@@ -27,7 +27,7 @@ class InformationSheetRejected extends FounderNotification
     public function body(): string
     {
         $deadlineNote = $this->deadline
-            ? " Resubmit by {$this->deadline->format('F j, Y')} — accounts not resubmitted by then are automatically removed."
+            ? " Resubmit by {$this->deadline->format('F j, Y')} - or later if you need more time; it's marked Inactive until you do."
             : '';
 
         $remarks = $this->sentenceRemarks();

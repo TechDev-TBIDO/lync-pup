@@ -72,7 +72,7 @@ $nameCell = 'width: calc(1.5rem + 0.5rem + '.min(max($nameLen, 8), 28).'ch)';
                         @if ($daysLeft === null)
                         <span class="text-xs text-gray-400">—</span>
                         @elseif ($overdue)
-                        <span class="rounded-full border border-red-300 px-2.5 py-1 text-[11px] font-semibold text-red-700">Overdue</span>
+                        <span class="rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-600" title="No resubmission within 10 days. Kept, and the founder can still resubmit.">Inactive</span>
                         @else
                         <span class="rounded-full border border-amber-300 px-2.5 py-1 text-[11px] font-semibold text-amber-700">{{ $daysLeft }} day{{ $daysLeft === 1 ? '' : 's' }} left</span>
                         @endif
