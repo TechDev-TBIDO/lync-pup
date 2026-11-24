@@ -30,8 +30,11 @@ server {
         try_files $uri =404;
     }
 
-    # Uploaded photos and site images: cache for a week.
-    location ~* ^/(storage|images)/.*\.(jpg|jpeg|png|gif|webp|svg|ico)$ {
+    # Site images (public/images): cache for a week. Uploaded files under
+    # /storage are NOT handled here: on Azure they live in Supabase Storage
+    # and are streamed by Laravel's StorageController (which sets its own
+    # cache header), so they must fall through to index.php.
+    location ~* ^/images/.*\.(jpg|jpeg|png|gif|webp|svg|ico)$ {
         expires 7d;
         add_header Cache-Control "public";
         access_log off;
