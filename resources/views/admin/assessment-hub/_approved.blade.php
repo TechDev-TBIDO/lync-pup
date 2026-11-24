@@ -112,7 +112,7 @@ return [
                                 :style="`width: calc(2.25rem + 0.75rem + ${nameCh}ch)`">
                                 <div class="h-9 w-9 rounded-full overflow-hidden bg-gradient-to-br from-rose-900 to-blue-950 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                                     <template x-if="s.photo_url">
-                                        <img :src="s.photo_url" class="h-full w-full object-cover">
+                                        <img loading="lazy" decoding="async" :src="s.photo_url" class="h-full w-full object-cover">
                                     </template>
                                     <template x-if="!s.photo_url">
                                         <span x-text="s.initial"></span>

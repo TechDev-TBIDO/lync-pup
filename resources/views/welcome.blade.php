@@ -328,7 +328,7 @@
                                             {{ $startup['stage_label'] }}
                                         </span>
                                         @if ($startup['photo_url'])
-                                            <img src="{{ $startup['photo_url'] }}" alt="" class="absolute inset-0 h-full w-full object-cover">
+                                            <img loading="lazy" decoding="async" src="{{ $startup['photo_url'] }}" alt="" class="absolute inset-0 h-full w-full object-cover">
                                         @else
                                             <span class="initial" style="color: {{ $paletteTone[$startup['palette_index']] }};">
                                                 {{ strtoupper(substr($startup['name'], 0, 1)) }}
@@ -473,7 +473,7 @@
                         <div class="flex flex-wrap items-start gap-4">
                             <span class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/15 text-lg font-extrabold">
                                 <template x-if="activeStartup.photo_url">
-                                    <img :src="activeStartup.photo_url" alt="" class="h-full w-full object-cover">
+                                    <img loading="lazy" decoding="async" :src="activeStartup.photo_url" alt="" class="h-full w-full object-cover">
                                 </template>
                                 <template x-if="!activeStartup.photo_url">
                                     <span x-text="activeStartup.name.charAt(0).toUpperCase()"></span>

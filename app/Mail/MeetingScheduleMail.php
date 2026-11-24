@@ -3,8 +3,10 @@
 namespace App\Mail;
 
 use App\Models\AssessmentMeeting;
+use App\Models\Coordinator;
 use App\Models\EvaluationSchedule;
 use App\Models\Roadblock;
+use App\Models\Startup;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -35,14 +37,15 @@ class MeetingScheduleMail extends Mailable
         public string $intro,
         public array $details,
         public ?string $notes,
-        public string $meetingsUrl,
+        public ?string $meetingsUrl,
+        public string $buttonLabel = 'View Meeting',
     ) {
     }
 
     public static function forEvaluation(EvaluationSchedule $schedule, User $founder, bool $rescheduled): self
     {
         return self::fromMeeting(
-            $founder,
+            $founder->name ?: 'Founder',
             $rescheduled ? 'Evaluation Rescheduled' : 'Evaluation Scheduled',
             'Information Sheet evaluation',
             $rescheduled,
@@ -59,7 +62,7 @@ class MeetingScheduleMail extends Mailable
     public static function forAssessmentMeeting(AssessmentMeeting $meeting, User $founder, bool $rescheduled): self
     {
         return self::fromMeeting(
-            $founder,
+            $founder->name ?: 'Founder',
             $rescheduled ? 'Assessment Meeting Rescheduled' : 'Assessment Meeting Scheduled',
             "{$meeting->stage} meeting",
             $rescheduled,
@@ -76,7 +79,7 @@ class MeetingScheduleMail extends Mailable
     public static function forMentorship(Roadblock $roadblock, User $founder, bool $rescheduled): self
     {
         return self::fromMeeting(
-            $founder,
+            $founder->name ?: 'Founder',
             $rescheduled ? 'Mentorship Session Rescheduled' : 'Mentorship Session Scheduled',
             "mentorship session for your {$roadblock->display_category} roadblock",
             $rescheduled,
@@ -91,8 +94,106 @@ class MeetingScheduleMail extends Mailable
         );
     }
 
+    /**
+     * The mentor or coordinator running a mentorship session. They have no
+     * LYNC login, so the email carries everything and has no button.
+     * Returns null when the assignee has no email address on file.
+     */
+    public static function forMentorshipAssignee(Roadblock $roadblock, bool $rescheduled): ?self
+    {
+        $mentor = $roadblock->mentor;
+        $coordinator = $roadblock->coordinator;
+        $email = $mentor ? $mentor->contact_email : $coordinator?->email;
+
+        if (blank($email)) {
+            return null;
+        }
+
+        $company = $roadblock->startup?->company_name ?: 'a startup';
+
+        $mail = self::fromMeeting(
+            ($mentor ? ($mentor->full_name ?: $mentor->display_name) : $coordinator?->name) ?: 'Mentor',
+            $rescheduled ? 'Mentorship Session Rescheduled' : 'Mentorship Session Assigned',
+            'mentorship session',
+            $rescheduled,
+            $roadblock->meeting_date,
+            $roadblock->meeting_start_time,
+            $roadblock->meeting_end_time,
+            $roadblock->meeting_platform,
+            $roadblock->meeting_link,
+            $roadblock->notes,
+            'roadblock-'.$roadblock->roadblock_id,
+            $company,
+        );
+
+        $mail->intro = $rescheduled
+            ? "The schedule of your mentorship session with {$company} has been updated. Please use the details below, which replace any you received earlier."
+            : "You have been assigned to a mentorship session with {$company} for their {$roadblock->display_category} roadblock. Here are the details:";
+
+        $mail->details[] = ['label' => 'Concern', 'value' => (string) $roadblock->description];
+        $mail->details = array_values(array_filter($mail->details, fn (array $row) => filled($row['value'])));
+        $mail->meetingsUrl = null;
+        $mail->to($email);
+
+        return $mail;
+    }
+
+    /** Tells a founder who their Portfolio Coordinator is. */
+    public static function coordinatorAssignedToFounder(Coordinator $coordinator, User $founder, bool $reassigned): self
+    {
+        return new self(
+            $founder->name ?: 'Founder',
+            $reassigned ? 'Portfolio Coordinator Changed' : 'Portfolio Coordinator Assigned',
+            $reassigned
+                ? 'Your startup has been assigned a new Portfolio Coordinator, who will guide you through the incubation program from here:'
+                : 'Your startup has been assigned a Portfolio Coordinator, who will guide you through the incubation program:',
+            self::rows([
+                'Coordinator' => $coordinator->name,
+                'Role' => $coordinator->role_title,
+                'Email' => $coordinator->email,
+                'Phone' => $coordinator->phone,
+            ]),
+            null,
+            route('startup.dashboard'),
+            'Open LYNC',
+        );
+    }
+
+    /** Tells a coordinator which startup they now handle. Null without an email on file. */
+    public static function coordinatorAssignedToCoordinator(Coordinator $coordinator, Startup $startup): ?self
+    {
+        if (blank($coordinator->email)) {
+            return null;
+        }
+
+        $founder = $startup->user;
+
+        return (new self(
+            $coordinator->name ?: 'Coordinator',
+            'New Startup Assigned',
+            "You have been assigned as the Portfolio Coordinator of {$startup->company_name}. Here are their details:",
+            self::rows([
+                'Startup' => $startup->company_name,
+                'Founder' => $founder?->name,
+                'Founder Email' => $founder?->email,
+            ]),
+            null,
+            null,
+        ))->to($coordinator->email);
+    }
+
+    /** @param  array<string, ?string>  $rows */
+    private static function rows(array $rows): array
+    {
+        return collect($rows)
+            ->filter(fn ($value) => filled($value))
+            ->map(fn ($value, $label) => ['label' => $label, 'value' => (string) $value])
+            ->values()
+            ->all();
+    }
+
     private static function fromMeeting(
-        User $founder,
+        string $recipientName,
         string $heading,
         string $subject,
         bool $rescheduled,
@@ -131,7 +232,7 @@ class MeetingScheduleMail extends Mailable
         }
 
         return new self(
-            $founder->name ?: 'Founder',
+            $recipientName,
             $heading,
             $intro,
             array_values(array_filter($details, fn (array $row) => filled($row['value']))),

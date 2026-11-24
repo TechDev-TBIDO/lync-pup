@@ -45,11 +45,16 @@ class MeetingScheduleEmailTest extends TestCase
 
     protected function assertEmailed(Startup $startup, string $heading, int $times = 1): void
     {
-        Mail::assertSent(MeetingScheduleMail::class, $times);
+        $this->assertSame($times, $this->founderEmails($startup));
         Mail::assertSent(
             MeetingScheduleMail::class,
             fn (MeetingScheduleMail $mail) => $mail->hasTo($startup->user->email) && $mail->heading === $heading,
         );
+    }
+
+    protected function founderEmails(Startup $startup): int
+    {
+        return Mail::sent(MeetingScheduleMail::class, fn (MeetingScheduleMail $mail) => $mail->hasTo($startup->user->email))->count();
     }
 
     // ---- Evaluations ----
@@ -229,7 +234,59 @@ class MeetingScheduleEmailTest extends TestCase
         $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->roadblockPayload($mentor));
         $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->roadblockPayload($mentor));
 
-        Mail::assertSent(MeetingScheduleMail::class, 1);
+        // One to the founder, one to the mentor, nothing for the no-op save.
+        Mail::assertSent(MeetingScheduleMail::class, 2);
+    }
+
+    public function test_the_mentor_is_emailed_when_assigned_and_when_rescheduled(): void
+    {
+        $startup = $this->startup();
+        $admin = $this->admin();
+        $mentor = Mentor::factory()->create(['contact_email' => 'mentor@example.test']);
+        $roadblock = Roadblock::factory()->create(['startup_id' => $startup->startup_id, 'status' => 'Pending']);
+
+        $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->roadblockPayload($mentor));
+        Mail::assertSent(MeetingScheduleMail::class, fn (MeetingScheduleMail $mail) => $mail->hasTo('mentor@example.test')
+            && $mail->heading === 'Mentorship Session Assigned'
+            && str_contains($mail->intro, $startup->company_name));
+
+        $this->actingAs($admin)->put(
+            route('admin.roadblocks.assign', $roadblock),
+            $this->roadblockPayload($mentor, ['meeting_start_time' => '11:00', 'meeting_end_time' => '12:00']),
+        );
+        Mail::assertSent(MeetingScheduleMail::class, fn (MeetingScheduleMail $mail) => $mail->hasTo('mentor@example.test')
+            && $mail->heading === 'Mentorship Session Rescheduled');
+    }
+
+    public function test_reassigning_to_a_new_mentor_emails_them_as_assigned(): void
+    {
+        $startup = $this->startup();
+        $admin = $this->admin();
+        $first = Mentor::factory()->create(['contact_email' => 'first@example.test']);
+        $second = Mentor::factory()->create(['contact_email' => 'second@example.test']);
+        $roadblock = Roadblock::factory()->create(['startup_id' => $startup->startup_id, 'status' => 'Pending']);
+
+        $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->roadblockPayload($first));
+        $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->roadblockPayload($second));
+
+        Mail::assertSent(MeetingScheduleMail::class, fn (MeetingScheduleMail $mail) => $mail->hasTo('second@example.test')
+            && $mail->heading === 'Mentorship Session Assigned');
+    }
+
+    // ---- Portfolio Coordinator assignment ----
+
+    public function test_assigning_a_coordinator_emails_the_founder_and_the_coordinator(): void
+    {
+        $startup = $this->startup();
+        $coordinator = \App\Models\Coordinator::factory()->create(['email' => 'coord@example.test']);
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.startups.coordinator.store', $startup), ['coordinator_id' => $coordinator->coordinator_id])
+            ->assertRedirect();
+
+        $this->assertEmailed($startup, 'Portfolio Coordinator Assigned');
+        Mail::assertSent(MeetingScheduleMail::class, fn (MeetingScheduleMail $mail) => $mail->hasTo('coord@example.test')
+            && $mail->heading === 'New Startup Assigned');
     }
 
     // ---- Content and failure handling ----

@@ -44,13 +44,15 @@
                                 <strong>Note:</strong> {{ $notes }}
                             </p>
                             @endif
+                            @if ($meetingsUrl)
                             <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 24px auto;">
                                 <tr>
                                     <td style="border-radius:8px; background-color:#6D0D23;">
-                                        <a href="{{ $meetingsUrl }}" style="display:inline-block; padding:12px 28px; font-size:14px; font-weight:700; color:#ffffff; text-decoration:none;">View Meeting</a>
+                                        <a href="{{ $meetingsUrl }}" style="display:inline-block; padding:12px 28px; font-size:14px; font-weight:700; color:#ffffff; text-decoration:none;">{{ $buttonLabel }}</a>
                                     </td>
                                 </tr>
                             </table>
+                            @endif
                             <p style="margin:0; font-size:14px; line-height:22px; color:#4b5563;">
                                 Sincerely,<br>
                                 <strong>PUP TBIDO Team</strong>

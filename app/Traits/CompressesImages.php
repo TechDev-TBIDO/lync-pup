@@ -8,14 +8,13 @@ use Illuminate\Support\Facades\Storage;
 trait CompressesImages
 {
     /**
-     * Resizes and compresses an uploaded image down to roughly 2MB or less,
+     * Resizes and compresses an uploaded image (profile photos: 800px / ~300KB, so
+     * pages listing many of them stay fast; documents pass larger limits),
      * regardless of original size, so large phone-camera photos are accepted
      * without needing a strict upload size limit.
      */
-    private function compressAndStoreImage(UploadedFile $file, string $directory): string
+    private function compressAndStoreImage(UploadedFile $file, string $directory, int $maxDimension = 800, int $maxBytes = 300 * 1024): string
     {
-        $maxBytes = 2 * 1024 * 1024;
-        $maxDimension = 1200;
 
         // A single high-resolution phone photo (e.g. a 48MP shot) can need
         // well over PHP's default 128M memory_limit just to decode into GD
@@ -70,7 +69,7 @@ trait CompressesImages
                 $image = $resized;
             }
 
-            $quality = 85;
+            $quality = 82;
             do {
                 ob_start();
                 imagejpeg($image, null, $quality);
