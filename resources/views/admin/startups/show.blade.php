@@ -181,7 +181,7 @@ default => null,
                      this gradient reads as an empty box. The ring sits on both branches so
                      photo and fallback occupy the same footprint. --}}
                         @if ($startup->startup_photo_path)
-                        <img src="{{ Storage::url($startup->startup_photo_path) }}" alt=""
+                        <img loading="lazy" decoding="async" src="{{ Storage::url($startup->startup_photo_path) }}" alt=""
                             class="h-20 w-20 flex-shrink-0 rounded-xl object-cover ring-1 ring-white/25">
                         @else
                         <div class="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl bg-white text-4xl font-bold text-[#6D0D23] ring-1 ring-white/25">

@@ -194,6 +194,10 @@ class RoadblockController extends Controller
         // still a reschedule as far as the founder is concerned.
         $hadASlotBefore = $roadblock->status !== 'Pending';
 
+        // Who ran the session before this save, to tell a new assignee
+        // ("you've been assigned") from the same one ("rescheduled").
+        $previousAssignee = [$roadblock->mentor_id, $roadblock->coordinator_id];
+
         $validated = $request->validated();
 
         // What this save actually changed (assignee, date, time, platform, ...)
@@ -241,6 +245,18 @@ class RoadblockController extends Controller
             if ($changes !== []) {
                 $mailWarning = MeetingEmail::send($user, MeetingScheduleMail::forMentorship($freshRoadblock, $user, $hadASlotBefore));
             }
+        }
+
+        // The mentor (or coordinator) running the session is emailed too.
+        if ($changes !== []) {
+            $assigneeRoadblock = $roadblock->fresh(['mentor', 'coordinator', 'startup']);
+            $sameAssignee = $hadASlotBefore
+                && $previousAssignee == [$assigneeRoadblock->mentor_id, $assigneeRoadblock->coordinator_id];
+
+            $mailWarning .= MeetingEmail::sendDirect(
+                MeetingScheduleMail::forMentorshipAssignee($assigneeRoadblock, rescheduled: $sameAssignee),
+                $assigneeRoadblock->mentor ? 'mentor' : 'coordinator',
+            );
         }
 
         // An Edit that changes nothing isn't logged; an Assign & Schedule

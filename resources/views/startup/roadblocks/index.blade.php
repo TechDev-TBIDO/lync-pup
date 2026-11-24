@@ -641,7 +641,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                                 <li class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
                                     <div class="flex min-w-0 items-center gap-3">
                                         <template x-if="file.isImage">
-                                            <img :src="file.url" class="h-9 w-9 flex-shrink-0 rounded object-cover">
+                                            <img loading="lazy" decoding="async" :src="file.url" class="h-9 w-9 flex-shrink-0 rounded object-cover">
                                         </template>
                                         <template x-if="!file.isImage">
                                             <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-rose-50

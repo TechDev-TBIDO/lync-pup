@@ -312,7 +312,7 @@ class InformationSheetController extends Controller
             $isImage = str_starts_with($file->getMimeType(), 'image/');
 
             $path = $isImage
-                ? $this->compressAndStoreImage($file, "information-sheets/{$sheet->info_sheet_id}")
+                ? $this->compressAndStoreImage($file, "information-sheets/{$sheet->info_sheet_id}", 1600, 1024 * 1024)
                 : $file->store("information-sheets/{$sheet->info_sheet_id}", 'public');
 
             $sheet->files()->create([

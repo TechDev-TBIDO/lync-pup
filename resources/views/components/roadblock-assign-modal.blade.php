@@ -276,7 +276,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                             class="flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition hover:border-rose-900 hover:bg-gray-50 sm:px-3">
                                             <div class="h-6 w-6 shrink-0 overflow-hidden rounded-full bg-gray-200">
                                                 @if ($m->mentor_photo_path)
-                                                <img src="{{ Storage::url($m->mentor_photo_path) }}" class="h-full w-full object-cover">
+                                                <img loading="lazy" decoding="async" src="{{ Storage::url($m->mentor_photo_path) }}" class="h-full w-full object-cover">
                                                 @endif
                                             </div>
                                             <span class="truncate">{{ $m->display_name }}</span>
@@ -287,7 +287,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                             class="flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition hover:border-rose-900 hover:bg-gray-50 sm:px-3">
                                             <div class="h-6 w-6 shrink-0 overflow-hidden rounded-full bg-gray-200">
                                                 @if ($c->coordinator_photo_path)
-                                                <img src="{{ Storage::url($c->coordinator_photo_path) }}" class="h-full w-full object-cover">
+                                                <img loading="lazy" decoding="async" src="{{ Storage::url($c->coordinator_photo_path) }}" class="h-full w-full object-cover">
                                                 @endif
                                             </div>
                                             <span class="truncate">{{ $c->display_name }}</span>
@@ -308,7 +308,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
                                             {{-- Photo fills the entire card, positioned absolutely as the base layer --}}
                                             <div class="absolute inset-0 bg-gray-200">
                                                 @if ($m->mentor_photo_path)
-                                                <img src="{{ Storage::url($m->mentor_photo_path) }}" class="h-full w-full object-cover">
+                                                <img loading="lazy" decoding="async" src="{{ Storage::url($m->mentor_photo_path) }}" class="h-full w-full object-cover">
                                                 @else
                                                 <div class="flex h-full w-full items-center justify-center text-sm text-gray-400">No Photo</div>
                                                 @endif
@@ -355,7 +355,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
 
                                             <div class="absolute inset-0 bg-gray-200">
                                                 @if ($c->coordinator_photo_path)
-                                                <img src="{{ Storage::url($c->coordinator_photo_path) }}" class="h-full w-full object-cover">
+                                                <img loading="lazy" decoding="async" src="{{ Storage::url($c->coordinator_photo_path) }}" class="h-full w-full object-cover">
                                                 @else
                                                 <div class="flex h-full w-full items-center justify-center text-sm text-gray-400">No Photo</div>
                                                 @endif

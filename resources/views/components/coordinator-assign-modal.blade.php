@@ -179,7 +179,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             <div class="mt-3 flex items-center gap-2">
                 <span class="{{ $avatarBox }} h-8 w-8">
                     @if ($photoUrl($current))
-                    <img src="{{ $photoUrl($current) }}" alt="" class="h-full w-full object-cover">
+                    <img loading="lazy" decoding="async" src="{{ $photoUrl($current) }}" alt="" class="h-full w-full object-cover">
                     @else
                     {!! $icon('image.svg', 'w-4 h-4') !!}
                     @endif
@@ -254,7 +254,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         <div class="{{ $tile }} mb-5">
                             <span class="{{ $avatarBox }} h-10 w-10">
                                 @if ($photoUrl($current))
-                                <img src="{{ $photoUrl($current) }}" alt="" class="h-full w-full object-cover">
+                                <img loading="lazy" decoding="async" src="{{ $photoUrl($current) }}" alt="" class="h-full w-full object-cover">
                                 @else
                                 {!! $icon('image.svg', 'w-5 h-5') !!}
                                 @endif
@@ -313,7 +313,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     {{-- Avatar --}}
                                     <span class="{{ $avatarBox }} h-9 w-9">
                                         <template x-if="c.photo">
-                                            <img :src="c.photo" :alt="c.name" class="h-full w-full object-cover">
+                                            <img loading="lazy" decoding="async" :src="c.photo" :alt="c.name" class="h-full w-full object-cover">
                                         </template>
                                         <template x-if="!c.photo">
                                             <span>{!! $icon('image.svg', 'w-4 h-4') !!}</span>
@@ -371,7 +371,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         <div class="{{ $tile }} mb-5" x-show="chosen">
                             <span class="{{ $avatarBox }} h-10 w-10">
                                 <template x-if="chosen?.photo">
-                                    <img :src="chosen.photo" :alt="chosen.name" class="h-full w-full object-cover">
+                                    <img loading="lazy" decoding="async" :src="chosen.photo" :alt="chosen.name" class="h-full w-full object-cover">
                                 </template>
                                 <template x-if="!chosen?.photo">
                                     <span>{!! $icon('image.svg', 'w-5 h-5') !!}</span>

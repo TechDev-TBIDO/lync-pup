@@ -9,6 +9,8 @@ use App\Models\Startup;
 use App\Models\VersionHistory;
 use App\Support\ChangeLog;
 use App\Notifications\CoordinatorAssigned;
+use App\Mail\MeetingScheduleMail;
+use App\Support\MeetingEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -66,6 +68,17 @@ class CoordinatorAssignmentController extends Controller
         // assignment that ended up rolled back.
         $this->notifyFounder($startup, $coordinator, $previousCoordinatorId);
 
+        // Emails the founder and the coordinator, unless nothing changed.
+        $mailWarning = '';
+
+        if ((int) $previousCoordinatorId !== (int) $coordinator->coordinator_id) {
+            if ($user = $startup->user) {
+                $mailWarning .= MeetingEmail::send($user, MeetingScheduleMail::coordinatorAssignedToFounder($coordinator, $user, $previousCoordinatorId !== null));
+            }
+
+            $mailWarning .= MeetingEmail::sendDirect(MeetingScheduleMail::coordinatorAssignedToCoordinator($coordinator, $startup->fresh('user')), 'coordinator');
+        }
+
         // The Startup Profile card grid's 3-dot "Edit Coordinator" reuses
         // this same component/route (see coordinator-assign-modal.blade.php)
         // but wants to land back on that filtered/paginated list, not always
@@ -77,7 +90,7 @@ class CoordinatorAssignmentController extends Controller
             : route('admin.startups.show', $startup);
 
         return redirect($redirectTo)
-            ->with('status', 'Portfolio Coordinator assigned successfully.');
+            ->with('status', 'Portfolio Coordinator assigned successfully.'.$mailWarning);
     }
 
     /**

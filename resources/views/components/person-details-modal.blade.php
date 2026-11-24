@@ -26,9 +26,9 @@ $sectionLabel = 'mb-1.5 text-[13px] font-semibold text-gray-800';
 
             <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5 text-left">
                 <div class="flex flex-col gap-4 sm:flex-row">
-                    <div class="aspect-[3/4] w-28 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                    <div class="flex-shrink-0 overflow-hidden rounded-lg bg-gray-200" style="width:7rem;height:9.33rem;min-width:7rem;max-width:7rem;">
                         @if ($photo)
-                        <img src="{{ $photo }}" alt="{{ $name }}" class="h-full w-full object-cover">
+                        <img loading="lazy" decoding="async" src="{{ $photo }}" alt="{{ $name }}" class="block h-full w-full object-cover" style="width:100%;height:100%;max-width:100%;object-fit:cover;object-position:center top;">
                         @else
                         <div class="flex h-full w-full items-center justify-center text-xs text-gray-400">No Photo</div>
                         @endif

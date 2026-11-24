@@ -67,7 +67,7 @@ $hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
     <div class="{{ $bgClass }} relative h-28 overflow-hidden">
 
         @if ($startup->startup_photo_url)
-        <img
+        <img loading="lazy" decoding="async"
             src="{{ $startup->startup_photo_url }}"
             alt="{{ $startup->company_name }} logo"
             class="absolute inset-0 h-full w-full object-cover" />

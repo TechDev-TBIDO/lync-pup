@@ -11,7 +11,7 @@ $avatar = function ($startup) {
 $url = $startup->startup_photo_url ?? null;
 $name = $startup->company_name ?? '?';
 return $url
-? '<img src="'.e($url).'" alt="" class="h-full w-full object-cover">'
+? '<img loading="lazy" decoding="async" src="'.e($url).'" alt="" class="h-full w-full object-cover">'
 : '<span class="text-[10px] font-bold text-gray-500">'.e(mb_strtoupper(mb_substr($name, 0, 1))).'</span>';
 };
 @endphp

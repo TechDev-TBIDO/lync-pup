@@ -148,7 +148,7 @@ class RoadblockController extends Controller
 
                 try {
                     $path = $isImage
-                        ? $this->compressAndStoreImage($file, "roadblocks/{$roadblock->roadblock_id}")
+                        ? $this->compressAndStoreImage($file, "roadblocks/{$roadblock->roadblock_id}", 1600, 1024 * 1024)
                         : $file->store("roadblocks/{$roadblock->roadblock_id}", 'public');
                 } catch (\RuntimeException $e) {
                     $skipped[] = "\"{$file->getClientOriginalName()}\" couldn't be processed ({$e->getMessage()}).";

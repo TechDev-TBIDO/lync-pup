@@ -134,7 +134,7 @@
                         <button type="button" @click="infoOpen = true" aria-label="View details for {{ $mentor->display_name }}"
                             class="absolute inset-0 block h-full w-full cursor-pointer bg-gray-200">
                             @if ($mentor->mentor_photo_path)
-                            <img src="{{ Storage::url($mentor->mentor_photo_path) }}" alt="" class="h-full w-full object-cover">
+                            <img loading="lazy" decoding="async" src="{{ Storage::url($mentor->mentor_photo_path) }}" alt="" class="h-full w-full object-cover">
                             @else
                             <span class="flex h-full w-full items-center justify-center text-xs text-gray-400 sm:text-sm">No Photo</span>
                             @endif
