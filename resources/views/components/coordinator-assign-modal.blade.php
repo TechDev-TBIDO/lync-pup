@@ -60,9 +60,11 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
         $photoUrl = fn ($c) => $c->coordinator_photo_path ? Storage::url($c->coordinator_photo_path) : null;
 
-        $coordinatorList = \App\Models\Coordinator::orderBy('first_name')
-        ->when($current, fn ($q) => $q->where('coordinator_id', '!=', $current->coordinator_id))
-        ->get()->map(fn ($c) => [
+        // Loaded once per request and shared by every card's modal on the
+        // page (it used to be one database query per startup card).
+        $coordinatorList = once(fn () => \App\Models\Coordinator::orderBy('first_name')->get())
+        ->when($current, fn ($list) => $list->reject(fn ($c) => $c->coordinator_id == $current->coordinator_id))
+        ->values()->map(fn ($c) => [
         'id' => $c->coordinator_id,
         'name' => $displayName($c),
         'role_title' => $c->role_title ?: 'Portfolio Coordinator',

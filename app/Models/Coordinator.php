@@ -42,7 +42,9 @@ class Coordinator extends Model
      */
     public function getCasesCountAttribute(): int
     {
-        return $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review', 'Resolved', 'Failed'])->count();
+        return $this->relationLoaded('roadblocks')
+            ? $this->roadblocks->whereIn('status', ['Scheduled', 'Pending Review', 'Resolved', 'Failed'])->count()
+            : $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review', 'Resolved', 'Failed'])->count();
     }
 
     /**
@@ -50,7 +52,9 @@ class Coordinator extends Model
      */
     public function getActiveCasesCountAttribute(): int
     {
-        return $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review'])->count();
+        return $this->relationLoaded('roadblocks')
+            ? $this->roadblocks->whereIn('status', ['Scheduled', 'Pending Review'])->count()
+            : $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review'])->count();
     }
 
     /**
@@ -58,7 +62,9 @@ class Coordinator extends Model
      */
     public function getCompletedCasesCountAttribute(): int
     {
-        return $this->roadblocks()->whereIn('status', ['Resolved', 'Failed'])->count();
+        return $this->relationLoaded('roadblocks')
+            ? $this->roadblocks->whereIn('status', ['Resolved', 'Failed'])->count()
+            : $this->roadblocks()->whereIn('status', ['Resolved', 'Failed'])->count();
     }
 
     /**

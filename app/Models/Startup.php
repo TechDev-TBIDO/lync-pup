@@ -275,6 +275,12 @@ class Startup extends Model
      */
     public function hasScheduledEvaluation(): bool
     {
+        // Use the eager-loaded list when a page already has it (card grids),
+        // instead of one database round trip per startup.
+        if ($this->relationLoaded('evaluationSchedules')) {
+            return $this->evaluationSchedules->contains(fn ($schedule) => $schedule->status !== 'Cancelled');
+        }
+
         return $this->evaluationSchedules()->where('status', '!=', 'Cancelled')->exists();
     }
 
