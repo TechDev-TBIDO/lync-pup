@@ -45,7 +45,7 @@ class StartupProfileController extends Controller
         // count here are scoped to applicationApproved() and never include
         // still-pending or rejected applicants.
         $query = $applyCohort(Startup::query()->applicationApproved())
-            ->with(['informationSheet', 'activeCoordinatorAssignment.coordinator', 'evaluationSchedules']);
+            ->with(['user', 'informationSheet', 'activeCoordinatorAssignment.coordinator', 'evaluationSchedules', 'ventureExitDocument', 'latestReadinessAssessment']);
 
         $query = match ($request->query('tab', 'all')) {
             'active' => $query->active(),
@@ -74,9 +74,22 @@ class StartupProfileController extends Controller
         // into a cohort's count.
         $countedInTotal = fn () => $scopedTotal()->whereNot(fn ($q) => $q->onboarding());
 
-        $totalStartups = $countedInTotal()->count();
-        $activeStartups = $scopedTotal()->active()->count();
-        $needsCoordinatorStartups = $scopedTotal()->needsCoordinator()->count();
+        // All seven summary-card counts in ONE database round trip (each used
+        // to be its own query, ~45ms apiece against Supabase).
+        $countOf = fn ($builder) => $builder->toBase()->selectRaw('count(*)');
+        $counts = (array) \Illuminate\Support\Facades\DB::query()
+            ->selectSub($countOf($countedInTotal()), 'total')
+            ->selectSub($countOf($scopedTotal()->active()), 'active')
+            ->selectSub($countOf($scopedTotal()->needsCoordinator()), 'needs_coordinator')
+            ->selectSub($countOf($scopedTotal()->onboarding()), 'applicant')
+            ->selectSub($countOf($scopedTotal()->graduated()), 'graduated')
+            ->selectSub($countOf($scopedTotal()->completed()), 'completed')
+            ->selectSub($countOf($scopedTotal()->awaitingEvaluation()), 'pending')
+            ->first();
+
+        $totalStartups = (int) $counts['total'];
+        $activeStartups = (int) $counts['active'];
+        $needsCoordinatorStartups = (int) $counts['needs_coordinator'];
         // Surfaced as its own summary card below (see 'applicant' in
         // 'totals') for the same reason 'pending' already is: the
         // "Applicant" tab (scopeOnboarding — not yet ready for evaluation)
@@ -85,14 +98,14 @@ class StartupProfileController extends Controller
         // cards made Total Startup not add up to Active + Assign Coordinator
         // + Pending, which read as the counts being wrong rather than just
         // one whole category not being shown.
-        $applicantStartups = $scopedTotal()->onboarding()->count();
+        $applicantStartups = (int) $counts['applicant'];
         // Same reasoning as $applicantStartups above: Graduated/Completed
         // are their own real slice of Total Startup (a startup leaves
         // Active/Assign Coordinator once it exits — see
         // Startup::scopeActive()/scopeNeedsCoordinator()), so both need
         // their own summary card for Total Startup to keep adding up.
-        $graduatedStartups = $scopedTotal()->graduated()->count();
-        $completedStartups = $scopedTotal()->completed()->count();
+        $graduatedStartups = (int) $counts['graduated'];
+        $completedStartups = (int) $counts['completed'];
 
         // Cohort Name per cohort number, for the Total Startup breakdown below.
         $cohortNames = Cohort::all()->mapWithKeys(fn ($c) => [$c->number => $c->display_label]);
@@ -119,7 +132,7 @@ class StartupProfileController extends Controller
                 'total' => $totalStartups + $applicantStartups,
                 'active' => $activeStartups,
                 'needsCoordinator' => $needsCoordinatorStartups,
-                'pending' => $scopedTotal()->awaitingEvaluation()->count(),
+                'pending' => (int) $counts['pending'],
                 'applicant' => $applicantStartups,
                 'graduated' => $graduatedStartups,
                 'completed' => $completedStartups,

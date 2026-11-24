@@ -50,7 +50,8 @@ class CoordinatorProfileController extends Controller
                 ->when($cohortNumber, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_number', $cohortNumber)))
                 ->with('startup')
                 ->latest();
-        }])->latest()->get();
+        }, 'roadblocks' => fn ($q) => $q->whereIn('status', ['Scheduled', 'Pending Review', 'Resolved', 'Failed'])])
+            ->latest()->get();
 
         return view('admin.coordinators.index', [
             'coordinators' => $coordinators,
