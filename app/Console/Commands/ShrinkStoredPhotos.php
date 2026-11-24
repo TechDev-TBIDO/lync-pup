@@ -38,8 +38,15 @@ class ShrinkStoredPhotos extends Command
                     continue;
                 }
 
-                $before = $disk->size($path);
-                $info = @getimagesize($disk->path($path));
+                // Read the bytes (works for both the local disk and Supabase/S3).
+                $bytes = $disk->get($path);
+
+                if (! $bytes) {
+                    continue;
+                }
+
+                $before = strlen($bytes);
+                $info = @getimagesizefromstring($bytes);
 
                 if (! $info) {
                     continue;
@@ -58,7 +65,7 @@ class ShrinkStoredPhotos extends Command
                     continue;
                 }
 
-                $data = $this->shrink($disk->path($path), $extension, $width, $height);
+                $data = $this->shrink($bytes, $width, $height, $extension);
 
                 if ($data === null || strlen($data) >= $before) {
                     continue;
@@ -78,11 +85,11 @@ class ShrinkStoredPhotos extends Command
         return self::SUCCESS;
     }
 
-    private function shrink(string $file, string $extension, int $width, int $height): ?string
+    private function shrink(string $bytes, int $width, int $height, string $extension): ?string
     {
         ini_set('memory_limit', '512M');
 
-        $image = $extension === 'png' ? @imagecreatefrompng($file) : @imagecreatefromjpeg($file);
+        $image = @imagecreatefromstring($bytes);
 
         if (! $image) {
             return null;
