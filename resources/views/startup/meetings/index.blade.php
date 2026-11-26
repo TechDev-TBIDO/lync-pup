@@ -187,7 +187,7 @@
                             style="display:none;">
                             @foreach ($meetingSorts as $value => $label)
                             <button type="button"
-                                x-show="meetingSort !== '{{ $value }}'"
+                                :class="meetingSort === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="meetingSort === '{{ $value }}'"
                                 @click="meetingSort = '{{ $value }}'; open = false"
                                 class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                 {{ $label }}
@@ -213,7 +213,7 @@
                             style="display:none;">
                             @foreach ($meetingTypeFilters as $value => $label)
                             <button type="button"
-                                x-show="meetingType !== '{{ $value }}'"
+                                :class="meetingType === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="meetingType === '{{ $value }}'"
                                 @click="meetingType = '{{ $value }}'; open = false"
                                 class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                 {{ $label }}
@@ -619,7 +619,7 @@
                             style="display:none;">
                             @foreach ($archiveSorts as $value => $label)
                             <button type="button"
-                                x-show="archiveSort !== '{{ $value }}'"
+                                :class="archiveSort === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="archiveSort === '{{ $value }}'"
                                 @click="archiveSort = '{{ $value }}'; open = false"
                                 class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                 {{ $label }}
@@ -645,7 +645,7 @@
                             style="display:none;">
                             @foreach ($meetingTypeFilters as $value => $label)
                             <button type="button"
-                                x-show="archiveType !== '{{ $value }}'"
+                                :class="archiveType === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="archiveType === '{{ $value }}'"
                                 @click="archiveType = '{{ $value }}'; open = false"
                                 class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                 {{ $label }}
@@ -671,7 +671,7 @@
                             style="display:none;">
                             @foreach ($archiveStatuses as $value => $label)
                             <button type="button"
-                                x-show="archiveStatusFilter !== '{{ $value }}'"
+                                :class="archiveStatusFilter === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="archiveStatusFilter === '{{ $value }}'"
                                 @click="archiveStatusFilter = '{{ $value }}'; open = false"
                                 class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                 {{ $label }}

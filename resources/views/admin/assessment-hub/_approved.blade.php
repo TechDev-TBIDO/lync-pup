@@ -86,7 +86,7 @@ return [
             </button>
 
             <template x-for="[key, label] in months" :key="key">
-                <button type="button" x-show="month !== key" @click="month = key; open = false"
+                <button type="button" :class="month === key ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="month === key" @click="month = key; open = false"
                     class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"
                     x-text="label">
                 </button>

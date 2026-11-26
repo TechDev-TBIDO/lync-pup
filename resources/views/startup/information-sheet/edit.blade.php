@@ -1,7 +1,22 @@
 <x-layouts.founder title="Information Sheet">
+    <style>
+        /* A part of the sheet that isn't the current step. Kept rendered (off
+           screen, invisible) rather than display:none, so every field still
+           submits and the error painting/visibility checks keep working on
+           fields in other parts. */
+        .info-step-hidden {
+            position: absolute !important;
+            top: 0;
+            left: -300vw;
+            width: 100%;
+            visibility: hidden;
+            pointer-events: none;
+        }
+    </style>
+
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-gray-900">Information Sheet</h1>
-        <p class="text-gray-500 mt-1">View your details below.</p>
+        <p class="text-gray-500 mt-1">Fill it out one part at a time - each part is saved when you click Next.</p>
     </div>
 
     @php
@@ -13,9 +28,10 @@
         // request classes repeat both rules for anything that skips the UI.
         $dobMin = '1900-01-01';
         $dobMax = '9999-12-31'; // No real upper limit, but keeps the year to 4 digits (an empty max lets browsers accept 6-digit years).
-        $lockReason = $sheet?->approval_status === 'Approved'
-            ? 'Approved & Locked — contact your Coordinator for changes'
-            : ($startup->submittedForReviewLockActive()
+        // An Approved sheet is no longer locked: the founder can edit it again,
+        // and submitting just updates the approved record (see
+        // Startup\InformationSheetController::update()).
+        $lockReason = ($startup->submittedForReviewLockActive()
                 ? 'Submitted & Locked — TBIDO is reviewing your sheet. Contact your Coordinator for changes'
             : ($startup->evaluationDayLockActive()
                 ? 'Locked for today — your evaluation is scheduled today. Contact your Coordinator for changes'
@@ -26,6 +42,15 @@
         // Purely informational — deliberately kept outside the isLocked/dirty
         // Alpine state below, since a Rejected sheet must stay fully editable.
         $isRejected = $startup->isRejectedPendingResubmission();
+
+        // Submitted and waiting on TBIDO: the page shows "Under Review" at the
+        // top and no action buttons at all.
+        $underReview = $startup->submittedForReviewLockActive();
+
+        // "Fill Out" until the founder has saved anything of their own on the
+        // sheet (the row itself is created by the first Startup Profile save,
+        // so its existence alone says nothing); "Edit" after that.
+        $firstTime = ! $sheet?->submission_date && blank($sheet?->surname) && blank($sheet?->first_name);
         $rejectionDeadline = $startup->rejectionDeadline();
         $rejectDaysLeft = $rejectionDeadline ? now()->startOfDay()->diffInDays($rejectionDeadline->copy()->startOfDay(), false) : null;
     @endphp
@@ -57,6 +82,100 @@
     editing: false,
     isLocked: {{ $lockReason ? 'true' : 'false' }},
     saving: false,
+
+    // Paged sheet: one part (I to V) on screen at a time. maxStep is the
+    // furthest part reached in this edit session - parts past it only open
+    // through Next, so each one is checked and saved on the way.
+    step: 1,
+    maxStep: 1,
+    submitLabel: @js($sheet?->approval_status === 'Approved' ? 'Submit Update' : 'Submit for Review'),
+
+    startEdit() {
+        window.__lyncPageLoader?.flash(350);
+        this.editing = true;
+        this.maxStep = this.step;
+        this.$nextTick(() => {
+            if (! this.lastClickedInput) return;
+            const el = document.querySelector(`[name='${this.lastClickedInput}']`);
+            this.lastClickedInput = null;
+            if (! el) return;
+            const owner = el.closest('[data-step]');
+            if (owner && Number(owner.dataset.step) !== this.step) this.step = Number(owner.dataset.step);
+            this.$nextTick(() => {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.focus({ preventScroll: true });
+            });
+        });
+    },
+
+    goStep(n) {
+        n = Math.min(5, Math.max(1, n));
+        if (n === this.step) return;
+        this.step = n;
+        this.maxStep = Math.max(this.maxStep, n);
+        this.$nextTick(() => {
+            this.growAll();
+            this.$root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    },
+
+    // Stepper click: free in view mode; while editing, only parts already
+    // reached (going forward past them is what Next is for).
+    jumpTo(n) {
+        if (this.saving) return;
+        if (this.editing && n > this.maxStep) return;
+        this.goStep(n);
+    },
+
+    // Next: in view mode just moves on. While editing it checks this part's
+    // required fields, saves the whole sheet as a draft (only when something
+    // changed) and then moves on - no separate Save click needed.
+    async nextStep() {
+        if (this.saving) return;
+        if (! this.editing) { this.goStep(this.step + 1); return; }
+
+        window.clearInfoSheetFieldErrors();
+        const stepEl = this.$root.querySelector(`[data-step='${this.step}']`);
+        let problems = window.validateInfoSheetForms(this.$root, null, stepEl);
+
+        // Also run the format checks (blood type, mobile, email...) on every
+        // filled field in this part, not only the ones already touched.
+        stepEl?.querySelectorAll('textarea[name], input[name]').forEach((el) => {
+            if (el.hasAttribute('data-field-invalid') || (el.value || '').trim() === '') return;
+            window.infoSheetLiveCheck(el, true);
+            if (el.hasAttribute('data-field-invalid')) problems++;
+        });
+
+        if (problems > 0) {
+            window.infoSheetErrorToast('Please check this part', problems);
+            return;
+        }
+
+        if (! this.dirty) {
+            window.__lyncPageLoader?.flash(300);
+            this.goStep(this.step + 1);
+            return;
+        }
+
+        await this.saveAll('save', { advance: true });
+    },
+
+    // After a failed save/submit the messages can sit in any part - open the
+    // first part that has one and scroll to it.
+    jumpToFirstError() {
+        const sel = '[data-field-invalid], [data-packed-error]:not(.hidden), [data-table-error]:not(.hidden)';
+        for (const el of this.$root.querySelectorAll('[data-step]')) {
+            const bad = el.querySelector(sel);
+            if (! bad) continue;
+            this.step = Number(el.dataset.step);
+            this.maxStep = Math.max(this.maxStep, this.step);
+            this.$nextTick(() => {
+                bad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof bad.focus === 'function') bad.focus({ preventScroll: true });
+            });
+            return;
+        }
+    },
     // Which button started the current request ('save' | 'submit'), so only
     // that one shows its loading label - both stay disabled meanwhile.
     savingIntent: null,
@@ -167,6 +286,24 @@ pendingRemoval: [],
         return true;
     },
 
+    // The 'N/A' tick beside an item where N/A is a valid answer: fills the
+    // box with N/A (and clears any error on it), or empties it again.
+    naToggle(box, na) {
+        const t = box.closest('[data-na-wrap]')?.querySelector('textarea');
+        if (! t) return;
+        t.value = na ? 'N/A' : '';
+        this.autoGrow(t);
+        if (na) {
+            t.style.borderColor = '';
+            t.style.boxShadow = '';
+            t.removeAttribute('data-field-invalid');
+            if (t.nextElementSibling?.hasAttribute('data-field-error')) t.nextElementSibling.remove();
+        } else {
+            t.focus();
+        }
+        this.$nextTick(() => this.refresh());
+    },
+
     // Grows a one-row textarea to fit its content, so a long answer wraps
     // onto a second line instead of scrolling inside a single-line box.
     autoGrow(el) {
@@ -182,7 +319,8 @@ pendingRemoval: [],
         document.querySelectorAll('textarea[rows=\'1\']').forEach((el) => this.autoGrow(el));
     },
 
-    async saveAll(intent = 'submit') {
+    async saveAll(intent = 'submit', opts = {}) {
+        const advance = !! opts.advance;
         // One clear, right here, at the very top - nothing below clears
         // again. Clearing separately inside validateInfoSheetForms() and
         // submitInfoSheetForms() used to mean the second one always wiped out
@@ -223,6 +361,7 @@ pendingRemoval: [],
 
         this.saving = true;
         this.savingIntent = intent;
+        window.__lyncPageLoader?.showNow();
 
         let toastedCount;
 
@@ -238,13 +377,20 @@ pendingRemoval: [],
             // (9 -> 11) on every click. One toast, once both checks are in.
             toastedCount = undefined;
 
+            // Next saves the WHOLE sheet, not just the part on screen: after
+            // it, the page treats everything as saved, so an edit made in
+            // another part (then left with Back) must be saved too or it
+            // would be silently dropped. A problem found in another part
+            // opens that part (jumpToFirstError() below).
             const result = await window.submitInfoSheetForms(this.$root, {
                 dryRunOnly: clientProblems > 0,
             });
 
             if (clientProblems > 0) {
                 this.saving = false;
+                window.__lyncPageLoader?.hide();
                 window.infoSheetErrorToast(intent === 'submit' ? 'Submit Failed' : 'Save Failed', window.countInfoSheetErrors() || clientProblems);
+                this.jumpToFirstError();
                 return;
             }
 
@@ -254,18 +400,35 @@ pendingRemoval: [],
             this.$store.navigation.hasUnsavedChanges = false;
 
             // New rows exist only in the database; removed rows still exist in
-            // this DOM. Either way the page is out of date, so reload.
-            if (result?.created > 0 || result?.removed > 0) {
+            // this DOM. Either way the page is out of date, so reload. A
+            // Submit always reloads too, so the page comes back showing
+            // 'Under Review' (or the updated approved sheet). Next resumes
+            // editing on the following part after the reload.
+            if (intent === 'submit' || result?.created > 0 || result?.removed > 0) {
                 sessionStorage.setItem('infoSheetSaved', intent === 'submit' ? 'submit' : 'save');
+                if (advance) {
+                    sessionStorage.setItem('infoSheetResume', JSON.stringify({ step: Math.min(5, this.step + 1), editing: true }));
+                }
                 window.location.reload();
+                return;
+            }
+
+            window.__lyncPageLoader?.hide();
+            this.saving = false;
+            this.newRows = { team: [], inc: [], ld: [], ref: [] };
+            this.pendingRemoval = [];
+
+            if (advance) {
+                // Still editing: start the next part from a fresh baseline so
+                // 'dirty' only tracks changes made from here on.
+                this._initial = this.snapshot();
+                this.goStep(this.step + 1);
+                Alpine.store('toast').success('Part saved', 'Your progress is saved. Keep going - nothing is sent to TBIDO until you submit.');
                 return;
             }
 
             // Edits only: no reload, keeps scroll position.
             this.editing = false;
-            this.saving = false;
-            this.newRows = { team: [], inc: [], ld: [], ref: [] };
-            this.pendingRemoval = [];
 
             Alpine.store('toast').success(
                 intent === 'submit' ? 'Information Sheet Submitted' : 'Information Sheet Saved',
@@ -276,6 +439,7 @@ pendingRemoval: [],
 
         } catch (e) {
             this.saving = false;
+            window.__lyncPageLoader?.hide();
 
             console.error('Info sheet save failed:', e);
 
@@ -292,7 +456,14 @@ pendingRemoval: [],
                 : 0;
 
             if (totalProblems > 0) {
+                const fromStep = this.step;
                 window.infoSheetErrorToast(intent === 'submit' ? 'Submit Failed' : 'Save Failed', totalProblems, toastedCount);
+                this.jumpToFirstError();
+                // Next found the problem in a different part: say so, since
+                // the page just moved away from the part being worked on.
+                if (advance && this.step !== fromStep) {
+                    Alpine.store('toast').error('Please fix Part ' + ['I', 'II', 'III', 'IV', 'V'][this.step - 1] + ' first', 'It has an entry that can\'t be saved yet - see the message on the form.');
+                }
             } else {
                 Alpine.store('toast').error(
                     intent === 'submit' ? 'Submit Failed' : 'Save Failed',
@@ -345,7 +516,8 @@ pendingRemoval: [],
             });
         }
     "
-        @input="$nextTick(() => refresh())"
+        @input="$nextTick(() => refresh()); editing && window.infoSheetLiveCheck($event.target, false)"
+        @focusout="editing && window.infoSheetLiveCheck($event.target, true)"
         @change="$nextTick(() => refresh())"
         @click="$nextTick(() => refresh())"
 
@@ -388,6 +560,18 @@ pendingRemoval: [],
                 e.returnValue = '';
             }
         });
+
+        // Next reloads the page when rows were added/removed - come back on
+        // the following part, still editing.
+        try {
+            const resume = JSON.parse(sessionStorage.getItem('infoSheetResume') || 'null');
+            sessionStorage.removeItem('infoSheetResume');
+            if (resume && ! isLocked) {
+                step = Math.min(5, Math.max(1, Number(resume.step) || 1));
+                maxStep = step;
+                if (resume.editing) editing = true;
+            }
+        } catch (e) {}
 ">
 
         {{-- Startup Header Bar --}}
@@ -395,9 +579,49 @@ pendingRemoval: [],
             <img src="{{ asset('images/icons/3person.svg') }}" alt=""
                 class="h-5 w-5 flex-shrink-0 brightness-0 invert">
             <h2 class="font-bold text-sm">{{ $startup->company_name }}</h2>
+
+            {{-- Actions live up here so the founder never scrolls to find them:
+                 Fill Out / Edit, then Cancel + Save + Submit while editing.
+                 Under review (or otherwise locked): a status badge only. --}}
+            <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+                @if ($underReview)
+                <span data-highlight-id="sheet-status" class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-[#6D0D23]">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
+                    Under Review
+                </span>
+                @elseif ($lockReason)
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">Locked</span>
+                @else
+                @if ($sheet?->approval_status === 'Approved')
+                <span x-show="!editing" class="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">Approved</span>
+                @endif
+                <button type="button" x-ref="editButton" x-show="!editing" @click="startEdit()"
+                    class="rounded-lg bg-white px-4 py-1.5 text-xs font-semibold text-[#6D0D23] transition hover:bg-white/90">
+                    {{ $firstTime ? 'Fill Out' : 'Edit' }}
+                </button>
+                <button type="button" x-show="editing" x-cloak @click="cancelEdit()" :disabled="saving"
+                    class="rounded-lg border border-white/70 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10 disabled:opacity-60">
+                    Cancel
+                </button>
+                <button type="button" x-show="editing" x-cloak @click="saveAll('save')" :disabled="saving || !dirty"
+                    class="rounded-lg border border-white/70 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50">
+                    <span x-text="saving && savingIntent === 'save' ? 'Saving…' : 'Save'"></span>
+                </button>
+                <button type="button" x-show="editing" x-cloak @click="saveAll('submit')" :disabled="saving"
+                    class="rounded-lg bg-white px-4 py-1.5 text-xs font-semibold text-[#6D0D23] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60">
+                    <span x-text="saving && savingIntent === 'submit' ? 'Submitting…' : submitLabel"></span>
+                </button>
+                @endif
+            </div>
         </div>
 
-        <div class="p-6">
+        @if ($underReview || $lockReason)
+        <div class="border-b border-gray-200 bg-gray-50 px-6 py-2.5 text-center text-sm font-medium text-gray-600">
+            {{ $underReview ? 'Your Information Sheet is under review by TBIDO. You will be notified once a decision is made - contact your Coordinator for changes.' : $lockReason }}
+        </div>
+        @endif
+
+        <div class="relative p-6">
             <div class="flex justify-center mb-3">
                 <span class="border border-rose-800 text-rose-800 text-xs italic font-medium px-4 py-1 rounded-md">PUP-TBIDO FORM No.001</span>
             </div>
@@ -413,17 +637,42 @@ pendingRemoval: [],
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
                 <ul class="list-disc pl-4 space-y-0.5 italic marker:text-[#11386A]">
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are required before you can submit.</span> Type <span class="font-bold">N/A</span> where a required one does not apply - except dates, email, phone, height and weight, which need a real value. Fields without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are optional: leave them blank or type <span class="font-bold">N/A</span>.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Save keeps your progress without submitting anything.</span> Come back anytime to fill in more - a saved-but-incomplete sheet is never sent to TBIDO.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Submit for Review sends it to TBIDO.</span> Every required field needs an answer first. Check everything before you submit: the sheet locks once it's submitted.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet is split into 5 parts (I to V).</span> Click <span class="font-bold">Next</span> at the bottom of each part - it checks that part, saves it and moves you on, so your progress is never lost.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are required before you can submit.</span> Where an item does not apply to you, tick its <span class="font-bold">N/A</span> box instead of typing. Dates, email, phone, height and weight always need a real value.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Submit for Review (top right) sends it to TBIDO.</span> Every required field needs an answer first. The sheet is then marked <span class="font-bold">Under Review</span> and locked until TBIDO decides.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Your name, mobile and email start from your Startup Profile.</span> Edit them here freely - your Profile will not change.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet stays locked while TBIDO reviews it.</span> If it's rejected, it reopens so you can revise and resubmit. Once approved it stays locked - message your Coordinator for changes.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">If it's rejected, it reopens</span> so you can revise and resubmit. Once approved you can still edit it - submitting again simply updates your approved sheet.</li>
                 </ul>
                 </div>
 
             </div>
 
 
+            {{-- Stepper: I to V. Any part opens directly in view mode; while
+                 editing, parts past the furthest one reached open through
+                 Next (so each part is checked and saved first). --}}
+            <nav class="mb-6 overflow-x-auto" aria-label="Information Sheet parts">
+                <ol class="flex min-w-max items-center gap-2">
+                    @foreach ([1 => ['I', "Founder's Information"], 2 => ['II', 'Core Team'], 3 => ['III', 'Incubation'], 4 => ['IV', 'Learning & Development'], 5 => ['V', 'Startup Information']] as $stepNo => [$roman, $stepTitle])
+                    <li class="flex items-center gap-2">
+                        <button type="button" @click="jumpTo({{ $stepNo }})"
+                            :disabled="saving || (editing && {{ $stepNo }} > maxStep)"
+                            :class="step === {{ $stepNo }}
+                                ? 'border-[#6D0D23] bg-[#6D0D23] text-white shadow-sm'
+                                : ((!editing || {{ $stepNo }} <= maxStep) ? 'border-gray-300 bg-white text-gray-700 hover:border-[#6D0D23] hover:text-[#6D0D23]' : 'border-gray-200 bg-gray-50 text-gray-400')"
+                            class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed">
+                            <span class="font-bold">{{ $roman }}.</span>
+                            <span>{{ $stepTitle }}</span>
+                        </button>
+                        @if (! $loop->last)
+                        <span class="h-px w-4 bg-gray-300"></span>
+                        @endif
+                    </li>
+                    @endforeach
+                </ol>
+            </nav>
+
+            <div data-step="1" :class="step === 1 ? '' : 'info-step-hidden'">
             <form id="info-sheet-form" novalidate method="POST" action="{{ route('startup.information-sheet.update') }}" enctype="multipart/form-data">
                 @csrf
                 @method('PATCH')
@@ -449,17 +698,17 @@ pendingRemoval: [],
                     'name_extension' => 'e.g. Jr., Sr., III - leave blank if none',
                     'height_m' => 'e.g. 1.65',
                     'weight_kg' => 'e.g. 58',
-                    'blood_type' => 'e.g. O+',
+                    'blood_type' => 'e.g. O+ (A+, B-, AB+...)',
                     'gsis_no' => 'e.g. 12345678901',
                     'pagibig_no' => 'e.g. 1234-5678-9012',
                     'philhealth_no' => 'e.g. 12-345678901-2',
                     'sss_no' => 'e.g. 12-3456789-0',
                     'tin' => 'e.g. 123-456-789-000',
-                    'residential_address' => 'House/Unit, Street, Barangay, City',
-                    'permanent_address' => 'House/Unit, Street, Barangay, City',
+                    'residential_address' => 'e.g. 123 Mabini St., Brgy. 630, Sta. Mesa, Manila',
+                    'permanent_address' => 'e.g. 45 Rizal Ave., Brgy. San Jose, Lipa City, Batangas',
                     'sex' => 'e.g. Female',
                     'civil_status' => 'e.g. Single',
-                    'place_of_birth' => 'City or municipality',
+                    'place_of_birth' => 'e.g. Manila',
                     'mobile_no' => 'e.g. 09171234567',
                     'founder_email' => 'e.g. name@email.com',
                     'sec_registration' => 'e.g. CS202412345',
@@ -523,6 +772,21 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     default => '',
                     };
                     $placeholder = $type === 'date' ? '' : ($hints[$name] ?? '');
+
+                    // Items where N/A is a valid answer get an "N/A" tick box
+                    // beside them, so the founder ticks it instead of typing N/A.
+                    // Ticking fills the box with N/A and locks it; unticking
+                    // clears it. Server rules are unchanged (the value is still
+                    // the literal text N/A).
+                    $naFields = [
+                    'middle_name', 'name_extension', 'blood_type',
+                    'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'tin',
+                    'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
+                    ];
+                    $allowNA = $type !== 'date' && in_array($name, $naFields, true);
+                    $naInit = strtoupper(trim((string) $value)) === 'N/A' ? 'true' : 'false';
+                    $readonlyExpr = $allowNA ? '!editing || na' : '!editing';
+                    $naSync = $allowNA ? ' na = $el.value.trim().toUpperCase() === \'N/A\';' : '';
                     // Client-side character guard (partials/input-guards): person
                     // names/positions keep letters and / - ' . , only; the mobile
                     // number is exactly 09XXXXXXXXX or +639XXXXXXXXX. The server
@@ -546,18 +810,31 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 class='w-full border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500'
                                 @click=\"if(!editing){ lastClickedInput=\$el.name }\" @input=\"dirty=true\">"
                     : "<textarea name=\"{$name}\" rows=\"1\" form=\"info-sheet-form\"{$requiredAttr} {$guard}
-                                :readonly=\"!editing\" placeholder=\"{$placeholder}\"
+                                :readonly=\"{$readonlyExpr}\" placeholder=\"{$placeholder}\"
                                 x-init=\"autoGrow(\$el)\"
                                 @keydown.enter.prevent
-                                @input=\"dirty=true; autoGrow(\$el)\"
+                                @input=\"dirty=true; autoGrow(\$el);{$naSync}\"
                                 @click=\"if(!editing){ lastClickedInput=\$el.name }\"
                                 class='w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug {$upperClass} disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300'>".e($value)."</textarea>";
 
                     $noteHtml = $note ? "<p class='mt-1 text-xs text-gray-400'>" . e($note) . "</p>" : '';
 
+                    if ($allowNA) {
+                    $control = "<div class='flex flex-wrap items-start gap-x-2 gap-y-1'>
+                                <div class='flex-1 min-w-[8rem]'>{$control}</div>
+                                <label class='mt-1.5 inline-flex flex-shrink-0 items-center gap-1 text-xs font-medium text-gray-600 select-none' :class=\"editing ? 'cursor-pointer' : 'opacity-60'\" title='Tick if this does not apply to you'>
+                                    <input type='checkbox' x-model='na' :disabled='!editing' class='h-4 w-4 rounded border-gray-400'
+                                        @change='naToggle(\$el, na)'>
+                                    N/A
+                                </label>
+                            </div>";
+                    }
+
+                    $wrapAttrs = $allowNA ? " data-na-wrap x-data=\"{ na: {$naInit} }\"" : '';
+
                     return "<div class='flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2'>
                         <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'>{$numHtml}".e($label).":{$star}</label>
-                        <div class='flex-1 min-w-0'>
+                        <div class='flex-1 min-w-0'{$wrapAttrs}>
                             {$control}
                             {$noteHtml}
                         </div>
@@ -727,13 +1004,20 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     </div>
                                     <div class="flex flex-col gap-1">
                                         <span class="text-xs text-gray-500">&bull; If Dual Citizenship</span>
-                                        <div class="flex-1 min-w-0">
+                                        <div class="flex-1 min-w-0 flex flex-wrap items-start gap-x-2 gap-y-1" data-na-wrap
+                                            x-data="{ na: {{ strtoupper(trim((string) old('citizenship_dual', $sheet?->citizenship_dual))) === 'N/A' ? 'true' : 'false' }} }">
+                                            <div class="flex-1 min-w-[8rem]">
                                             <textarea name="citizenship_dual" rows="1" form="info-sheet-form"
-                                            :readonly="!editing" placeholder="Second citizenship, if any"
+                                            :readonly="!editing || na" placeholder="e.g. American - tick N/A if you have none"
                                             x-init="autoGrow($el)" @keydown.enter.prevent
-                                            @input="dirty = true; autoGrow($el)"
+                                            @input="dirty = true; autoGrow($el); na = $el.value.trim().toUpperCase() === 'N/A'"
                                             @click="if(!editing){ lastClickedInput = $el.name }"
                                             class="w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug uppercase disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300">{{ old('citizenship_dual', $sheet?->citizenship_dual) }}</textarea>
+                                            </div>
+                                            <label class="mt-1.5 inline-flex flex-shrink-0 items-center gap-1 text-xs font-medium text-gray-600 select-none" :class="editing ? 'cursor-pointer' : 'opacity-60'" title="Tick if this does not apply to you">
+                                                <input type="checkbox" x-model="na" :disabled="!editing" class="h-4 w-4 rounded border-gray-400" @change="naToggle($el, na)">
+                                                N/A
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -796,8 +1080,16 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                         $refs.{{ $key }}Year.value = '';
                                     }
                                 ">
-                                <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}@if (in_array($key, ['secondary', 'college'], true)) <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span>@endif</td>
-                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;' : 'color:#111827;'">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
+                                <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}@if (in_array($key, ['secondary', 'college'], true)) <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span>@endif
+                                    {{-- Tick instead of typing N/A in Name of School (which then
+                                         fills and locks the rest of the row, see x-effect above). --}}
+                                    <label class="mt-1 flex items-center gap-1 font-normal text-gray-600 select-none" :class="editing ? 'cursor-pointer' : 'opacity-60'" title="Tick if you did not attend this level">
+                                        <input type="checkbox" :checked="schoolNA" :disabled="!editing" class="h-3.5 w-3.5 rounded border-gray-400"
+                                            @change="schoolNA = $el.checked; $refs.{{ $key }}School.value = schoolNA ? 'N/A' : ''; autoGrow($refs.{{ $key }}School); if (! schoolNA) { $refs.{{ $key }}Degree.value = ''; $refs.{{ $key }}Unit.value = ''; $refs.{{ $key }}Year.value = ''; $refs.{{ $key }}School.focus(); } dirty = true">
+                                        N/A
+                                    </label>
+                                </td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}School" name="{{ $key }}_school" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing || schoolNA" placeholder="{{ $row['school'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;' : 'color:#111827;'">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
                                 <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing || schoolNA" placeholder="{{ $row['degree_course'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
                                 <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing || schoolNA" placeholder="{{ $row['highest_level_unit'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
                                 <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" @if (in_array($key, ['secondary', 'college'], true)) required @endif :readonly="!editing || schoolNA" placeholder="{{ $row['year_graduated'] }}" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" :style="schoolNA ? 'color:#9CA3AF;background:#F9FAFB;' : 'color:#111827;'">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
@@ -858,7 +1150,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                         <div data-packed-box="scholarships_academic_honors" class="border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
                                 <div class="flex-1 px-3 py-3 leading-tight">SCHOLARSHIP / ACADEMIC HONORS RECEIVED</div>
-                                <div class="w-10 flex-shrink-0"></div>
+                                <div class="w-10 flex-shrink-0 sticky right-0 z-10 bg-gray-50"></div>
                             </div>
 
                             <template x-for="row in rows" :key="row.id">
@@ -869,7 +1161,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             :readonly="!editing" @input="dirty = true"
                                             class="{{ $scholarCell }}">
                                     </div>
-                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                         <button type="button" x-show="editing" x-cloak
                                             @click="remove(row.id)"
                                             title="Remove entry" aria-label="Remove entry"
@@ -897,7 +1189,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             </form>
             {{-- The main form closes here for layout purposes only; every field below that belongs to it
                  carries form="info-sheet-form" so it still submits together with everything above. --}}
+            @include('startup.information-sheet._step-nav', ['n' => 1, 'last' => false])
+            </div>
 
+            <div data-step="2" :class="step === 2 ? '' : 'info-step-hidden'">
             {{-- II. Core Team Formation --}}
             <div class="mt-8 rounded-lg overflow-hidden">
                 <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-semibold px-4 py-2">II. CORE TEAM FORMATION</h3>
@@ -935,7 +1230,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     $teamInput = 'block w-full border-0 bg-transparent px-3 py-2.5 text-sm leading-snug focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500';
                     @endphp
                     <div class="overflow-x-auto">
-                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-clip divide-y divide-gray-200 bg-white">
 
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold text-gray-800 uppercase tracking-wide">
@@ -943,7 +1238,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 <div class="px-3 py-3 flex-shrink-0 leading-tight {{ $loop->last ? '' : 'border-r border-gray-200' }} {{ $col['w'] }}">{{ $col['label'] }}</div>
                                 @endforeach
                                 {{-- gutter, always present so columns don't shift between view and edit mode --}}
-                                <div class="w-10 flex-shrink-0"></div>
+                                <div class="w-10 flex-shrink-0 sticky right-0 z-10 bg-gray-50"></div>
                             </div>
 
                             {{-- Rows --}}
@@ -998,7 +1293,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 </form>
                                 @endif
 
-                                <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                     @if ($canDeleteTeam)
                                     <button type="button" x-show="editing" x-cloak
                                         @click="canRemoveRow('team', '{{ $rowKey }}') && toggleRemoval('{{ $rowKey }}')" :disabled="! canRemoveRow('team', '{{ $rowKey }}')" :class="! canRemoveRow('team', '{{ $rowKey }}') && 'text-gray-300 cursor-not-allowed hover:text-gray-300'" :title="canRemoveRow('team', '{{ $rowKey }}') ? 'Remove entry' : 'At least one entry is required'"
@@ -1058,7 +1353,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     </form>
 
                                     {{-- Pareho ng gutter ng saved rows para hindi mag-shift ang columns --}}
-                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                         <button type="button"
                                             @click="discardRow('team', row.id)" title="Discard entry"
                                             title="Discard entry"
@@ -1092,7 +1387,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     </div>
                 </div>
             </div>
+            @include('startup.information-sheet._step-nav', ['n' => 2, 'last' => false])
+            </div>
 
+            <div data-step="3" :class="step === 3 ? '' : 'info-step-hidden'">
             <div class="mt-8 rounded-lg overflow-hidden">
                 <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-semibold px-4 py-2">
                     III. INCUBATION INVOLVEMENT IN GOVERNMENT / NON-GOVERNMENT / PRIVATE / TECH ORGANIZATIONS
@@ -1111,7 +1409,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     $incCell = 'w-full h-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500';
                     @endphp
                     <div class="overflow-x-auto">
-                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-clip divide-y divide-gray-200 bg-white">
 
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-left text-[11px] uppercase tracking-wide font-semibold text-gray-800">
@@ -1123,7 +1421,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $incubationCols[2] }}">To</div>
                                 <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">Hours</div>
                                 <div class="px-3 py-3 flex-shrink-0 {{ $incubationCols[4] }}">Incubation Program / Focus</div>
-                                <div class="w-10 flex-shrink-0"></div>
+                                <div class="w-10 flex-shrink-0 sticky right-0 z-10 bg-gray-50"></div>
                             </div>
 
                             {{-- Saved rows --}}
@@ -1177,7 +1475,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     @method('DELETE')
                                 </form>
 
-                                <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                     <button type="button" x-show="editing" x-cloak
                                         @click="toggleRemoval('{{ $rowKey }}')"
                                         title="Remove entry"
@@ -1218,7 +1516,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             <textarea name="incubation_program_focus" placeholder="e.g. Technology Business Incubation" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                     </form>
-                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                         <button type="button" @click="discardRow('inc', row.id)" title="Discard entry" aria-label="Discard entry"
                                             class="text-red-600 hover:text-red-800 text-base leading-none">&times;</button>
                                     </div>
@@ -1244,8 +1542,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     @error('organization_name_address') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
             </div>
+            @include('startup.information-sheet._step-nav', ['n' => 3, 'last' => false])
+            </div>
 
 
+            <div data-step="4" :class="step === 4 ? '' : 'info-step-hidden'">
             {{-- IV. Learning and Development Interventions --}}
             <div class="mt-8 rounded-lg overflow-hidden">
                 <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-semibold px-4 py-2">
@@ -1266,7 +1567,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     $ldCell = 'w-full h-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500';
                     @endphp
                     <div class="overflow-x-auto">
-                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-clip divide-y divide-gray-200 bg-white">
 
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold text-gray-800 uppercase tracking-wide">
@@ -1278,7 +1579,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $ldCols[2] }}">To</div>
                                 <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">Hours</div>
                                 <div class="px-3 py-3 flex-shrink-0 {{ $ldCols[4] }}">Conducted / Sponsored By</div>
-                                <div class="w-10 flex-shrink-0"></div>
+                                <div class="w-10 flex-shrink-0 sticky right-0 z-10 bg-gray-50"></div>
                             </div>
 
                             {{-- Saved rows --}}
@@ -1321,7 +1622,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     @method('DELETE')
                                 </form>
 
-                                <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                     <button type="button" x-show="editing" x-cloak
                                         @click="toggleRemoval('{{ $rowKey }}')"
                                         title="Remove entry"
@@ -1357,7 +1658,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             <textarea name="conducted_sponsored_by" placeholder="e.g. PUP-TBIDO" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                     </form>
-                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                         <button type="button" @click="discardRow('ld', row.id)" title="Discard entry" aria-label="Discard entry"
                                             class="text-red-600 hover:text-red-800 text-base leading-none">&times;</button>
                                     </div>
@@ -1382,7 +1683,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     @error('title') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
             </div>
+            @include('startup.information-sheet._step-nav', ['n' => 4, 'last' => false])
+            </div>
 
+            <div data-step="5" :class="step === 5 ? '' : 'info-step-hidden'">
             {{-- V. Startup Information --}}
             <h3 class="mt-8 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-semibold px-4 py-2 rounded-t-lg">V. STARTUP INFORMATION</h3>
             <div class="border border-t-0 rounded-b-lg p-4 mb-6">
@@ -1409,7 +1713,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                              starts from what they already wrote — after that the two are
                              independent and editing here never changes the Profile. --}}
                         <textarea name="startup_overview" rows="6" form="info-sheet-form" required
-                            :readonly="!editing" placeholder="Describe what the startup does."
+                            :readonly="!editing" placeholder="e.g. For smallholder farmers who lose income to middlemen, AgriLink PH is a mobile marketplace that connects them directly with restaurants and grocers. Unlike traditional traders, we guarantee same-week payment and fair, transparent prices."
                             class="w-full border rounded px-3 py-2 text-sm min-h-[9rem] disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300"
                             @click="if(!editing){ lastClickedInput = $el.name }"
                             @input="dirty = true">{{ old('startup_overview', filled($sheet?->startup_overview) ? $sheet->startup_overview : $sheet?->business_description) }}</textarea>
@@ -1511,7 +1815,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                  so nothing shifts between view and edit mode. --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
                                 <div class="flex-1 px-3 py-3 leading-tight">NON-ACADEMIC DISTINCTIONS / RECOGNITION / ELIGIBILITIES</div>
-                                <div class="w-10 flex-shrink-0"></div>
+                                <div class="w-10 flex-shrink-0 sticky right-0 z-10 bg-gray-50"></div>
                             </div>
 
                             {{-- Rows --}}
@@ -1523,7 +1827,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             :readonly="!editing" @input="dirty = true; autoGrow($el)"
                                             class="{{ $listCell }} resize-none overflow-hidden leading-snug" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
-                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                         {{-- Immediate, not deferred: there's no DELETE to queue, the row only
                              exists in this array until Save packs it. --}}
                                         <button type="button" x-show="editing" x-cloak
@@ -1591,7 +1895,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
                                 <div class="flex-1 px-3 py-3 leading-tight">MEMBERSHIP IN ASSOCIATION/ORGANIZATION</div>
-                                <div class="w-10 flex-shrink-0"></div>
+                                <div class="w-10 flex-shrink-0 sticky right-0 z-10 bg-gray-50"></div>
                             </div>
 
                             {{-- Rows --}}
@@ -1603,7 +1907,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             :readonly="!editing" @input="dirty = true; autoGrow($el)"
                                             class="{{ $listCell }} resize-none overflow-hidden leading-snug" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
-                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                         <button type="button" x-show="editing" x-cloak
                                             @click="remove(row.id)"
                                             title="Remove entry" aria-label="Remove entry"
@@ -1640,7 +1944,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
         between view and edit mode.
     --}}
                     <div class="overflow-x-auto">
-                    <div class="min-w-[640px] border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+                    <div class="min-w-[640px] border border-gray-200 rounded-md overflow-clip divide-y divide-gray-200 bg-white">
 
                         {{-- Header --}}
                         <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
@@ -1650,7 +1954,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 <div class="px-3 py-3 border-r border-gray-200">EMAIL ADDRESS</div>
                                 <div class="px-3 py-3">ADDRESS</div>
                             </div>
-                            <div class="w-10 flex-shrink-0"></div>
+                            <div class="w-10 flex-shrink-0 sticky right-0 z-10 bg-gray-50"></div>
                         </div>
 
                         {{-- Saved rows --}}
@@ -1697,7 +2001,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 @method('DELETE')
                             </form>
 
-                            <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                            <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                 <button type="button" x-show="editing" x-cloak
                                     @click="toggleRemoval('{{ $rowKey }}')"
                                     title="Remove entry"
@@ -1735,7 +2039,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             class="w-full h-full border-0 bg-transparent px-3 py-2.5 uppercase placeholder:normal-case focus:outline-none resize-none overflow-hidden leading-snug focus:bg-blue-50" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                     </div>
                                 </form>
-                                <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                <div class="w-10 flex-shrink-0 flex items-center justify-center sticky right-0 z-10 bg-white border-l border-gray-100">
                                     <button type="button" @click="discardRow('ref', row.id)" title="Discard entry" aria-label="Discard entry"
                                         class="text-red-600 hover:text-red-800 text-base leading-none">&times;</button>
                                 </div>
@@ -1764,9 +2068,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                      the sheet itself (see InformationSheetFile). Same upload
                      widget/requirements as Roadblock submission's own
                      "Supporting Files" (see resources/views/startup/roadblocks/
-                     index.blade.php): up to 5 files, 5MB each client-side (server
-                     allows up to 10MB — see StoreInformationSheetFilesRequest),
-                     images/PDF/Word/Excel/CSV. --}}
+                     index.blade.php), but PDF only: up to 3 files, 5MB each
+                     (enforced again by StoreInformationSheetFilesRequest). --}}
                 <div class="mt-6" x-data="{ previewImageUrl: null }">
                     <p class="text-xs font-semibold text-gray-700 mb-2">ADD SUPPORTING DOCUMENTS</p>
 
@@ -1848,10 +2151,12 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             // frees up its slot immediately, matching the Restore button
                             // right next to it.
                             existingCount: {{ ($sheet?->files ?? collect())->count() }},
+                            // PDF only: up to 3 files, 5MB each (same limits as
+                            // StoreInformationSheetFilesRequest).
                             limits: {
-                                maxFiles: 5,
+                                maxFiles: 3,
                                 maxBytes: 5 * 1024 * 1024,
-                                accept: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv'],
+                                accept: ['pdf'],
                             },
                             // Reads files.length (a plain reactive array, refreshed by
                             // syncInput()), NOT dt.files.length: dt is a native
@@ -1879,10 +2184,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                         this.fileError = 'Maximum file limit reached.'; return;
                                     }
                                     if (!this.limits.accept.includes(ext)) {
-                                        this.fileError = `${file.name} isn't a supported file type.`; return;
+                                        this.fileError = `${file.name} isn't a PDF. Only PDF files can be attached - save or export it as PDF first.`; return;
                                     }
                                     if (file.size > this.limits.maxBytes) {
-                                        this.fileError = `${file.name} is larger than 5MB.`; return;
+                                        this.fileError = `${file.name} is larger than 5MB. Compress it first (e.g. ilovepdf.com or smallpdf.com) and try again.`; return;
                                     }
                                     if (existing.includes(file.name + file.size)) {
                                         this.fileError = `${file.name} is already attached.`; return;
@@ -1966,7 +2271,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                          submitted form, which would lose every file already picked
                                          the moment the limit is hit (see the Roadblock form's note). --}}
                                     <input type="file" name="files[]" x-ref="fileInput" multiple class="hidden"
-                                        accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                                        accept=".pdf,application/pdf"
                                         @change="addFiles($event.target.files); dirty = true">
                                 </div>
                             </div>
@@ -1983,7 +2288,16 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                             @error('files.*') <p class="mt-2 max-w-md text-xs text-red-600">{{ $message }}</p> @enderror
 
                             <p class="mt-2 max-w-md text-xs text-gray-500"
-                                x-text="`Up to ${limits.maxFiles} files, 5MB each. Images, PDF, Word, or Excel.` + (existingCount > 0 ? ` ${remainingSlots()} slot(s) left.` : '')"></p>
+                                x-text="`PDF only - up to ${limits.maxFiles} files, 5MB each.` + (existingCount > 0 ? ` ${remainingSlots()} slot(s) left.` : '')"></p>
+
+                            {{-- Tip: keep files small and recognisable for the reviewers. --}}
+                            <div class="mt-2 max-w-md rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                <p class="font-semibold">Tips before uploading</p>
+                                <ul class="mt-1 list-disc space-y-0.5 pl-4">
+                                    <li>Over 5MB? Compress it with a free online tool such as <span class="font-medium">ilovepdf.com</span> or <span class="font-medium">smallpdf.com</span> (Compress PDF).</li>
+                                    <li>Name each file clearly, e.g. <span class="font-medium">AgriLinkPH_SEC-Registration.pdf</span> or <span class="font-medium">AgriLinkPH_Pitch-Deck.pdf</span>.</li>
+                                </ul>
+                            </div>
 
                             <template x-if="files.length > 0">
                                 <ul class="mt-4 w-full max-w-md space-y-2">
@@ -2031,7 +2345,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                         </form>
                     </div>
 
-                    <p x-show="!editing" class="text-xs text-gray-500">Optional. Founder may attach supporting documents here.</p>
+                    <p x-show="!editing" class="text-xs text-gray-500">Optional. Attach up to 3 PDF files (5MB each).</p>
 
                     {{-- Image lightbox — same as Submit Roadblock's. --}}
                     <template x-teleport="body">
@@ -2081,86 +2395,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
 
 
 
-                {{-- Sticky while editing: on a form this long the Save button would
-                     otherwise sit thousands of pixels below whatever field is being
-                     corrected. It rides the bottom of the viewport instead. --}}
-                <div class="flex gap-3 sticky bottom-0 z-20 -mx-4 mt-6 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6"
-                    :class="editing || isLocked ? '' : 'border-transparent bg-transparent backdrop-blur-none'">
-
-                    <template x-if="isLocked">
-                        {{-- Pulsed by the "Information Sheet approved" notification. --}}
-                        <div @if (! $isRejected) data-highlight-id="sheet-status" @endif class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
-                            {{ $lockReason }}
-                        </div>
-                    </template>
-
-                    <template x-if="!isLocked && !editing">
-                        <div class="flex-1 rounded-lg p-[1.5px] bg-gradient-to-r from-[#6D0D23] to-[#11386A] mt-10">
-                            <button
-                                type="button"
-                                x-ref="editButton"
-                                @click="
-                    editing = true;
-                    $nextTick(() => {
-                        if (lastClickedInput) {
-                            const el = document.querySelector(`[name='${lastClickedInput}']`);
-                            if (el) {
-                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                el.focus();
-                            }
-                        }
-                    });
-                "
-                                class="w-full rounded-[7px] bg-white py-2.5 text-sm font-semibold text-[#11386A]
-                       transition-all duration-200 hover:bg-slate-50 hover:shadow-sm">
-                                Edit
-                            </button>
-                        </div>
-                    </template>
-
-                    <template x-if="editing && !isLocked">
-                        <button
-                            type="button"
-                            @click="cancelEdit()"
-                            class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold
-                   hover:bg-gray-50 transition">
-                            Cancel
-                        </button>
-                    </template>
-
-                    {{-- Save persists whatever's filled in right now, without
-                         requiring the sheet to be complete - nothing here is
-                         sent to TBIDO. --}}
-                    <button
-                        type="button"
-                        x-show="editing && !isLocked"
-                        x-cloak
-                        @click="saveAll('save')"
-                        :disabled="saving || !dirty"
-                        class="flex-1 rounded-lg border border-[#6D0D23] py-2.5 text-sm font-semibold text-[#6D0D23]
-               bg-white hover:bg-rose-50 transition disabled:opacity-60 disabled:cursor-not-allowed">
-                        <span x-text="saving && savingIntent === 'save' ? 'Saving…' : 'Save'"></span>
-                    </button>
-
-                    {{-- Submit for Review is the final action - every
-                         required field has to be answered, and this is what
-                         actually puts the sheet in front of TBIDO. Not gated
-                         on `dirty`: a founder who already Saved everything
-                         and made no further edits should still be able to
-                         submit exactly what's saved. --}}
-                    <button
-                        type="button"
-                        x-show="editing && !isLocked"
-                        x-cloak
-                        @click="saveAll('submit')"
-                        :disabled="saving"
-                        class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
-               bg-gradient-to-r from-[#6D0D23] to-[#11386A]
-               hover:opacity-95 transition disabled:opacity-60 disabled:cursor-not-allowed">
-                        <span x-text="saving && savingIntent === 'submit' ? 'Submitting…' : 'Submit for Review'"></span>
-                    </button>
-
-                </div>
+            </div>
+            @include('startup.information-sheet._step-nav', ['n' => 5, 'last' => true])
             </div>
         </div>
     </div>
@@ -2409,7 +2645,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             // happened to report its error first. Only visible ones count - a
             // hidden element reports top=0 and used to "win", scrolling the
             // page to the very top instead of to the first real error.
-            const topmost = candidates.filter(infoSheetIsVisible).reduce((top, el) => {
+            const topmost = candidates.filter((el) => infoSheetIsVisible(el) && ! el.closest('.info-step-hidden')).reduce((top, el) => {
                 if (! top) return el;
                 return el.getBoundingClientRect().top < top.getBoundingClientRect().top ? el : top;
             }, null);
@@ -2420,6 +2656,74 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             }
 
             return candidates.length > 0;
+        };
+
+        // ---- Instant feedback ----------------------------------------------
+        // Checks one field as the founder types / leaves it, so a mistake is
+        // flagged right away (with a concrete example of what's expected)
+        // instead of only after Next or Submit. Same rules as the server
+        // (UpdateInformationSheetRequest / the row requests), which still has
+        // the final say. A field is only checked once it has been left once
+        // (touched) or is already showing an error, so nothing turns red
+        // while the founder is still typing their first answer.
+        window.infoSheetLiveCheck = function (el, leaving) {
+            if (! el || ! el.name || el.readOnly || el.disabled) return;
+            if (! ['TEXTAREA', 'INPUT'].includes(el.tagName) || ['hidden', 'file', 'checkbox'].includes(el.type)) return;
+
+            if (leaving) el.dataset.touched = '1';
+            if (! el.dataset.touched && ! el.hasAttribute('data-field-invalid')) return;
+
+            const v = (el.value || '').trim();
+            const isNA = v.toUpperCase() === 'N/A';
+            const inTeamRow = !! el.closest('form')?.getAttribute('action')?.includes('team-members');
+            const name = el.name;
+            const letters = /^[\p{L}][\p{L}\p{M}\s.\-'’,]*$/u;
+            let msg = '';
+
+            if (v === '') {
+                if (el.required || inTeamRow) {
+                    msg = el.type === 'date' ? 'Select a date.' : 'This field is required.';
+                }
+            } else if (['surname', 'first_name'].includes(name)) {
+                if (! letters.test(v)) msg = 'Use letters only - e.g. ' + (name === 'surname' ? 'SANTOS' : 'MARIA') + '.';
+            } else if (['middle_name', 'name_extension'].includes(name)) {
+                if (! isNA && ! letters.test(v)) msg = 'Use letters only (e.g. ' + (name === 'middle_name' ? 'REYES' : 'JR.') + '), or tick N/A.';
+            } else if (name === 'blood_type') {
+                if (! /^(n\/a|(a|b|ab|o)\s?[+\-])$/i.test(v)) msg = 'Use A+, A-, B+, B-, AB+, AB-, O+ or O- - or tick N/A if you don\'t know it.';
+            } else if (name === 'mobile_no' || (inTeamRow && name === 'phone') || name === 'contact') {
+                if (! /^(09\d{9}|\+639\d{9})$/.test(v)) msg = 'Use 11 digits starting with 09 (09171234567) or +639171234567.';
+            } else if (name === 'founder_email' || name === 'email') {
+                if (! /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) msg = 'Enter a valid email, e.g. juan.delacruz@gmail.com.';
+            } else if (['residential_address', 'permanent_address'].includes(name)) {
+                if (v.length < 10) msg = 'Write the full address (at least 10 characters): House/Unit No., Street, Barangay, City - e.g. 123 Mabini St., Brgy. 630, Sta. Mesa, Manila.';
+            } else if (name === 'citizenship_by_birth') {
+                if (! /^[\p{L}][\p{L}\p{M}\s]*$/u.test(v)) msg = 'Letters only - e.g. FILIPINO.';
+            } else if (/_year_graduated$/.test(name)) {
+                if (! isNA && ! /^(19|20)\d{2}$/.test(v)) msg = 'Enter a 4-digit year, e.g. 2023 - or N/A if you are still studying.';
+            } else if (name === 'startup_overview') {
+                if (v.length < 10 || ['NA', 'NONE', 'NOTAPPLICABLE'].includes(v.toUpperCase().replace(/[^A-Z]/g, ''))) {
+                    msg = 'Describe your startup in a few sentences. Guide: For [target customer] who [need], [startup] is a [product/service] that [key benefit]. Unlike [alternative], we [what makes you different].';
+                }
+            } else if (inTeamRow && ['full_name', 'designation'].includes(name)) {
+                if (! letters.test(v) && ! /[\/]/.test(v)) msg = name === 'full_name' ? 'Letters only - e.g. Dela Cruz, Juan, Santos, Jr.' : 'Letters only - e.g. Chief Technology Officer.';
+            }
+
+            // Clear this field's own message, then paint the new one (if any).
+            if (el.nextElementSibling?.hasAttribute('data-field-error')) el.nextElementSibling.remove();
+            el.style.borderColor = '';
+            el.style.boxShadow = '';
+            el.removeAttribute('data-field-invalid');
+            if (! msg) return;
+
+            el.style.borderColor = INFO_SHEET_ERROR_BORDER;
+            el.style.boxShadow = INFO_SHEET_ERROR_RING;
+            el.setAttribute('data-field-invalid', '');
+            const note = document.createElement('p');
+            note.setAttribute('data-field-error', name);
+            note.className = 'mt-1 text-xs';
+            note.style.color = '#dc2626';
+            note.textContent = msg;
+            el.insertAdjacentElement('afterend', note);
         };
 
         // Everything the founder must fill in, checked before a single request
@@ -2466,8 +2770,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             };
         };
 
-        window.validateInfoSheetForms = function (root) {
+        // scope (optional): only check the fields inside this element - Next
+        // checks just the part on screen.
+        window.validateInfoSheetForms = function (root, counts, scope) {
             root = root || document;
+            const inScope = (el) => ! scope || scope.contains(el);
 
             // No clear here - saveAll() clears once, up front, before calling
             // this AND submitInfoSheetForms(). Clearing again here used to
@@ -2547,6 +2854,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 Array.from(mainForm.elements).forEach((el) => {
                     if (! el.name || seen.has(el.name)) return;
                     if (! el.required) return;
+                    if (! inScope(el)) return;
                     seen.add(el.name);
                     if (! blank(el)) return;
 
@@ -2560,7 +2868,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 // guardAtLeastOneEducationLevel().
                 let anyLevel = false;
                 let anyStarted = false;
-                ['secondary', 'vocational', 'college', 'graduate'].forEach((level) => {
+                const eduInScope = inScope(mainForm.elements.namedItem('secondary_school') || mainForm);
+                if (eduInScope) ['secondary', 'vocational', 'college', 'graduate'].forEach((level) => {
                     const cells = ['school', 'degree_course', 'highest_level_unit']
                         .map((col) => mainForm.elements.namedItem(`${level}_${col}`))
                         .filter(Boolean);
@@ -2595,7 +2904,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 // founder started, say, College, that row's own messages are
                 // enough - pointing them at the Secondary row too would just
                 // be confusing.
-                if (firstSchool && ! anyLevel && ! anyStarted) {
+                if (eduInScope && firstSchool && ! anyLevel && ! anyStarted) {
                     if (! firstSchool.hasAttribute('data-field-invalid')) {
                         flag(firstSchool, 'Fill in at least one level of educational background.');
                     }
@@ -2633,7 +2942,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             // be repeating what every cell in that row already says.
             let teamRowFlagged = false;
 
-            Array.from(root.querySelectorAll('form.js-subform')).forEach((form) => {
+            Array.from((scope || root).querySelectorAll('form.js-subform')).forEach((form) => {
                 if (form.classList.contains('js-deleteform')) return;
                 if (form.classList.contains('js-skip')) return;
 
@@ -2664,7 +2973,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             //    optional now, like every other table on the sheet.
 
 
-            if (first) {
+            // A field in a part that isn't on screen is reached through
+            // jumpToFirstError() instead (scrolling to it here would only
+            // shift the hidden part sideways).
+            if (first && ! first.closest('.info-step-hidden')) {
                 first.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 if (typeof first.focus === 'function') first.focus({ preventScroll: true });
             }
@@ -2747,7 +3059,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             // every validation problem in one pass instead of stopping at the
             // first one — same "attempt everything, then decide" shape whether
             // this is the dry run or the real save below.
-            const attemptAll = async (dryRun) => {
+            const attemptAll = async (dryRun, list = nonDeleteForms) => {
                 // Keyed by field + which row's form it came from, not just the
                 // bare field name: every Core Team / Incubation / L&D /
                 // Reference row reuses the same field names (full_name, phone,
@@ -2782,13 +3094,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 // Core Team / L&D / Reference rows meant a noticeable wait.
                 // The real save (dryRun false) stays one-at-a-time.
                 const pending = dryRun
-                    ? nonDeleteForms.map((form) => submitOne(form, true).then(
+                    ? list.map((form) => submitOne(form, true).then(
                         (value) => ({ ok: true, value }),
                         (error) => ({ ok: false, error }),
                     ))
                     : [];
 
-                for (const [formIndex, form] of nonDeleteForms.entries()) {
+                for (const [formIndex, form] of list.entries()) {
                     try {
                         let saved;
                         if (dryRun) {
@@ -2850,8 +3162,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             }
 
             // Phase 2 — every section validated clean above, so it's now safe
-            // to actually persist all of them.
-            const created = await attemptAll(false);
+            // to actually persist all of them. The main sheet goes LAST: on a
+            // Submit, saving it marks the sheet submitted, which locks it - any
+            // Core Team / table row or removal sent after it was refused (403),
+            // so the founder saw an error while the sheet had already gone to
+            // review without their last row changes.
+            const rowForms = nonDeleteForms.filter((form) => form !== mainForm);
+            const created = await attemptAll(false, rowForms);
 
             // Phase 3 — only reached once every create/update above actually
             // persisted - safe to delete now, in order, same as before.
@@ -2860,6 +3177,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             for (const form of deleteForms) {
                 await submitOne(form);
                 removed++;
+            }
+
+            // Phase 4 — the main sheet itself (see Phase 2).
+            if (mainForm && nonDeleteForms.includes(mainForm)) {
+                await attemptAll(false, [mainForm]);
             }
 
             return {

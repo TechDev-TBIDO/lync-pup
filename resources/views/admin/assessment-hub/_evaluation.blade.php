@@ -17,7 +17,9 @@ return $url
 @endphp
 
 @php
-$initialStage = in_array(request('stage'), ['today', 'upcoming', 'missed']) ? request('stage') : 'today';
+// Default is "All": Today, Upcoming and Missed listed one after another.
+// Picking one stage from the dropdown narrows the page to just that list.
+$initialStage = in_array(request('stage'), ['all', 'today', 'upcoming', 'missed']) ? request('stage') : 'all';
 
 
 // Startup cell width. The logo + name live in one fixed-width block so every
@@ -56,9 +58,19 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
     }"
     x-init="
         $watch('stage', value => setQueryParam('stage', value));
-        $watch(() => [mainTab, subTab, stage].join('|'), view => reportSeen(view));
+        // 'All' shows every stage at once, so it counts as seeing all three.
+        const reportView = (view) => {
+            const [main, tab, st] = view.split('|');
+            if (tab === 'evaluation' && st === 'all') {
+                ['today', 'upcoming', 'missed'].forEach(s => reportSeen(`${main}|${tab}|${s}`));
+            } else {
+                reportSeen(view);
+            }
+        };
+        $watch(() => [mainTab, subTab, stage].join('|'), view => reportView(view));
+        if (stage === 'all' && subTab === 'evaluation') reportView([mainTab, subTab, stage].join('|'));
     ">
-    @php $stages = ['today' => 'Today', 'upcoming' => 'Upcoming', 'missed' => 'Missed']; @endphp
+    @php $stages = ['all' => 'All', 'today' => 'Today', 'upcoming' => 'Upcoming', 'missed' => 'Missed']; @endphp
 
     <div class="mb-6 flex flex-col sm:flex-row sm:items-end gap-4">
         <div class="w-full sm:max-w-xs">
@@ -80,10 +92,14 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                     class="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
                     style="display:none;">
                     @foreach ($stages as $value => $label)
+                    {{-- The selected stage stays in the list, highlighted with a
+                         check, instead of disappearing from it. --}}
                     <button type="button"
-                        x-show="stage !== '{{ $value }}'"
+                        :class="stage === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : 'text-gray-700'"
+                        :aria-selected="stage === '{{ $value }}'"
                         @click="stage = '{{ $value }}'; open = false"
-                        class="flex w-full items-center gap-1.5 px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                        class="flex w-full items-center gap-1.5 px-3 py-2 text-left text-sm transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                        <svg class="h-3.5 w-3.5 flex-shrink-0" :class="stage === '{{ $value }}' ? '' : 'invisible'" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
                         {{ $label }}
                         @if (in_array('information-sheet|evaluation|'.$value, $hubMissedViews ?? [], true))
                         <span {!! $hubDot(['information-sheet|evaluation|'.$value]) !!} x-show="pending.length" class="inline-flex">
@@ -96,7 +112,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
             </div>
         </div>
 
-        <div class="w-full sm:max-w-xs" x-show="stage === 'upcoming'" x-cloak>
+        <div class="w-full sm:max-w-xs" x-show="stage === 'upcoming' || stage === 'all'" x-cloak>
             <label class="text-sm font-medium block mb-1 invisible sm:hidden">Month:</label>
             <div class="relative inline-block w-full" x-data="{ open: false }"
                 @click.outside="open = false" @keydown.escape="open = false">
@@ -115,7 +131,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                     style="display:none;">
                     @foreach ($months as $value => $label)
                     <button type="button"
-                        x-show="month !== '{{ $value }}'"
+                        :class="month === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="month === '{{ $value }}'"
                         @click="month = '{{ $value }}'; open = false"
                         class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                         {{ $label }}
@@ -127,7 +143,8 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
     </div>
 
     {{-- ==================== TODAY ==================== --}}
-    <div x-show="stage === 'today'">
+    <div x-show="stage === 'all' || stage === 'today'">
+        <h3 x-show="stage === 'all'" x-cloak class="mb-2 text-sm font-bold uppercase tracking-wide text-[#6D0D23]">Today</h3>
         <p class="flex items-center gap-2 font-medium mb-3">
             <img src="{{ asset('images/icons/calendar.svg') }}" alt="" class="h-8 w-8" aria-hidden="true">
             {{ now()->format('F d, Y') }}
@@ -361,7 +378,8 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
     </div>
 
     {{-- ==================== UPCOMING ==================== --}}
-    <div x-show="stage === 'upcoming'" x-cloak>
+    <div x-show="stage === 'all' || stage === 'upcoming'" x-cloak :class="stage === 'all' ? 'mt-8' : ''">
+        <h3 x-show="stage === 'all'" x-cloak class="mb-2 text-sm font-bold uppercase tracking-wide text-[#6D0D23]">Upcoming</h3>
         <div class="{{ $shell }}">
             <div class="{{ $scroll }}">
                 <table class="{{ $table }}">
@@ -448,7 +466,8 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
     </div>
 
     {{-- ==================== MISSED ==================== --}}
-    <div x-show="stage === 'missed'" x-cloak>
+    <div x-show="stage === 'all' || stage === 'missed'" x-cloak :class="stage === 'all' ? 'mt-8' : ''">
+        <h3 x-show="stage === 'all'" x-cloak class="mb-2 text-sm font-bold uppercase tracking-wide text-[#6D0D23]">Missed</h3>
         <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
             Expired slots with unapproved Information Sheets
         </div>

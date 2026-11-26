@@ -5,22 +5,20 @@ namespace App\Http\Requests\Startup;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Validates the Information Sheet's "Add Supporting Documents" upload —
- * same limits as Roadblock submission's own "Supporting Files" (see
- * StoreRoadblockRequest): up to 5 files total, 10MB each, the same allowed
- * types.
+ * Validates the Information Sheet's "Add Supporting Documents" upload:
+ * PDF only, up to 3 files in total, 5MB each.
  *
  * MAX_FILES is a running total across every upload, not a per-request cap —
- * a founder who already has 3 files saved can only add 2 more, not 5 more.
+ * a founder who already has 2 files saved can only add 1 more, not 3 more.
  * See remainingSlots() below.
  */
 class StoreInformationSheetFilesRequest extends FormRequest
 {
-    public const MAX_FILES = 5;
+    public const MAX_FILES = 3;
 
-    public const MAX_KILOBYTES = 10240;
+    public const MAX_KILOBYTES = 5120;
 
-    public const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'mp4'];
+    public const ALLOWED_EXTENSIONS = ['pdf'];
 
     public function authorize(): bool
     {
@@ -73,8 +71,8 @@ class StoreInformationSheetFilesRequest extends FormRequest
         return [
             'files.max' => 'Only '.self::MAX_FILES.' supporting documents can be attached in total'
                 .($this->existingFileCount() > 0 ? ' — you already have '.$this->existingFileCount().' saved.' : '.'),
-            'files.*.max' => 'The :attribute exceeds the 10MB size limit.',
-            'files.*.mimes' => 'The :attribute is not a supported file type.',
+            'files.*.max' => 'The :attribute exceeds the 5MB size limit - compress it (e.g. ilovepdf.com) and try again.',
+            'files.*.mimes' => 'The :attribute must be a PDF file.',
             'files.*.file' => 'The :attribute failed to upload — please try again.',
         ];
     }

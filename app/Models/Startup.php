@@ -605,7 +605,6 @@ class Startup extends Model
     public function informationSheetLockMessage(): ?string
     {
         return match (true) {
-            $this->hasApprovedInformationSheet() => 'This Information Sheet is approved and locked. Contact your Coordinator for changes.',
             $this->submittedForReviewLockActive() => 'This Information Sheet has been submitted and is locked while TBIDO reviews it. Contact your Coordinator for changes.',
             $this->evaluationDayLockActive() => 'This Information Sheet is locked for today - your evaluation is scheduled today.',
             $this->missedEvaluationLockActive() => 'This Information Sheet is locked - your evaluation was missed. It unlocks once TBIDO sets a new evaluation schedule.',
@@ -625,10 +624,16 @@ class Startup extends Model
         return $sheet?->approval_status === 'Pending' && filled($sheet->submission_date);
     }
 
+    /**
+     * An Approved sheet is NOT locked: an accepted startup may edit it again,
+     * and submitting it just updates the approved record (it never goes back
+     * to Pending - see Startup\InformationSheetController::update()). Only a
+     * sheet waiting on TBIDO's decision, or the evaluation-day / missed
+     * evaluation windows, lock it.
+     */
     public function isInformationSheetLocked(): bool
     {
-        return $this->hasApprovedInformationSheet()
-            || $this->submittedForReviewLockActive()
+        return $this->submittedForReviewLockActive()
             || $this->evaluationDayLockActive()
             || $this->missedEvaluationLockActive();
     }

@@ -103,6 +103,23 @@ class InformationSheetController extends Controller
             return redirect()->route('startup.information-sheet.edit')->with('status', 'Information Sheet saved. Submit it for review once it\'s complete.');
         }
 
+        // An accepted startup may edit its approved sheet and submit it again:
+        // that just updates the record. It stays Approved (no new review, no
+        // new evaluation), and the change is logged so admins can see it.
+        if ($sheet->approval_status === 'Approved') {
+            $sheet->update($data);
+
+            VersionHistory::record(
+                $startup,
+                'Information Sheet',
+                'founder_update_approved_sheet',
+                $startup->company_name,
+                changes: ChangeLog::note('Approved Information Sheet updated by the founder'),
+            );
+
+            return redirect()->route('startup.information-sheet.edit')->with('status', 'Information Sheet updated.');
+        }
+
         // A rejected startup's founder can revise and resubmit here — when
         // they do, any evaluation booking that predates the rejection is now
         // stale (it was for the submission that just got rejected) and must

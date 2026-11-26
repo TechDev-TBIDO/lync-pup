@@ -192,6 +192,10 @@ Route::middleware(['auth', 'role:Admin', 'active-admin', 'select-cohort'])->pref
         ->except(['index', 'create', 'edit', 'show'])
         ->names('cohorts');
     Route::patch('cohorts/{cohort}/archive', [CohortController::class, 'archive'])->name('cohorts.archive');
+    Route::patch('cohorts/{cohort}/unarchive', [CohortController::class, 'unarchive'])->name('cohorts.unarchive');
+
+    // Archive: every archived cohort / roadblock / assessment meeting in one place.
+    Route::get('/archive', [\App\Http\Controllers\Admin\ArchiveController::class, 'index'])->name('archive.index');
     // Opens/closes this cohort's call for applications (home page sign-up).
     Route::patch('cohorts/{cohort}/applications', [CohortController::class, 'toggleApplications'])->name('cohorts.applications');
 

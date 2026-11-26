@@ -104,7 +104,7 @@ $archiveMonths = $monthsFor($meetingsArchive);
                 class="absolute left-0 top-full z-30 mt-1 w-[140px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg sm:w-[160px]"
                 style="display:none;">
                 @foreach (['pending' => 'Pending Review', 'resolved' => 'Resolved', 'failed' => 'Failed'] as $stageKey => $stageLabel)
-                <button type="button" x-show="archiveStage !== '{{ $stageKey }}'" @click="archiveStage = '{{ $stageKey }}'; open = false"
+                <button type="button" :class="archiveStage === '{{ $stageKey }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="archiveStage === '{{ $stageKey }}'" @click="archiveStage = '{{ $stageKey }}'; open = false"
                     class="block w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                     {{ $stageLabel }}
                 </button>

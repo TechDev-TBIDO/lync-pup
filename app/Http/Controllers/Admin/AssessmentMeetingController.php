@@ -152,6 +152,12 @@ class AssessmentMeetingController extends Controller
             AssessmentMeeting::STATUS_PENDING_REVIEW,
         );
 
+        // Started from the Archive page: go back there.
+        if (request()->input('from') === 'archive') {
+            return redirect()->route('admin.archive.index', ['type' => 'meetings'])
+                ->with('status', 'Meeting recovered to Pending Review.');
+        }
+
         return $this->archiveRedirect('pending')->with('status', 'Meeting recovered to Pending Review.');
     }
 

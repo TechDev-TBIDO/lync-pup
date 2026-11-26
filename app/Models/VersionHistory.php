@@ -78,6 +78,7 @@ class VersionHistory extends Model
         'create_cohort' => 'Created Cohort',
         'update_cohort' => 'Edited Cohort',
         'archive_cohort' => 'Archived Cohort',
+        'unarchive_cohort' => 'Unarchived Cohort',
         'delete_cohort' => 'Deleted Cohort',
         'open_applications' => 'Opened Call for Applications',
         'close_applications' => 'Closed Call for Applications',
@@ -92,6 +93,7 @@ class VersionHistory extends Model
 
         // Information Sheet items a founder removes from their own sheet.
         'founder_remove_sheet_item' => 'Founder Removed Information Sheet Item',
+        'founder_update_approved_sheet' => 'Founder Updated Approved Information Sheet',
 
         // Founder Registrations (context 'Founder Registrations' — page-wide).
         'delete_signup' => 'Deleted Founder Signup',

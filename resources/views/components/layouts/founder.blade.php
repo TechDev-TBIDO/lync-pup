@@ -9,6 +9,25 @@
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        /* Founder forms: make text fields easier to see. :where() keeps this
+           at zero specificity so any Tailwind border/ring class on a field
+           (e.g. border-red-500 for an error) still wins. */
+        :where(main) :where(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]), textarea, select) {
+            border-color: #9ca3af;
+        }
+        :where(main) :where(input, textarea, select)::placeholder {
+            color: #9ca3af;
+        }
+        :where(main) :where(input:not([type=checkbox]):not([type=radio]):not([readonly]), textarea:not([readonly]), select:not([disabled])):focus {
+            outline: none;
+            border-color: #6D0D23;
+            box-shadow: 0 0 0 3px rgba(109, 13, 35, 0.15);
+        }
+        :where(main) :where(input[readonly], textarea[readonly]) {
+            border-color: #d1d5db;
+        }
+    </style>
     <script>
         // Same fix as the admin layout: without this, hitting Back to a page
         // the browser kept in its back/forward cache (bfcache) just replays
@@ -74,10 +93,15 @@
             ? 'Unlocks once your Information Sheet is approved'
             : 'Submit your Information Sheet - unlocks once it is approved'));
 
+            // Startup Profile and Information Sheet sit under one always-open
+            // "Startup Information" heading, styled like the admin sidebar's
+            // categories (a plain heading, smaller child links under it).
             $navItems = [
             ['route' => 'startup.dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg', 'lock' => null],
+            ['key' => 'startup-info', 'label' => 'Startup Information', 'icon' => 'startupProfile.svg', 'children' => [
             ['route' => 'startup.profile.edit', 'label' => 'Startup Profile', 'icon' => 'startupProfile.svg', 'lock' => null],
             ['route' => 'startup.information-sheet.edit', 'label' => 'Information Sheet', 'icon' => 'info-sheet.svg', 'lock' => $lockUntilProfile],
+            ]],
             ['route' => 'startup.meetings.index', 'label' => 'Meeting', 'icon' => 'coordProfile.svg', 'lock' => $lockUntilSubmission],
             ['route' => 'startup.submissions.index', 'label' => 'Submission', 'icon' => 'assessmentHub.svg', 'lock' => $lockUntilApproval],
             ['route' => 'startup.readiness.index', 'label' => 'Readiness Result', 'icon' => 'riskMon.svg', 'lock' => $lockUntilApproval],
@@ -135,75 +159,26 @@
 
                         <div class="mx-5 border-b border-white/15"></div>
 
-                        <nav class="mt-2 space-y-1 px-3">
-                            @foreach ($navItems as $item)
-                            @php $isActive = request()->routeIs($item['route'] . '*'); @endphp
-
-                            @if ($item['lock'])
-                            <div
-                                title="{{ $item['lock'] }}"
-                                aria-disabled="true"
-                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/40 cursor-not-allowed select-none">
-
-                                <span class="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                                    {!! $icon($item['icon']) !!}
-                                </span>
-
-                                <span class="flex-1">
-                                    {{ $item['label'] }}
-                                </span>
-
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round"
-                                    class="w-3.5 h-3.5 flex-shrink-0">
-                                    <rect x="4" y="10.5" width="16" height="10" rx="2" />
-                                    <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
-                                </svg>
+                        <nav class="mt-4 space-y-1.5 px-3">
+                            @foreach ($navItems as $navEntry)
+                            @if (isset($navEntry['children']))
+                            {{-- Category: a plain heading (not clickable) with its
+                                 links always listed under it - same as the admin sidebar. --}}
+                            <div class="pt-2">
+                                <div class="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-white">
+                                    <span class="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                        {!! $icon($navEntry['icon']) !!}
+                                    </span>
+                                    <span class="flex-1">{{ $navEntry['label'] }}</span>
+                                </div>
+                                <div class="ml-5 space-y-1 border-l border-white/15 pl-2">
+                                    @foreach ($navEntry['children'] as $navChild)
+                                    @include('partials.founder-nav-link', ['item' => $navChild, 'child' => true, 'icon' => $icon])
+                                    @endforeach
+                                </div>
                             </div>
                             @else
-                            <a
-                                href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
-                                @click="
-                                if ({{ $isActive ? 'true' : 'false' }}) {
-                                    // Already on this page - clicking it again is not a
-                                    // navigation, so it must never trigger the unsaved-
-                                    // changes prompt (or silently reload and lose the draft).
-                                    $event.preventDefault();
-                                } else if ($store.navigation.hasUnsavedChanges) {
-                                    $event.preventDefault();
-                                    $store.navigation.pendingAction = null;
-                                    $store.navigation.nextUrl = $el.href;
-                                    $store.navigation.showLeaveModal = true;
-                                } else {
-                                    sidebarOpen = false;
-                                }
-                            "
-                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                                {{ $isActive
-                                    ? 'bg-white text-[#6D0D23] shadow-sm'
-                                    : 'text-white/85 hover:bg-white/10 hover:text-white' }}">
-
-                                <span class="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                                    {!! $icon($item['icon']) !!}
-                                </span>
-
-                                <span class="flex-1">
-                                    {{ $item['label'] }}
-                                </span>
-
-                                @if (!empty(($founderSidebarBadges ?? [])[$item['route']] ?? false))
-                                @if (!empty(($founderSidebarPendingTabs ?? [])[$item['route']] ?? []))
-                                {{-- Open page, new item on another tab: goes out once
-                                     every such tab has been opened (no reload needed). --}}
-                                <span x-data="{ pending: @js($founderSidebarPendingTabs[$item['route']]) }"
-                                    x-show="pending.length"
-                                    @page-tab-seen.window="if ($event.detail.route === @js($item['route'])) pending = pending.filter(t => t !== $event.detail.tab)"
-                                    class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New update" aria-label="New update"></span>
-                                @else
-                                <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New update" aria-label="New update"></span>
-                                @endif
-                                @endif
-                            </a>
+                            @include('partials.founder-nav-link', ['item' => $navEntry, 'child' => false, 'icon' => $icon])
                             @endif
                             @endforeach
                         </nav>

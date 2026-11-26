@@ -806,7 +806,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                         class="absolute right-0 z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                         @foreach ($archiveStatuses as $value => $label)
                         <button type="button"
-                            x-show="archiveStatusFilter !== '{{ $value }}'"
+                            :class="archiveStatusFilter === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="archiveStatusFilter === '{{ $value }}'"
                             @click="archiveStatusFilter = '{{ $value }}'; open = false"
                             class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                             {{ $label }}

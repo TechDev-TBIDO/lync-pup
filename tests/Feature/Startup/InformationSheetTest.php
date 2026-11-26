@@ -156,16 +156,36 @@ class InformationSheetTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_founder_cannot_edit_locked_approved_information_sheet(): void
+    public function test_an_approved_sheet_can_be_edited_and_resubmitting_only_updates_it(): void
     {
-        [$user] = $this->makeFounder('Approved');
+        [$user, $startup] = $this->makeFounder('Approved');
+        $sheet = $startup->informationSheet;
+        $sheet->update(['submission_date' => now()->subWeek()]);
+        $submittedAt = $sheet->fresh()->submission_date;
 
-        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+        $this->assertFalse($startup->fresh()->isInformationSheetLocked());
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), $this->validInformationSheetPayload([
+            'intent' => 'submit',
+            'surname' => 'Updated',
+        ]));
+
+        $response->assertRedirect(route('startup.information-sheet.edit'));
+        $sheet->refresh();
+        $this->assertSame('UPDATED', $sheet->surname);
+        // Still approved, never sent back for a new review.
+        $this->assertSame('Approved', $sheet->approval_status);
+        $this->assertTrue($sheet->submission_date->equalTo($submittedAt));
+    }
+
+    public function test_a_sheet_under_review_stays_locked(): void
+    {
+        [$user, $startup] = $this->makeFounder('Pending');
+        $startup->informationSheet->update(['submission_date' => now()]);
+
+        $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
             'surname' => 'Attempted Change',
-            'first_name' => 'Still Attempted',
-        ]);
-
-        $response->assertForbidden();
+        ])->assertForbidden();
     }
 
     public function test_founder_can_save_a_complete_information_sheet_before_any_evaluation_is_scheduled(): void

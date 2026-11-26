@@ -81,6 +81,12 @@
             ['route' => 'admin.roadblocks.index', 'label' => 'Roadblocks', 'icon' => 'roadblock.svg'],
             ['route' => 'admin.risk-monitoring.index', 'label' => 'Risk Monitoring', 'icon' => 'riskMon.svg'],
             ]],
+            // Everything archived (cohorts, roadblocks, meetings), with un-archive.
+            ['key' => 'archive', 'label' => 'Archive', 'icon' => 'archive.svg', 'children' => [
+            ['route' => 'admin.archive.index', 'label' => 'Cohorts', 'icon' => 'calendar.svg', 'query' => ['type' => 'cohorts']],
+            ['route' => 'admin.archive.index', 'label' => 'Roadblocks', 'icon' => 'roadblock.svg', 'query' => ['type' => 'roadblocks']],
+            ['route' => 'admin.archive.index', 'label' => 'Meetings', 'icon' => 'eval-meeting.svg', 'query' => ['type' => 'meetings']],
+            ]],
             ];
 
             // "Anything new here since I last looked" per nav item — shared
@@ -92,9 +98,12 @@
 
             // Every Assessment Hub red dot is about new applicants (Schedule /
             // Evaluation), so the hub's dot sits on New Applicants only.
-            $navLinkActive = fn (array $item) => isset($item['main'])
-            ? $onHub && $hubMain === $item['main']
-            : request()->routeIs($item['route'] . '*');
+            // Archive's links are one page filtered by ?type= (cohorts first).
+            $navLinkActive = fn (array $item) => match (true) {
+            isset($item['main']) => $onHub && $hubMain === $item['main'],
+            isset($item['query']['type']) => request()->routeIs($item['route']) && (in_array(request('type'), ['cohorts', 'roadblocks', 'meetings'], true) ? request('type') : 'cohorts') === $item['query']['type'],
+            default => request()->routeIs($item['route'] . '*'),
+            };
             $navLinkBadge = fn (array $item) => ! empty($adminSidebarBadges[$item['route']] ?? false)
             && (($item['main'] ?? 'information-sheet') === 'information-sheet');
             @endphp
@@ -180,7 +189,7 @@
                                 <div class="ml-5 space-y-1 border-l border-white/15 pl-2">
                                     @foreach ($item['children'] as $child)
                                     <x-admin-nav-link
-                                        :href="Route::has($child['route']) ? route($child['route'], ($child['main'] ?? 'information-sheet') !== 'information-sheet' ? ['main' => $child['main']] : []) : '#'"
+                                        :href="Route::has($child['route']) ? route($child['route'], $child['query'] ?? (($child['main'] ?? 'information-sheet') !== 'information-sheet' ? ['main' => $child['main']] : [])) : '#'"
                                         :label="$child['label']"
                                         :icon-html="$icon($child['icon'], 'w-4 h-4')"
                                         :active="$navLinkActive($child)"

@@ -429,6 +429,12 @@ class RoadblockController extends Controller
 
         VersionHistory::record($roadblock->startup, 'Roadblock Management', 'recover_roadblock', $roadblock->startup?->company_name, changes: ChangeLog::status('Resolved', 'Pending Review'));
 
+        // Started from the Archive page: go back there.
+        if (request()->input('from') === 'archive') {
+            return redirect()->route('admin.archive.index', ['type' => 'roadblocks'])
+                ->with('status', 'Roadblock recovered to Pending Review.');
+        }
+
         return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'assessment'])
             ->with('status', 'Roadblock recovered to Pending Review.');
     }

@@ -116,7 +116,7 @@
             <h1 class="text-3xl font-bold text-gray-900">Information Sheet</h1>
             <p class="text-gray-500 mt-1">Review and edit the details submitted by {{ $startup->company_name }}.</p>
         </div>
-        <x-version-history-panel :entries="$versionHistory" />
+        <x-version-history-panel :entries="$versionHistory" label="Information Sheet History" />
     </div>
 
     {{-- Flash-hint on the Edit button: a couple of quick outward rings in the

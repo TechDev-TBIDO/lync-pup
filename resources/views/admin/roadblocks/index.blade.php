@@ -208,7 +208,7 @@
                     <p class="mt-1 text-sm text-gray-500 sm:text-base">Review startup roadblocks and assign experts.</p>
                 </div>
 
-                <x-version-history-panel :entries="$roadblockVersionHistory ?? collect()" />
+                <x-version-history-panel :entries="$roadblockVersionHistory ?? collect()" label="Roadblocks History" />
             </div>
 
             <div class="border-b border-gray-200 mb-6">
@@ -669,7 +669,7 @@
                         pointer to move away) can't leave the gradient stuck on until the
                         next tap elsewhere. --}}
                             <button type="button"
-                                x-show="archiveStage !== '{{ $value }}'"
+                                :class="archiveStage === '{{ $value }}' ? 'bg-rose-50 font-semibold text-[#6D0D23]' : ''" :aria-selected="archiveStage === '{{ $value }}'"
                                 @click="archiveStage = '{{ $value }}'; open = false"
                                 class="flex w-full items-center gap-1.5 text-left px-3 py-2 text-sm text-gray-700 transition [@media(hover:hover)]:hover:bg-gradient-to-r [@media(hover:hover)]:hover:from-[#6D0D23] [@media(hover:hover)]:hover:to-[#11386A] [@media(hover:hover)]:hover:text-white">
                                 {{ $label }}

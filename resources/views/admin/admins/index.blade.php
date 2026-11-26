@@ -31,7 +31,7 @@
             </div>
 
             <div class="flex flex-shrink-0 items-center gap-3">
-                <x-version-history-panel :entries="$adminVersionHistory" :show-cohort="false" />
+                <x-version-history-panel :entries="$adminVersionHistory" :show-cohort="false" label="Admin Profile History" />
 
                 <button type="button" @click="inviteOpen = true" class="{{ $addBtn }} hidden sm:flex">
                     <span class="text-lg leading-none">+</span> Invite Admin

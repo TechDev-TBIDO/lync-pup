@@ -130,7 +130,28 @@
             loader.setAttribute('aria-hidden', 'true');
         }
 
-        window.__lyncPageLoader = { show: show, hide: hide };
+        // A short, immediate flash for in-page actions that don't navigate
+        // (e.g. pressing Edit / Fill Out, or moving to the next sheet step),
+        // so every click gets the same visual feedback as a page load.
+        function flash(ms) {
+            clearTimeout(showTimer);
+            loader.classList.add('is-visible');
+            loader.setAttribute('aria-hidden', 'false');
+            clearTimeout(safetyTimer);
+            safetyTimer = setTimeout(hide, ms || 400);
+        }
+
+        // Show right away (no 150ms wait) and keep it up until hide() - for
+        // in-page fetches such as validating a sheet step.
+        function showNow() {
+            clearTimeout(showTimer);
+            loader.classList.add('is-visible');
+            loader.setAttribute('aria-hidden', 'false');
+            clearTimeout(safetyTimer);
+            safetyTimer = setTimeout(hide, 180000);
+        }
+
+        window.__lyncPageLoader = { show: show, showNow: showNow, hide: hide, flash: flash };
 
         // Bubble phase on purpose: element-level handlers (Alpine @click,
         // the unsaved-changes guard) run first, and if they called

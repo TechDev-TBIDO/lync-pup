@@ -66,6 +66,7 @@
             });
         },
         startEdit() {
+            window.__lyncPageLoader?.flash(350);
             this.editing = true;
             this.editNudge = false;
             this.$nextTick(() => {
@@ -141,6 +142,41 @@
         // sharing scope.
         hasPhoto: @js((bool) $startup->startup_photo_path),
 
+        // Instant feedback: a field is checked as soon as it is typed in or
+        // left, and its message says what is wrong and how to fix it (a
+        // concrete example), instead of waiting for the server's response.
+        touched: {},
+        touch(field) { this.touched[field] = true; },
+        fieldError(field) {
+            if (! this.editing || ! this.touched[field]) return '';
+            const v = String(this[field] ?? '').trim();
+            const nameOk = (x) => window.LyncFormat ? window.LyncFormat.nameOk(x) : true;
+            switch (field) {
+                case 'company_name':
+                    return v === '' ? 'Enter your startup name, e.g. AgriLink PH.' : '';
+                case 'industry_sector':
+                    return v === '' ? 'Enter the sector you operate in, e.g. Agriculture, FinTech, HealthTech, EdTech or Food & Beverage.' : '';
+                case 'business_description':
+                    return v.length < 10
+                        ? 'Write at least 10 characters (' + v.length + '/10). Try: For [target customer] who [need], [startup] is a [product type] that [key benefit]. Unlike [alternative], we [what makes you different].'
+                        : '';
+                case 'first_name':
+                case 'last_name':
+                    if (v === '') return 'This name is required, e.g. ' + (field === 'first_name' ? 'Juan' : 'Dela Cruz') + '.';
+                    return nameOk(v) ? '' : 'Use letters, spaces and / - \' . , only (no numbers or other symbols).';
+                case 'middle_name':
+                    return nameOk(v) ? '' : 'Use letters, spaces and / - \' . , only (no numbers or other symbols).';
+                case 'contact_phone':
+                    if (v === '') return 'A phone number is required, e.g. 09171234567.';
+                    return /^(09\d{9}|\+639\d{9})$/.test(v)
+                        ? ''
+                        : 'Use 11 digits starting with 09 (09171234567) or +63 followed by 10 digits (+639171234567).';
+                case 'location':
+                    return v === '' ? 'Enter your business address, e.g. Unit 2, 123 Mabini St., Sta. Mesa, Manila.' : '';
+            }
+            return '';
+        },
+
         get canSave() {
             return this.company_name.trim() !== ''
                 && this.industry_sector.trim() !== ''
@@ -186,13 +222,7 @@
             return (hasPlus ? '+' : '') + digits.slice(0, hasPlus ? 12 : 11);
         },
     }"
-        @click.capture="
-        if (! editing
-            && $event.target.matches('input, textarea, select')
-            && ! $event.target.matches('[type=file], [type=hidden], [disabled]')) {
-            nudgeEdit($event.target);
-        }
-    "
+        @click.capture="! editing && $event.target.matches('input, textarea, select') && ! $event.target.matches('[type=file], [type=hidden], [disabled]') && nudgeEdit($event.target)"
         x-init="
         $watch('dirty', value => {
             $store.navigation.hasUnsavedChanges = value;
@@ -222,19 +252,48 @@
                 </p>
             </div>
 
-            <div class="relative">
+            {{-- "Fill Out" until the profile has been saved once, "Edit Profile"
+                 after that; while editing, Save lives here at the top (with
+                 Cancel beside it) so the founder never scrolls down to save. --}}
+            <div class="relative flex flex-col items-end gap-1">
+            <div class="flex items-center gap-2">
+            <button
+                type="button"
+                x-show="editing"
+                x-cloak
+                @click="cancelEdit()"
+                class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100">
+                Cancel
+            </button>
+
             <button
                 type="button"
                 x-ref="editButton"
-                @click="editing ? cancelEdit() : startEdit()"
-                class="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition"
-                :class="[editing
-        ? 'border border-gray-300 text-gray-700 hover:bg-gray-100'
-        : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-90',
-        editNudge ? 'edit-nudge' : '']">
-
-                <span x-text="editing ? 'Cancel' : 'Edit Profile'"></span>
+                x-show="! editing"
+                @click="startEdit()"
+                class="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-90"
+                :class="editNudge ? 'edit-nudge' : ''">
+                {{ $profileSavedOnce ? 'Edit Profile' : 'Fill Out' }}
             </button>
+
+            <button
+                type="submit"
+                form="startup-profile-form"
+                x-show="editing"
+                x-cloak
+                @click="if (! canSave) { ['company_name','industry_sector','business_description','first_name','last_name','contact_phone','location'].forEach(f => touch(f)); }"
+                :disabled="!dirty"
+                :class="dirty
+                    ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-90'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                class="rounded-lg px-5 py-2.5 text-sm font-medium transition">
+                Save
+            </button>
+            </div>
+
+            <p x-show="editing && !canSave" x-cloak class="text-xs text-gray-500">
+                Fill in every required field (marked with <span class="text-red-500">*</span>) before saving.
+            </p>
 
             {{-- Hint shown when a field is clicked before pressing Edit Profile. --}}
             <div x-show="editNudge" x-cloak
@@ -247,7 +306,7 @@
                 class="absolute right-0 top-full mt-2 z-20 whitespace-nowrap rounded-lg bg-[#11386A] px-3 py-2 text-xs font-medium text-white shadow-lg"
                 role="status">
                 <span class="absolute -top-1 right-6 h-2 w-2 rotate-45 bg-[#11386A]"></span>
-                Click <span class="font-semibold">Edit Profile</span> first to make changes
+                Click <span class="font-semibold">{{ $profileSavedOnce ? 'Edit Profile' : 'Fill Out' }}</span> first to make changes
             </div>
             </div>
 
@@ -260,9 +319,20 @@
                 <form
                     method="POST"
                     id="startup-profile-form"
+                    novalidate
                     action="{{ route('startup.profile.update') }}"
                     enctype="multipart/form-data"
                     @submit="
+        if (! canSave) {
+            $event.preventDefault();
+            ['company_name','industry_sector','business_description','first_name','last_name','contact_phone','location'].forEach(f => touch(f));
+            $nextTick(() => {
+                const bad = $el.querySelector('[data-field-error]:not([style*=\'display: none\'])');
+                bad && bad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            if (! hasPhoto) $store.toast.error('Startup photo required', 'Add a startup photo using the pencil on the Startup Overview card.');
+            return;
+        }
         if (! checkWebsite()) {
             $event.preventDefault();
             $nextTick(() => { const w = $el.querySelector('[name=website]'); w && (w.scrollIntoView({ behavior: 'smooth', block: 'center' }), w.focus()); });
@@ -282,14 +352,17 @@
                             <input
                                 type="text"
                                 name="company_name"
+                                placeholder="e.g. AgriLink PH"
+                                @blur="touch('company_name')"
                                 x-model="company_name"
                                 required
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                 class="w-full border rounded-lg px-3 py-2 text-sm"
-                                @input="dirty = true">
+                                @input="dirty = true; touch('company_name')">
 
-                            @error('company_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                            <p x-show="fieldError('company_name')" x-cloak data-field-error x-text="fieldError('company_name')" class="text-xs text-red-600 mt-1"></p>
+                                @error('company_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                         </div>
 
                         <div class="grid grid-cols-3 gap-4 mb-4">
@@ -298,13 +371,16 @@
                                 <input
                                     type="text"
                                     name="industry_sector"
+                                placeholder="e.g. Agriculture, FinTech, HealthTech, EdTech"
+                                @blur="touch('industry_sector')"
                                     x-model="industry_sector"
                                     required
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
-                                    @input="dirty = true">
+                                    @input="dirty = true; touch('industry_sector')">
 
+                                <p x-show="fieldError('industry_sector')" x-cloak data-field-error x-text="fieldError('industry_sector')" class="text-xs text-red-600 mt-1"></p>
                                 @error('industry_sector') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
@@ -339,22 +415,25 @@
                             <textarea
                                 name="business_description"
                                 rows="4"
+                                placeholder="e.g. For smallholder farmers who lose income to middlemen, AgriLink PH is a mobile marketplace that connects them directly with restaurants and grocers. Unlike traditional traders, we guarantee same-week payment and fair, transparent prices."
+                                @blur="touch('business_description')"
                                 x-model="business_description"
                                 required
                                 minlength="10"
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                 class="w-full border rounded-lg px-3 py-2 text-sm"
-                                @input="dirty = true"></textarea>
+                                @input="dirty = true; touch('business_description')"></textarea>
 
                             {{-- Mirrors the server's min:10 rule (see
                                  UpdateStartupProfileRequest) so founders see
                                  the requirement before they hit Save, not
                                  only after a rejected submit. --}}
-                            <p x-show="editing" x-cloak
-                                class="text-xs mt-1"
-                                :class="business_description.trim().length >= 10 ? 'text-gray-400' : 'text-red-500'"
+                            <p x-show="editing && !fieldError('business_description')" x-cloak
+                                class="text-xs mt-1 text-gray-400"
                                 x-text="business_description.trim().length + ' / 10 characters minimum'"></p>
+
+                            <p x-show="fieldError('business_description')" x-cloak data-field-error x-text="fieldError('business_description')" class="text-xs text-red-600 mt-1"></p>
 
                             @error('business_description')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -371,13 +450,16 @@
                                 <input
                                     type="text"
                                     name="first_name"
+                                placeholder="e.g. Juan"
+                                @blur="touch('first_name')"
                                     data-person-name
                                     x-model="first_name"
                                     required
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
-                                    @input="dirty = true">
+                                    @input="dirty = true; touch('first_name')">
+                                <p x-show="fieldError('first_name')" x-cloak data-field-error x-text="fieldError('first_name')" class="text-xs text-red-600 mt-1"></p>
                                 @error('first_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
@@ -385,12 +467,15 @@
                                 <input
                                     type="text"
                                     name="middle_name"
+                                placeholder="e.g. Santos (optional)"
+                                @blur="touch('middle_name')"
                                     data-person-name
                                     x-model="middle_name"
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
-                                    @input="dirty = true">
+                                    @input="dirty = true; touch('middle_name')">
+                                <p x-show="fieldError('middle_name')" x-cloak data-field-error x-text="fieldError('middle_name')" class="text-xs text-red-600 mt-1"></p>
                                 @error('middle_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
@@ -398,13 +483,16 @@
                                 <input
                                     type="text"
                                     name="last_name"
+                                placeholder="e.g. Dela Cruz"
+                                @blur="touch('last_name')"
                                     data-person-name
                                     x-model="last_name"
                                     required
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
-                                    @input="dirty = true">
+                                    @input="dirty = true; touch('last_name')">
+                                <p x-show="fieldError('last_name')" x-cloak data-field-error x-text="fieldError('last_name')" class="text-xs text-red-600 mt-1"></p>
                                 @error('last_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -423,6 +511,8 @@
                                 <input
                                     type="text"
                                     name="contact_phone"
+                                placeholder="e.g. 09171234567 or +639171234567"
+                                @blur="touch('contact_phone')"
                                     inputmode="tel"
                                     data-ph-mobile
                                     :value="contact_phone"
@@ -433,18 +523,15 @@
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
-                                    @input="contact_phone = sanitizePhone($event.target.value); $event.target.value = contact_phone; dirty = true">
+                                    @input="contact_phone = sanitizePhone($event.target.value); $event.target.value = contact_phone; dirty = true; touch('contact_phone')">
 
-                                {{-- Format only, not a real-number lookup: digits and a
-                                     leading + only, matching the server's regex (see
-                                     UpdateStartupProfileRequest). --}}
-                                <p x-show="editing && contact_phone.trim() !== ''" x-cloak
-                                    class="text-xs mt-1"
-                                    :class="/^(09\d{9}|\+639\d{9})$/.test(contact_phone.trim()) ? 'text-gray-400' : 'text-red-500'"
-                                    x-text="/^(09\d{9}|\+639\d{9})$/.test(contact_phone.trim())
-                                        ? 'Valid format'
-                                        : 'Enter a valid Philippine mobile number, for example 09171234567 or +639171234567.'"></p>
+                                {{-- Format only, not a real-number lookup (same regex as
+                                     UpdateStartupProfileRequest); the message comes
+                                     from fieldError(). --}}
+                                <p x-show="editing && !fieldError('contact_phone') && /^(09\d{9}|\+639\d{9})$/.test(contact_phone.trim())" x-cloak
+                                    class="text-xs mt-1 text-green-600">Valid format</p>
 
+                                <p x-show="fieldError('contact_phone')" x-cloak data-field-error x-text="fieldError('contact_phone')" class="text-xs text-red-600 mt-1"></p>
                                 @error('contact_phone') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -456,7 +543,7 @@
                                     type="text"
                                     name="website"
                                     x-model="website"
-                                    placeholder="https://"
+                                    placeholder="e.g. https://www.agrilink.ph"
                                     :readonly="!editing"
                                     :class="[editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default', websiteError ? 'border-red-500' : '']"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
@@ -470,12 +557,15 @@
                                 <input
                                     type="text"
                                     name="location"
+                                placeholder="e.g. Unit 2, 123 Mabini St., Sta. Mesa, Manila"
+                                @blur="touch('location')"
                                     x-model="location"
                                     required
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
-                                    @input="dirty = true">
+                                    @input="dirty = true; touch('location')">
+                                <p x-show="fieldError('location')" x-cloak data-field-error x-text="fieldError('location')" class="text-xs text-red-600 mt-1"></p>
                                 @error('location') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -540,7 +630,7 @@
                                         :name="'new_team_members[' + index + ']'"
                                         data-person-name
                                         x-model="newMembers[index]"
-                                        placeholder="New team member name"
+                                        placeholder="Full name, e.g. Maria Clara Reyes"
                                         class="w-full border rounded-lg px-3 py-2 text-sm"
                                         @input="dirty = true">
 
@@ -570,23 +660,7 @@
                         @error('team_members') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <div x-show="editing" x-transition class="mt-6 flex flex-col items-end gap-2">
-
-                        <p x-show="!canSave" x-cloak class="text-xs text-gray-500">
-                            Fill in every required field (marked with <span class="text-red-500">*</span>) before saving.
-                        </p>
-
-                        <button
-                            type="submit"
-                            :disabled="!canSave || !dirty"
-                            :class="(canSave && dirty)
-                                ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-90'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
-                            class="text-sm font-medium rounded-lg px-5 py-2.5 transition">
-                            Save Changes
-                        </button>
-
-                    </div>
+                    {{-- Save moved to the top bar (next to Cancel). --}}
                 </form>
             </div>
 

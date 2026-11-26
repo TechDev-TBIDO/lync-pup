@@ -66,7 +66,7 @@
                     <p class="text-gray-500 mt-1">Monitor readiness, detect weak spots, and act on each startup.</p>
                 </div>
 
-                <x-version-history-panel :entries="$startupVersionHistory ?? collect()" />
+                <x-version-history-panel :entries="$startupVersionHistory ?? collect()" label="Startup Profile History" />
             </div>
 
             {{--

@@ -89,6 +89,24 @@ class CohortController extends Controller
     }
 
     /**
+     * Undo "Archive/End Cohort" from the Archive page: the cohort is Active
+     * again (its call for applications stays closed until reopened).
+     */
+    public function unarchive(Cohort $cohort): RedirectResponse
+    {
+        if (! $cohort->isArchived()) {
+            return redirect()->route('admin.archive.index', ['type' => 'cohorts']);
+        }
+
+        $changes = ChangeLog::track($cohort, HistoryFields::cohort(), fn () => $cohort->update(['status' => 'Active']));
+
+        VersionHistory::record(null, 'Cohort Management', 'unarchive_cohort', $cohort->display_label, changes: $changes, cohortNumber: $cohort->number);
+
+        return redirect()->route('admin.archive.index', ['type' => 'cohorts'])
+            ->with('status', $cohort->display_label.' is active again.');
+    }
+
+    /**
      * Opens or closes this cohort's call for applications. Opening it closes
      * any other cohort's call, so there is never more than one open call:
      * that's the cohort new founders are placed into when they sign up.

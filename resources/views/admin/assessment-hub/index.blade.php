@@ -147,7 +147,7 @@
                     @endforeach
                 </div>
 
-                <x-version-history-panel :entries="$informationSheetVersionHistory ?? collect()" label="Information Sheet History" />
+                <x-version-history-panel :entries="$informationSheetVersionHistory ?? collect()" label="New Applicants History" />
             </div>
 
             <div x-show="subTab === 'schedule'">
