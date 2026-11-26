@@ -37,7 +37,7 @@ class RoadblockStatusUpdated extends FounderNotification
 
     public function action(): string
     {
-        return 'Open Submissions';
+        return 'Open Roadblocks';
     }
 
     public function icon(): string

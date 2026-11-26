@@ -105,10 +105,10 @@
                 <p class="text-xs text-gray-600">Your evaluation on {{ $scheduledEvaluation->evaluation_date->format('F j, Y') }} ({{ $scheduledEvaluation->time_range_label }}) was missed. Your Information Sheet stays locked until TBIDO sets a new evaluation schedule - check your Meeting tab.</p>
                 @elseif ($scheduledEvaluation)
                 <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Evaluation Scheduled</p>
-                <p class="text-xs text-gray-600">Your evaluation is set for {{ $scheduledEvaluation->evaluation_date->format('F j, Y') }}. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
+                <p class="text-xs text-gray-600">Your evaluation is set for {{ $scheduledEvaluation->evaluation_date->format('F j, Y') }}. Your Meeting tab is already open - Request (Roadblocks) and Readiness Result unlock once the sheet is approved.</p>
                 @else
                 <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Awaiting Evaluation Schedule</p>
-                <p class="text-xs text-gray-600">TBIDO is reviewing TBIDO Form No.001. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
+                <p class="text-xs text-gray-600">TBIDO is reviewing TBIDO Form No.001. Your Meeting tab is already open - Request (Roadblocks) and Readiness Result unlock once the sheet is approved.</p>
                 @endif
             </div>
         </div>

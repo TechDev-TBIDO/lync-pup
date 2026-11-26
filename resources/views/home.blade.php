@@ -336,6 +336,20 @@
                     <p class="text-center text-sm text-gray-600 mt-6">
                         New founder? <button type="button" @click="switchTo('signup')" class="font-semibold text-rose-800 hover:underline">Apply now</button>
                     </p>
+
+                    {{-- Service notice in the space under the form, so users
+                         know slowness is expected while hosting is limited. --}}
+                    <div class="mt-8 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-left" role="note">
+                        <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="9" />
+                            <path stroke-linecap="round" d="M12 8v4.5M12 16h.01" />
+                        </svg>
+                        <div class="text-xs leading-relaxed text-amber-900">
+                            <p class="font-semibold">Announcement</p>
+                            <p class="mt-1">The portal is currently undergoing performance optimizations, though all core features remain operational. Thank you for your patience as we work within limited hosting resources.</p>
+                            <p class="mt-2">Best regards,<br><span class="font-semibold">Team ICO</span></p>
+                        </div>
+                    </div>
                 </section>
 
                 {{-- Sign up --}}

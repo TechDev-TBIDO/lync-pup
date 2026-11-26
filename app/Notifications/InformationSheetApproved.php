@@ -17,7 +17,7 @@ class InformationSheetApproved extends FounderNotification
 
     public function body(): string
     {
-        return 'TBIDO Form No.001 has been approved. Submission and Readiness Result are now unlocked.';
+        return 'TBIDO Form No.001 has been approved. Request (Roadblocks) and Readiness Result are now unlocked.';
     }
 
     public function route(): string

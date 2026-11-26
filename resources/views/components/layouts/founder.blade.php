@@ -103,7 +103,9 @@
             ['route' => 'startup.information-sheet.edit', 'label' => 'Information Sheet', 'icon' => 'info-sheet.svg', 'lock' => $lockUntilProfile],
             ]],
             ['route' => 'startup.meetings.index', 'label' => 'Meeting', 'icon' => 'coordProfile.svg', 'lock' => $lockUntilSubmission],
-            ['route' => 'startup.submissions.index', 'label' => 'Submission', 'icon' => 'assessmentHub.svg', 'lock' => $lockUntilApproval],
+            ['key' => 'request', 'label' => 'Request', 'icon' => 'assessmentHub.svg', 'children' => [
+            ['route' => 'startup.submissions.index', 'label' => 'Roadblocks', 'icon' => 'roadblock.svg', 'lock' => $lockUntilApproval],
+            ]],
             ['route' => 'startup.readiness.index', 'label' => 'Readiness Result', 'icon' => 'riskMon.svg', 'lock' => $lockUntilApproval],
             ];
             @endphp

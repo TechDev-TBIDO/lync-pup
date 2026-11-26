@@ -56,8 +56,8 @@ class EnsureFounderStage
                 $request,
                 'startup.information-sheet.edit',
                 $startup->hasSubmittedInformationSheet()
-                    ? 'Your Information Sheet is waiting for TBIDO approval. Submission and Readiness Result unlock once it is approved.'
-                    : 'Submit your Information Sheet first — Submission and Readiness Result unlock once it is approved.'
+                    ? 'Your Information Sheet is waiting for TBIDO approval. Request (Roadblocks) and Readiness Result unlock once it is approved.'
+                    : 'Submit your Information Sheet first — Request (Roadblocks) and Readiness Result unlock once it is approved.'
             );
         }
 
